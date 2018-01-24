@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package remote;
+option java_package = "io.grpc.remote";
+
+service RemoteAppService{
+	rpc CheckTx(ClientCheckCmd) returns (ServerCheckRes);
+	rpc Execute(stream ClientCmd) returns (stream ServerCmd); 
+}
+
+message ClientCheckCmd{
+	string AccountID = 1;
+	bytes Tx = 2;	
+}
+
+enum CodeType{
+	OK = 0;
+	CmdNotFound= 1;
+	DataNotFound = 2;
+	MsgMissParam = 3;
+	ExternalErr = 4;
+	AccNotFound = 5;
+}
+
+message PbResult{
+	CodeType Code = 1;
+	bytes Data = 2;
+	string Log = 3;
+} 
+
+message ServerCheckRes{
+	PbResult Result = 1;
+}
+
+//=====================C->S Cmd======================================
+
+enum C_CmdType{
+	CNone = 0;
+	Tx = 1;
+	AddDataRes = 2;
+	DelDataRes = 3; 
+	ModifyDataRes = 4;
+	QueryDataRes = 5;
+	CCmdResult = 6;
+}
+
+message C_TxCmd{
+	bytes Tx = 1;
+	int64 BlockHeight = 2;
+}
+
+message C_AddDataCmd{
+	PbResult Result = 1;
+}
+
+message C_DelDataCmd{
+	bytes Value = 1;
+	PbResult Result = 2;
+}
+
+message C_ModifyDataCmd{
+	PbResult Result = 1;
+}
+
+message C_QueryDataCmd{
+	bytes Value = 1;
+	PbResult Result = 2;
+}
+
+//=====================S->C Cmd======================================
+
+enum S_CmdType{
+	SNone = 0;
+	AddData = 1;
+	DelData = 2;
+	ModifyData = 3;
+	QueryData = 4;
+	Receipt = 5; // Data is receipt
+}
+
+message S_AddDataCmd{
+	string Key = 1;
+	bytes Value = 2;
+}
+
+message S_DelDataCmd{
+	string Key = 1;
+}
+
+message S_ModifyDataCmd{
+	string Key = 1;
+	bytes Value = 2;
+}
+
+message S_QueryDataCmd{
+	string Key = 1;
+}
+
+//====================Client Cmd==================================
+
+message ClientCmd{
+	bytes Hash = 1;
+	string AccountID = 2;
+	C_CmdType Type = 3;
+	bytes Data = 4;
+}
+
+//====================Server Cmd=======================================
+
+message ServerCmd{
+	bytes Hash = 1;
+	S_CmdType Type = 2;
+	bytes Data = 3;
+}
+
