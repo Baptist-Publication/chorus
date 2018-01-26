@@ -1,4 +1,4 @@
-// Copyright © 2017 ZhongAn Technology
+// Copyright © 2017 Baptist-Publication Technology
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -29,9 +29,9 @@ import (
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use:   "ann",
-	Short: "Proof-of-stake blockchain from ZhongAn Technology",
+	Short: "Proof-of-stake blockchain from Baptist-Publication Technology",
 	Long: `
-This is the binary of the Annchain developed by ZhongAn Technology.
+This is the binary of the Annchain developed by Baptist-Publication Technology.
 The project's code name is chorus, cause we wanna mimic the structure of Human chorus. With our annchain, you can run multiple subchains in each node simultaneously to form a very sophisticated network which will represent your role in many different organizations.
 `,
 	Run: func(cmd *cobra.Command, args []string) {

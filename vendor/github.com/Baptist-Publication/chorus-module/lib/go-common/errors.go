@@ -1,4 +1,4 @@
-// Copyright 2017 ZhongAn Information Technology Services Co.,Ltd.
+// Copyright 2017 Baptist-Publication Information Technology Services Co.,Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
