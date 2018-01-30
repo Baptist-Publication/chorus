@@ -3,7 +3,7 @@
 ----------    
 ## How to run    
 
-  step 1: *go get github.com/Baptist-Publication/chorus*   
+  step 1: *git clone github.com/Baptist-Publication/chorus*   
 
   step 2: *make chorus*   
 
