@@ -27,10 +27,6 @@ var (
 				Name:   "net",
 				Action: netInfo,
 			},
-			cli.Command{
-				Name:   "num_archived_blocks",
-				Action: numArchivedBlocks,
-			},
 		},
 	}
 )
@@ -96,24 +92,5 @@ func netInfo(ctx *cli.Context) error {
 			" send status :", p.ConnectionStatus.SendMonitor.Active,
 			" recieve status :", p.ConnectionStatus.RecvMonitor.Active)
 	}
-	return nil
-}
-
-func numArchivedBlocks(ctx *cli.Context) error {
-
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("chainid is missing", 127)
-	}
-	chainID := ctx.GlobalString("target")
-	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
-	_, err := clientJSON.Call("num_archived_blocks", []interface{}{chainID}, tmResult)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	res := (*tmResult).(*types.ResultNumArchivedBlocks)
-
-	fmt.Println("num of archived blocks: ", res.Num)
 	return nil
 }

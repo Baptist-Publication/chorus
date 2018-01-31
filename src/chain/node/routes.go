@@ -66,7 +66,6 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 		"dump_consensus_state": rpc.NewRPCFunc(h.DumpConsensusState, argsWithChainID("")),
 		"unconfirmed_txs":      rpc.NewRPCFunc(h.UnconfirmedTxs, argsWithChainID("")),
 		"num_unconfirmed_txs":  rpc.NewRPCFunc(h.NumUnconfirmedTxs, argsWithChainID("")),
-		"num_archived_blocks":  rpc.NewRPCFunc(h.NumArchivedBlocks, argsWithChainID("")),
 		"za_surveillance":      rpc.NewRPCFunc(h.ZaSurveillance, argsWithChainID("")),
 		"core_version":         rpc.NewRPCFunc(h.CoreVersion, argsWithChainID("")),
 
@@ -239,14 +238,6 @@ func (h *rpcHandler) NumUnconfirmedTxs(chainID string) (agtypes.RPCResult, error
 		return nil, ErrInvalidChainID
 	}
 	return &agtypes.ResultUnconfirmedTxs{N: org.Angine.GetNumUnconfirmedTxs(), Txs: nil}, nil
-}
-
-func (h *rpcHandler) NumArchivedBlocks(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	return &agtypes.ResultNumArchivedBlocks{org.Angine.OriginHeight()}, nil
 }
 
 func (h *rpcHandler) UnsafeFlushMempool(chainID string) (agtypes.RPCResult, error) {

@@ -15,7 +15,6 @@ service RpcService{
 	rpc DumpConsensusState(CmdChainID) returns(types.ResultDumpConsensusState){}
 	rpc UnconfirmedTxs(CmdChainID) returns (types.ResultUnconfirmedTxs){}
 	rpc NumUnconfirmedTxs(CmdChainID) returns (types.ResultUnconfirmedTxs){}
-	rpc NumArchivedBlocks(CmdChainID) returns(types.ResultNumArchivedBlocks){}
 	rpc ZaSurveillance(CmdChainID) returns(types.ResultSurveillance){}
 	rpc CoreVersion(CmdChainID) returns(types.ResultCoreVersion){}
 	rpc BroadcastTxCommit(CmdBroadcastTx) returns (types.ResultBroadcastTxCommit){}
