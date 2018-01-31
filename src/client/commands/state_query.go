@@ -18,8 +18,6 @@ import (
 	cl "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
 	civil "github.com/Baptist-Publication/chorus/src/chain/node"
 	"github.com/Baptist-Publication/chorus/src/client/commons"
-	exsdk "github.com/Baptist-Publication/chorus/src/example/sdk"
-	extypes "github.com/Baptist-Publication/chorus/src/example/types"
 )
 
 var (
@@ -72,14 +70,6 @@ var (
 				Action: queryEventCode,
 				Flags: []cli.Flag{
 					anntoolFlags.codeHash,
-				},
-			},
-			{
-				Name:   "rmtreceipt",
-				Usage:  "",
-				Action: queryRemoteReceipt,
-				Flags: []cli.Flag{
-					anntoolFlags.hash,
 				},
 			},
 			{
@@ -211,33 +201,6 @@ func queryReceipt(ctx *cli.Context) error {
 	}
 	receiptJSON, _ := json.Marshal(receiptForStorage)
 	fmt.Println("query result:", string(receiptJSON))
-
-	return nil
-}
-
-func queryRemoteReceipt(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("target chainid is missing", 127)
-	}
-	chainID := ctx.GlobalString("target")
-	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
-	hashHex := ac.SanitizeHex(ctx.String("hash"))
-	hash := common.Hex2Bytes(hashHex)
-	query := append([]byte{3}, hash...)
-	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	res := (*tmResult).(*types.ResultQuery)
-
-	receipt := extypes.ExternalReceipt{}
-	err = exsdk.ToMsg(res.Result.Data, &receipt)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	fmt.Println("query result:", receipt)
 
 	return nil
 }
