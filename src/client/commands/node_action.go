@@ -14,6 +14,7 @@ import (
 	//anginetypes "github.com/Baptist-Publication/angine/types"
 	gcommon "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/src/chain/node"
 	"github.com/Baptist-Publication/chorus/src/client/commons"
@@ -135,7 +136,8 @@ func (act nodeActions) ChangeNodeBalance(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	hash, _ := tools.TxHash(tx)
+	//hash, _ := tools.TxHash(tx)
+	hash := merkle.SimpleHashFromBinary(txbytes)
 	fmt.Println("send ok :", hex.EncodeToString(hash))
 
 	return nil
@@ -191,7 +193,8 @@ func (act nodeActions) Mortgage(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	hash, _ := tools.TxHash(tx)
+	//hash, _ := tools.TxHash(tx)
+	hash := merkle.SimpleHashFromBinary(txbytes)
 	fmt.Println("send ok :", hex.EncodeToString(hash))
 
 	return nil
@@ -247,7 +250,8 @@ func (act nodeActions) Redemption(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	hash, _ := tools.TxHash(tx)
+	//hash, _ := tools.TxHash(tx)
+	hash := merkle.SimpleHashFromBinary(txbytes)
 	fmt.Println("send ok :", hex.EncodeToString(hash))
 
 	return nil
