@@ -6,7 +6,9 @@ import (
 	"math/big"
 
 	agtypes "github.com/Baptist-Publication/angine/types"
+	agutils "github.com/Baptist-Publication/angine/utils"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	cvtools "github.com/Baptist-Publication/chorus/src/tools"
 	cvtypes "github.com/Baptist-Publication/chorus/src/types"
 	"github.com/pkg/errors"
@@ -78,11 +80,11 @@ func (met *Metropolis) executeEcoInitAllocTx(tx *EcoInitAllocTx) error {
 	return nil
 }
 
-func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height agtypes.INT) error {
+func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 
-	if tx.Amount.Cmp(big.NewInt(0)) < 0 {
+	if tx.Amount.Cmp(cvtypes.BigInt0()) < 0 {
 		return errors.New("amount cannot be negtive")
 	}
 
@@ -114,11 +116,11 @@ func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height agtypes.IN
 	return nil
 }
 
-func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height agtypes.INT) error {
+func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 
-	if height < StartRedeemHeight {
+	if height < def.StartRedeemHeight {
 		return errors.New("Operation is not allow right now")
 	}
 
@@ -135,7 +137,7 @@ func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height agtype
 	}
 
 	_, vSet := met.node.MainOrg.Angine.GetValidators()
-	if vSet.HasAddress(from.Address()) {
+	if vSet.HasAddress(from.Address(agutils.LoadHeight(met.core.GetChainID()))) {
 		// operator is validator now, cannot redeem right now, but we mark its MHeight as -1
 		met.powerState.MarkPower(&from, -1)
 
@@ -160,7 +162,7 @@ func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height agtype
 	return nil
 }
 
-func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height agtypes.INT) error {
+func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height def.INT) error {
 	var from, to crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 	copy(to[:], tx.To)

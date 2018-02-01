@@ -26,6 +26,7 @@ type AnntoolFlags struct {
 	rpc,
 	chainid,
 	to,
+	height,
 	codeHash cli.Flag
 }
 
@@ -100,5 +101,8 @@ var anntoolFlags = AnntoolFlags{
 	codeHash: cli.StringFlag{
 		Name:  "code_hash",
 		Value: "",
+	},
+	height: cli.IntFlag{
+		Name: "blockheight",
 	},
 }

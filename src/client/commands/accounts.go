@@ -29,6 +29,7 @@ var (
 				Category: "Account",
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
+					anntoolFlags.height,
 				},
 			},
 		},
@@ -49,17 +50,21 @@ func calculatePrivPubAddr(ctx *cli.Context) error {
 	if !ctx.IsSet("privkey") {
 		return cli.NewExitError("private key is required", -1)
 	}
+	if !ctx.IsSet("height") {
+		return cli.NewExitError("height is required", -1)
+	}
 
 	skBs, err := hex.DecodeString(gcommon.SanitizeHex(ctx.String("privkey")))
 	if err != nil {
 		return cli.NewExitError(err.Error(), -1)
 	}
+	height := ctx.Int64("height")
 
 	var sk crypto.PrivKeyEd25519
 	copy(sk[:], skBs)
 
 	pk := sk.PubKey().(*crypto.PubKeyEd25519)
-	addr := pk.Address()
+	addr := pk.Address(height)
 
 	fmt.Printf("pubkey : %X\n", pk[:])
 	fmt.Printf("address: %X\n", addr)

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"time"
 
-	agtypes "github.com/Baptist-Publication/angine/types"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	civiltypes "github.com/Baptist-Publication/chorus/src/types"
 )
 
@@ -43,12 +43,12 @@ type EventSubscribeTx struct {
 type EventNotificationTx struct {
 	civiltypes.CivilTx
 
-	Listener  string      `json:"listener"`
-	Source    string      `json:"source"`
-	Height    agtypes.INT `json:"height"`
-	DataHash  []byte      `json:"datahash"`
-	RelatedTx []byte      `json:"relatedtx"`
-	Time      time.Time   `json:"time"`
+	Listener  string    `json:"listener"`
+	Source    string    `json:"source"`
+	Height    def.INT   `json:"height"`
+	DataHash  []byte    `json:"datahash"`
+	RelatedTx []byte    `json:"relatedtx"`
+	Time      time.Time `json:"time"`
 }
 
 type EventUnsubscribeTx struct {

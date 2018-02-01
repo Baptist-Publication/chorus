@@ -15,6 +15,7 @@ import (
 	pbtypes "github.com/Baptist-Publication/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/Baptist-Publication/chorus/src/tools"
 )
 
@@ -101,9 +102,9 @@ type (
 
 	// Engine defines the consensus engine
 	Engine interface {
-		GetBlock(agtypes.INT) (*agtypes.BlockCache, *pbtypes.BlockMeta, error)
-		GetBlockMeta(agtypes.INT) (*pbtypes.BlockMeta, error)
-		GetValidators() (agtypes.INT, *agtypes.ValidatorSet)
+		GetBlock(def.INT) (*agtypes.BlockCache, *pbtypes.BlockMeta, error)
+		GetBlockMeta(def.INT) (*pbtypes.BlockMeta, error)
+		GetValidators() (def.INT, *agtypes.ValidatorSet)
 		PrivValidator() *agtypes.PrivValidator
 		BroadcastTx([]byte) error
 		Query(byte, []byte) (interface{}, error)
@@ -146,7 +147,7 @@ type (
 	// EventSubscriber defines interfaces for being compatible with event system
 	EventSubscriber interface {
 		// IncomingEvent returns App's decision about whether to fetch this new event
-		IncomingEvent(from string, height agtypes.INT) bool
+		IncomingEvent(from string, height def.INT) bool
 
 		ConfirmEvent(tx *EventNotificationTx) error
 
@@ -306,7 +307,7 @@ func (app *EventAppBase) PublishEvent(data []EventData, block *agtypes.BlockCach
 }
 
 // IncomingEvent is set true by default
-func (app *EventAppBase) IncomingEvent(_ string, _ agtypes.INT) bool {
+func (app *EventAppBase) IncomingEvent(_ string, _ def.INT) bool {
 	return true
 }
 
@@ -387,7 +388,7 @@ func (app *EventAppBase) ExecuteTx(bs []byte, validators *agtypes.ValidatorSet) 
 	threshold := validators.Size()*2/3 + 1
 	pubkey, _ := app.core.GetPublicKey()
 	privkey, _ := app.core.GetPrivateKey()
-	cm := NewCoSiModule(app.logger, privkey, validators)
+	cm := NewCoSiModule(app.logger, app.core.GetChainID(), privkey, validators)
 	if !bytes.Equal(cositx.Leader, pubkey[:]) {
 		// potential follower
 

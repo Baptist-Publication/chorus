@@ -21,18 +21,18 @@ import (
 	ac "github.com/Baptist-Publication/angine/config"
 	pbtypes "github.com/Baptist-Publication/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/angine/types"
+	agutils "github.com/Baptist-Publication/angine/utils"
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/xlib"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	acfg "github.com/Baptist-Publication/chorus/src/chain/config"
 	"github.com/Baptist-Publication/chorus/src/chain/log"
 )
 
 const (
 	BASE_APP_NAME = "metropolis"
-
-	StartRedeemHeight = 15000
 )
 
 type (
@@ -46,7 +46,7 @@ type (
 	// that we need to make the application consistency verifiable
 	MetropolisState struct {
 		OrgStateHash   []byte
-		OrgHeights     []agtypes.INT
+		OrgHeights     []def.INT
 		EventStateHash []byte
 		AccStateHash   []byte
 		PowerStateHash []byte
@@ -98,7 +98,7 @@ type (
 
 	// LastBlockInfo is just a must for every angine-based application
 	LastBlockInfo struct {
-		Height agtypes.INT `msgpack:"height"`
+		Height def.INT `msgpack:"height"`
 		// hash from the top level state
 		Hash []byte `msgpack:"hash"`
 	}
@@ -131,7 +131,7 @@ func NewMetropolis(logger *zap.Logger, conf *viper.Viper) *Metropolis {
 		logger: logger,
 
 		state: &MetropolisState{
-			OrgHeights:     make([]agtypes.INT, 0),
+			OrgHeights:     make([]def.INT, 0),
 			OrgStateHash:   make([]byte, 0),
 			EventStateHash: make([]byte, 0),
 			AccStateHash:   make([]byte, 0),
@@ -273,7 +273,7 @@ func (met *Metropolis) Start() error {
 	}
 
 	for _, height := range met.state.OrgHeights {
-		block, _, err := met.core.GetEngine().GetBlock(agtypes.INT(height))
+		block, _, err := met.core.GetEngine().GetBlock(def.INT(height))
 		if err != nil {
 			return err
 		}
@@ -306,7 +306,7 @@ func (met *Metropolis) GetAttributes() map[string]string {
 func (met *Metropolis) CompatibleWithAngine() {}
 
 // OnCommit persists state that we define to be consistent in a cross-block way
-func (met *Metropolis) OnCommit(height, round agtypes.INT, block *agtypes.BlockCache) (interface{}, error) {
+func (met *Metropolis) OnCommit(height, round def.INT, block *agtypes.BlockCache) (interface{}, error) {
 	var err error
 
 	if met.state.OrgStateHash, err = met.OrgState.Commit(); err != nil {
@@ -582,14 +582,14 @@ func CalcVP(base int, position int) uint64 {
 }
 
 func (met *Metropolis) ValSetLoader() agtypes.ValSetLoaderFunc {
-	return func(height, round agtypes.INT, size int) *agtypes.ValidatorSet {
+	return func(height, round def.INT, size int) *agtypes.ValidatorSet {
 		vals := met.fakeRandomVals(height, round, size)
 
 		return agtypes.NewValidatorSet(vals)
 	}
 }
 
-func (met *Metropolis) fakeRandomVals(height, round agtypes.INT, size int) []*agtypes.Validator {
+func (met *Metropolis) fakeRandomVals(height, round def.INT, size int) []*agtypes.Validator {
 	pwrs := make([]*Power, 0, 21)
 
 	// Iterate power list of world state
@@ -611,12 +611,13 @@ func (met *Metropolis) fakeRandomVals(height, round agtypes.INT, size int) []*ag
 
 	// Pick all and share the same power
 	// if the length of partners is less than 6
+	lastHeight := agutils.LoadHeight(met.core.GetChainID())
 	if len(accList) <= 6 {
 		vals := make([]*agtypes.Validator, len(accList))
 		for i, v := range accList {
 			var pk crypto.PubKeyEd25519
 			copy(pk[:], v.Pubkey)
-			vals[i] = &agtypes.Validator{PubKey: crypto.StPubKey{&pk}, Address: pk.Address(), VotingPower: 100}
+			vals[i] = &agtypes.Validator{PubKey: crypto.StPubKey{&pk}, Address: pk.Address(lastHeight), VotingPower: 100}
 		}
 		return vals
 	}
@@ -671,7 +672,7 @@ func (met *Metropolis) fakeRandomVals(height, round agtypes.INT, size int) []*ag
 		copy(pk[:], v.Pubkey)
 		vals[i] = &agtypes.Validator{
 			PubKey:      crypto.StPubKey{&pk},
-			Address:     pk.Address(),
+			Address:     pk.Address(lastHeight),
 			VotingPower: v.VTPower.Int64(),
 		}
 	}
@@ -679,7 +680,7 @@ func (met *Metropolis) fakeRandomVals(height, round agtypes.INT, size int) []*ag
 	return vals
 }
 
-func fakeRandomAccount(accs []*Power, exists map[*Power]struct{}, height, round agtypes.INT, bigbang *big.Int, retry *int) (*Power, error) {
+func fakeRandomAccount(accs []*Power, exists map[*Power]struct{}, height, round def.INT, bigbang *big.Int, retry *int) (*Power, error) {
 	if len(accs) == len(exists) {
 		return nil, fmt.Errorf("No account can be picked any more")
 	}
@@ -722,14 +723,14 @@ func (ms *MetropolisState) FromBytes(bs []byte) error {
 }
 
 // remove duplicates and sort
-func sterilizeOrgHeights(orgH []agtypes.INT) []agtypes.INT {
-	hm := make(map[agtypes.INT]struct{})
+func sterilizeOrgHeights(orgH []def.INT) []def.INT {
+	hm := make(map[def.INT]struct{})
 	for _, h := range orgH {
 		hm[h] = struct{}{}
 	}
-	uniqueHeights := make([]agtypes.INT, 0)
+	uniqueHeights := make([]def.INT, 0)
 	for k := range hm {
-		uniqueHeights = append(uniqueHeights, agtypes.INT(k))
+		uniqueHeights = append(uniqueHeights, def.INT(k))
 	}
 	xlib.Int64Slice(uniqueHeights).Sort()
 	return uniqueHeights
