@@ -20,9 +20,11 @@ import (
 	"go.uber.org/zap"
 
 	agtypes "github.com/Baptist-Publication/angine/types"
+	agutils "github.com/Baptist-Publication/angine/utils"
 	"github.com/Baptist-Publication/chorus-module/lib/ed25519"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/lib/go-p2p"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/Baptist-Publication/chorus/src/tools"
 	civiltypes "github.com/Baptist-Publication/chorus/src/types"
 )
@@ -50,23 +52,23 @@ var (
 type CoSiTx struct {
 	civiltypes.CivilTx
 
-	Type       string      `json:"type"` // what this cosi is for
-	Leader     []byte      `json:"leader"`
-	LeaderAddr string      `json:"leaderaddr"`
-	TxHash     []byte      `json:"txhash"` // relevant tx
-	Height     agtypes.INT `json:"height"`
-	Data       []byte      `json:"data"` // relevant data
+	Type       string  `json:"type"` // what this cosi is for
+	Leader     []byte  `json:"leader"`
+	LeaderAddr string  `json:"leaderaddr"`
+	TxHash     []byte  `json:"txhash"` // relevant tx
+	Height     def.INT `json:"height"`
+	Data       []byte  `json:"data"` // relevant data
 }
 
 type CoSiInitTx struct {
 	civiltypes.CivilTx
 
-	Type     string      `json:"type"`
-	ChainID  string      `json:"chainid"`
-	Receiver []byte      `json:"receiver"`
-	TxHash   []byte      `json:"txhash"`
-	Height   agtypes.INT `json:"height"`
-	Data     []byte      `json:"data"`
+	Type     string  `json:"type"`
+	ChainID  string  `json:"chainid"`
+	Receiver []byte  `json:"receiver"`
+	TxHash   []byte  `json:"txhash"`
+	Height   def.INT `json:"height"`
+	Data     []byte  `json:"data"`
 }
 
 func IsCoSiTx(tx []byte) bool {
@@ -84,6 +86,7 @@ type CoSiModule struct {
 	privkey  cosiED.PrivateKey
 	listener net.Listener
 	valset   *agtypes.ValidatorSet
+	chainID  string
 
 	cosig []byte
 
@@ -105,7 +108,7 @@ type IdentityAck struct {
 	Signature []byte `json:"signature"`
 }
 
-func NewCoSiModule(logger *zap.Logger, privkey crypto.PrivKeyEd25519, validators *agtypes.ValidatorSet) *CoSiModule {
+func NewCoSiModule(logger *zap.Logger, chainID string, privkey crypto.PrivKeyEd25519, validators *agtypes.ValidatorSet) *CoSiModule {
 	numVal := validators.Size()
 	mdl := &CoSiModule{
 		mtx:      &sync.Mutex{},
@@ -114,6 +117,7 @@ func NewCoSiModule(logger *zap.Logger, privkey crypto.PrivKeyEd25519, validators
 		listener: nil,
 		logger:   logger,
 		valset:   validators,
+		chainID:  chainID,
 
 		Nonce:          rand.Uint64(),
 		Conns:          make([]*p2p.SecretConnection, 0, numVal-1),
@@ -224,7 +228,7 @@ func (cm *CoSiModule) identifyConnection(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	if !cm.valset.HasAddress(pk.Address()) {
+	if !cm.valset.HasAddress(pk.Address(agutils.LoadHeight(cm.chainID))) {
 		return fmt.Errorf("illegal connection, pubkey: %X is not a validator", id.PubKey)
 	}
 	pubkey := [32]byte(*(pk.(*crypto.PubKeyEd25519)))
