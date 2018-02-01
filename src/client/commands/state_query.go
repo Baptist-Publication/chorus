@@ -195,7 +195,7 @@ func queryReceipt(ctx *cli.Context) error {
 	tmResult := new(types.RPCResult)
 	hashHex := ac.SanitizeHex(ctx.String("hash"))
 	hash := common.Hex2Bytes(hashHex)
-	query := append([]byte{3}, hash...)
+	query := append([]byte{types.QueryTxExecution}, hash...)
 	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
@@ -203,14 +203,13 @@ func queryReceipt(ctx *cli.Context) error {
 
 	res := (*tmResult).(*types.ResultQuery)
 
-	receiptForStorage := new(ethtypes.ReceiptForStorage)
-
-	err = rlp.DecodeBytes(res.Result.Data, receiptForStorage)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
+	resultMap := map[string]interface{}{
+		"code": res.Result.Code,
+		"data": string(res.Result.Data),
+		"log":  res.Result.Log,
 	}
-	receiptJSON, _ := json.Marshal(receiptForStorage)
-	fmt.Println("query result:", string(receiptJSON))
+
+	fmt.Println("query result:", resultMap)
 
 	return nil
 }
