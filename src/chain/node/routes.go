@@ -11,6 +11,7 @@ import (
 	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	rpc "github.com/Baptist-Publication/chorus-module/lib/go-rpc/server"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	//	"github.com/Baptist-Publication/chorus-module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/src/chain/version"
 )
@@ -20,12 +21,12 @@ const ChainIDArg = "chainid"
 // RPCNode define the node's abilities provided for rpc calls
 type RPCNode interface {
 	GetOrg(string) (*OrgNode, error)
-	Height() agtypes.INT
-	GetBlock(height agtypes.INT) (*agtypes.BlockCache, *pbtypes.BlockMeta)
+	Height() def.INT
+	GetBlock(height def.INT) (*agtypes.BlockCache, *pbtypes.BlockMeta)
 	BroadcastTx(tx []byte) error
 	BroadcastTxCommit(tx []byte) error
 	FlushMempool()
-	GetValidators() (agtypes.INT, []*agtypes.Validator)
+	GetValidators() (def.INT, []*agtypes.Validator)
 	GetP2PNetInfo() (bool, []string, []*agtypes.Peer)
 	GetNumPeers() int
 	GetConsensusStateInfo() (string, []string)
@@ -166,7 +167,7 @@ func (h *rpcHandler) Genesis(chainID string) (agtypes.RPCResult, error) {
 	return &agtypes.ResultGenesis{Genesis: org.GenesisDoc}, nil
 }
 
-func (h *rpcHandler) Block(chainID string, height agtypes.INT) (agtypes.RPCResult, error) {
+func (h *rpcHandler) Block(chainID string, height def.INT) (agtypes.RPCResult, error) {
 	org, err := h.getOrg(chainID)
 	if err != nil {
 		return nil, ErrInvalidChainID
@@ -178,7 +179,7 @@ func (h *rpcHandler) Block(chainID string, height agtypes.INT) (agtypes.RPCResul
 	return &res, err
 }
 
-func (h *rpcHandler) BlockchainInfo(chainID string, minHeight, maxHeight agtypes.INT) (agtypes.RPCResult, error) {
+func (h *rpcHandler) BlockchainInfo(chainID string, minHeight, maxHeight def.INT) (agtypes.RPCResult, error) {
 	org, err := h.getOrg(chainID)
 	if err != nil {
 		return nil, ErrInvalidChainID
@@ -483,7 +484,7 @@ func (h *rpcHandler) NonEmptyHeights(chainID string) (agtypes.RPCResult, error) 
 	}
 
 	it := org.Angine.GetNonEmptyBlockIterator()
-	heights := make([]agtypes.INT, 0)
+	heights := make([]def.INT, 0)
 	for it.HasMore() {
 		heights = append(heights, it.Next().Header.Height)
 	}

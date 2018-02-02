@@ -11,6 +11,7 @@ import (
 	acfg "github.com/Baptist-Publication/angine/config"
 	"github.com/Baptist-Publication/angine/state"
 	agtypes "github.com/Baptist-Publication/angine/types"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	//"github.com/Baptist-Publication/chorus/src/chain/app/evm"
 	"github.com/Baptist-Publication/chorus/src/chain/config"
 	"github.com/Baptist-Publication/chorus/src/chain/node"
@@ -49,11 +50,11 @@ func init() {
 
 type AppToolItfc interface {
 	Init(datadir string) error
-	LastHeightHash() (agtypes.INT, []byte)
+	LastHeightHash() (def.INT, []byte)
 	BackupLastBlock(branchName string) error
 	DelBackup(branchName string)
 	RevertFromBackup(branchName string) error
-	SaveNewLastBlock(fromHeight agtypes.INT, fromAppHash []byte) error
+	SaveNewLastBlock(fromHeight def.INT, fromAppHash []byte) error
 }
 
 type RevertTool struct {
@@ -103,10 +104,10 @@ func (rt *RevertTool) Init(appname string, agconf, appconf *viper.Viper) error {
 	return nil
 }
 
-func (rt *RevertTool) checkDataState(toHeight agtypes.INT) error {
+func (rt *RevertTool) checkDataState(toHeight def.INT) error {
 	appHeight, _ := rt.apptool.LastHeightHash()
-	storeHeight := agtypes.INT(rt.blocktool.LastHeight())
-	stateHeight := agtypes.INT(rt.statetool.LastHeight())
+	storeHeight := def.INT(rt.blocktool.LastHeight())
+	stateHeight := def.INT(rt.statetool.LastHeight())
 	if storeHeight == 0 || appHeight == 0 || stateHeight == 0 {
 		return errors.New(fmt.Sprintf("illegal height 0,appHeight:%v,storeHeight:%v,stateHeight:%v", appHeight, storeHeight, stateHeight))
 	}
@@ -171,7 +172,7 @@ func (rt *RevertTool) revertFromBackup(branchName string, failDel int) {
 	}
 }
 
-func (rt *RevertTool) saveBranchNew(branchName string, toHeight agtypes.INT) error {
+func (rt *RevertTool) saveBranchNew(branchName string, toHeight def.INT) error {
 	lastBlock, lastBlockMeta, lastBlockID := rt.blocktool.LoadBlock(toHeight)
 	if lastBlock == nil || lastBlockMeta == nil || lastBlockID == nil {
 		return errors.New("can't find block of the height, is it a height in the future?")
