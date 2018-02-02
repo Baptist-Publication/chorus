@@ -98,7 +98,7 @@ func RunNode(logger *zap.Logger, config *viper.Viper) {
 	if err := node.Start(); err != nil {
 		cmn.Exit(cmn.Fmt("Failed to start node: %v", err))
 	}
-	if config.GetString("rpc_laddr") != "" {
+	if node.GetConf().GetString("rpc_laddr") != "" {
 		if _, err := node.StartRPC(); err != nil {
 			cmn.PanicCrisis(err)
 		}
@@ -184,6 +184,10 @@ func (n *Node) StartRPC() ([]net.Listener, error) {
 
 func (n *Node) PrivValidator() *types.PrivValidator {
 	return n.privValidator
+}
+
+func (n *Node) GetConf() *viper.Viper {
+	return n.config
 }
 
 // func (n *Node) GetSpecialVote(data []byte, validator *types.Validator) ([]byte, error) {
