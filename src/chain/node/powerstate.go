@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"sync"
 
-	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/Baptist-Publication/chorus-module/xlib/mlist"
 	"github.com/tendermint/merkleeyes/iavl"
 	"github.com/tendermint/tmlibs/db"
@@ -28,7 +28,7 @@ type PowerState struct {
 type Power struct {
 	Pubkey  []byte
 	VTPower *big.Int
-	MHeight agtypes.INT
+	MHeight def.INT
 }
 
 func NewPowerState(database db.DB) *PowerState {
@@ -48,7 +48,7 @@ func (ps *PowerState) Unlock() {
 	ps.mtx.Unlock()
 }
 
-func (ps *PowerState) CreatePower(pubkey []byte, power *big.Int, height agtypes.INT) {
+func (ps *PowerState) CreatePower(pubkey []byte, power *big.Int, height def.INT) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
@@ -81,7 +81,7 @@ func (ps *PowerState) GetPower(pubkey []byte) (*Power, error) {
 	return nil, fmt.Errorf("Power not exist: %X", pubkey)
 }
 
-func (ps *PowerState) QueryPower(pubkey crypto.PubKey) (*big.Int, agtypes.INT) {
+func (ps *PowerState) QueryPower(pubkey crypto.PubKey) (*big.Int, def.INT) {
 	keystring := pubkey.KeyString()
 	ps.Lock()
 	defer ps.Unlock()
@@ -106,7 +106,7 @@ func (ps *PowerState) QueryPower(pubkey crypto.PubKey) (*big.Int, agtypes.INT) {
 	return Big0, 0
 }
 
-func (ps *PowerState) AddVTPower(pubkey crypto.PubKey, amount *big.Int, height agtypes.INT) error {
+func (ps *PowerState) AddVTPower(pubkey crypto.PubKey, amount *big.Int, height def.INT) error {
 	keystring := pubkey.KeyString()
 	ps.Lock()
 	defer ps.Unlock()
@@ -143,7 +143,7 @@ func (ps *PowerState) AddVTPower(pubkey crypto.PubKey, amount *big.Int, height a
 	return nil
 }
 
-func (ps *PowerState) SubVTPower(pubkey crypto.PubKey, amount *big.Int, height agtypes.INT) error {
+func (ps *PowerState) SubVTPower(pubkey crypto.PubKey, amount *big.Int, height def.INT) error {
 	keystring := pubkey.KeyString()
 	ps.Lock()
 	defer ps.Unlock()
@@ -179,7 +179,7 @@ func (ps *PowerState) SubVTPower(pubkey crypto.PubKey, amount *big.Int, height a
 	return fmt.Errorf("Power not exist: %s", keystring)
 }
 
-func (ps *PowerState) MarkPower(pubkey crypto.PubKey, mValue agtypes.INT) error {
+func (ps *PowerState) MarkPower(pubkey crypto.PubKey, mValue def.INT) error {
 	keystring := pubkey.KeyString()
 	ps.Lock()
 	defer ps.Unlock()

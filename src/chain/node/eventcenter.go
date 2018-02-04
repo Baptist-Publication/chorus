@@ -5,9 +5,9 @@ import (
 	"encoding/gob"
 	"fmt"
 
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/pkg/errors"
 	"github.com/tendermint/tmlibs/db"
-	agtypes "github.com/Baptist-Publication/angine/types"
 )
 
 const (
@@ -25,7 +25,7 @@ type EventWarehouse struct {
 
 // EventWarehouseState contains subscriberID-publisherID : []heights
 type EventWarehouseState struct {
-	state map[string][]agtypes.INT
+	state map[string][]def.INT
 }
 
 // NewEventWarehouse constructs a new EventWarehouse and returns a pointer to the instance
@@ -38,12 +38,12 @@ func NewEventWarehouse(database db.DB) *EventWarehouse {
 
 func newWarehouseState() *EventWarehouseState {
 	return &EventWarehouseState{
-		state: make(map[string][]agtypes.INT),
+		state: make(map[string][]def.INT),
 	}
 }
 
 // GenerateID generates wellformed key used in EventWarehouse
-func (ew *EventWarehouse) GenerateID(subID, pubID string, height agtypes.INT) []byte {
+func (ew *EventWarehouse) GenerateID(subID, pubID string, height def.INT) []byte {
 	return []byte(fmt.Sprintf("%s-%s-%d", subID, pubID, height))
 }
 
@@ -53,13 +53,13 @@ func (ew *EventWarehouse) Batch() db.Batch {
 }
 
 // Push will add new record to both EventWarehouseState and EventWarehouse
-func (ew *EventWarehouse) Push(batch db.Batch, subID, pubID string, height agtypes.INT, data []byte) {
+func (ew *EventWarehouse) Push(batch db.Batch, subID, pubID string, height def.INT, data []byte) {
 	// heights := ec.state.Append(subID, pubID, height)
 	batch.Set(ew.GenerateID(subID, pubID, height), data)
 	ew.state.Append(subID, pubID, height)
 }
 
-func (ew *EventWarehouse) Fetch(subID, pubID string, height agtypes.INT) ([]byte, error) {
+func (ew *EventWarehouse) Fetch(subID, pubID string, height def.INT) ([]byte, error) {
 	heights, err := ew.state.Get(subID, pubID)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (ew *EventWarehouse) Fetch(subID, pubID string, height agtypes.INT) ([]byte
 }
 
 // Pop makes sure the one event can only be fetched once by deleting after fetched
-func (ew *EventWarehouse) Pop(subID, pubID string, height agtypes.INT) ([]byte, error) {
+func (ew *EventWarehouse) Pop(subID, pubID string, height def.INT) ([]byte, error) {
 	heights, err := ew.state.Get(subID, pubID)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (ews *EventWarehouseState) key(subID, pubID string) string {
 	return fmt.Sprintf("%s-%s", subID, pubID)
 }
 
-func (ews *EventWarehouseState) Get(subID, pubID string) ([]agtypes.INT, error) {
+func (ews *EventWarehouseState) Get(subID, pubID string) ([]def.INT, error) {
 	key := ews.key(subID, pubID)
 	s, ok := ews.state[key]
 	if !ok {
@@ -116,16 +116,16 @@ func (ews *EventWarehouseState) Get(subID, pubID string) ([]agtypes.INT, error) 
 	return s, nil
 }
 
-func (ews *EventWarehouseState) Set(subID, pubID string, heights []agtypes.INT) {
+func (ews *EventWarehouseState) Set(subID, pubID string, heights []def.INT) {
 	key := ews.key(subID, pubID)
 	ews.state[key] = heights
 }
 
-func (ews *EventWarehouseState) Append(subID, pubID string, height agtypes.INT) []agtypes.INT {
+func (ews *EventWarehouseState) Append(subID, pubID string, height def.INT) []def.INT {
 	heights, err := ews.Get(subID, pubID)
 	if err != nil {
-		ews.Set(subID, pubID, []agtypes.INT{height})
-		return []agtypes.INT{height}
+		ews.Set(subID, pubID, []def.INT{height})
+		return []def.INT{height}
 	}
 	heights = append(heights, height)
 	ews.Set(subID, pubID, heights)

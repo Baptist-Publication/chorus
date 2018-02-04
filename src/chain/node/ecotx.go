@@ -7,6 +7,7 @@ import (
 
 	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	cvtools "github.com/Baptist-Publication/chorus/src/tools"
 	cvtypes "github.com/Baptist-Publication/chorus/src/types"
 	"github.com/pkg/errors"
@@ -78,7 +79,7 @@ func (met *Metropolis) executeEcoInitAllocTx(tx *EcoInitAllocTx) error {
 	return nil
 }
 
-func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height agtypes.INT) error {
+func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 
@@ -114,7 +115,7 @@ func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height agtypes.IN
 	return nil
 }
 
-func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height agtypes.INT) error {
+func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 
@@ -160,7 +161,7 @@ func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height agtype
 	return nil
 }
 
-func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height agtypes.INT) error {
+func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height def.INT) error {
 	var from, to crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 	copy(to[:], tx.To)

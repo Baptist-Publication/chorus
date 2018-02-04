@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	agtypes "github.com/Baptist-Publication/angine/types"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 )
 
 const (
@@ -38,15 +39,15 @@ func (t *AppTool) Init(datadir string) error {
 	return nil
 }
 
-func (t *AppTool) LastHeightHash() (agtypes.INT, []byte) {
-	return agtypes.INT(t.lastBlock.Height), t.lastBlock.Hash
+func (t *AppTool) LastHeightHash() (def.INT, []byte) {
+	return def.INT(t.lastBlock.Height), t.lastBlock.Hash
 }
 
 func (t *AppTool) BackupLastBlock(branchName string) error {
 	return t.BackupLastBlockData(branchName, &t.lastBlock)
 }
 
-func (t *AppTool) SaveNewLastBlock(fromHeight agtypes.INT, fromAppHash []byte) error {
+func (t *AppTool) SaveNewLastBlock(fromHeight def.INT, fromAppHash []byte) error {
 	newBranchBlock := LastBlockInfo{
 		Height: fromHeight,
 		Hash:   fromAppHash,
