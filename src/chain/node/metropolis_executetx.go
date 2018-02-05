@@ -11,11 +11,12 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/pkg/errors"
 	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/Baptist-Publication/chorus/src/tools"
 	cvtools "github.com/Baptist-Publication/chorus/src/tools"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -157,7 +158,7 @@ func (met *Metropolis) ExecuteTx(block *agtypes.BlockCache, bs []byte, txIndex i
 }
 
 // OnExecute would not care about Block.ExTxs
-func (met *Metropolis) OnExecute(height, round agtypes.INT, block *agtypes.BlockCache) (interface{}, error) {
+func (met *Metropolis) OnExecute(height, round def.INT, block *agtypes.BlockCache) (interface{}, error) {
 	var (
 		res agtypes.ExecuteResult
 		err error
@@ -377,7 +378,7 @@ func (met *Metropolis) sendOrgCancel(tx *OrgTx, pubkey crypto.PubKey, txHash []b
 }
 
 // executeEventRequestTx uses CoSiInitTx to deliver the decision call to the subchain's members
-func (met *Metropolis) executeEventRequestTx(tx *EventRequestTx, height agtypes.INT, blockMaker []byte) error {
+func (met *Metropolis) executeEventRequestTx(tx *EventRequestTx, height def.INT, blockMaker []byte) error {
 	pubkey, _ := met.core.GetPublicKey()
 	privkey, _ := met.core.GetPrivateKey()
 
@@ -436,7 +437,7 @@ func (met *Metropolis) executeEventRequestTx(tx *EventRequestTx, height agtypes.
 	return nil
 }
 
-func (met *Metropolis) executeCoSiInitTx(tx *CoSiInitTx, height agtypes.INT) error {
+func (met *Metropolis) executeCoSiInitTx(tx *CoSiInitTx, height def.INT) error {
 	orgNode, err := met.GetOrg(tx.ChainID)
 	if err != nil {
 		return err
@@ -671,7 +672,7 @@ func (met *Metropolis) executeEventUploadCodeTx(tx *EventUploadCodeTx, block *ag
 	return nil
 }
 
-func (met *Metropolis) executeEcoTx(bs []byte, height agtypes.INT) error {
+func (met *Metropolis) executeEcoTx(bs []byte, height def.INT) error {
 	txBytes := agtypes.UnwrapTx(bs)
 
 	switch {

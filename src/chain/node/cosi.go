@@ -23,6 +23,7 @@ import (
 	"github.com/Baptist-Publication/chorus-module/lib/ed25519"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/lib/go-p2p"
+	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/Baptist-Publication/chorus/src/tools"
 	civiltypes "github.com/Baptist-Publication/chorus/src/types"
 )
@@ -50,23 +51,23 @@ var (
 type CoSiTx struct {
 	civiltypes.CivilTx
 
-	Type       string      `json:"type"` // what this cosi is for
-	Leader     []byte      `json:"leader"`
-	LeaderAddr string      `json:"leaderaddr"`
-	TxHash     []byte      `json:"txhash"` // relevant tx
-	Height     agtypes.INT `json:"height"`
-	Data       []byte      `json:"data"` // relevant data
+	Type       string  `json:"type"` // what this cosi is for
+	Leader     []byte  `json:"leader"`
+	LeaderAddr string  `json:"leaderaddr"`
+	TxHash     []byte  `json:"txhash"` // relevant tx
+	Height     def.INT `json:"height"`
+	Data       []byte  `json:"data"` // relevant data
 }
 
 type CoSiInitTx struct {
 	civiltypes.CivilTx
 
-	Type     string      `json:"type"`
-	ChainID  string      `json:"chainid"`
-	Receiver []byte      `json:"receiver"`
-	TxHash   []byte      `json:"txhash"`
-	Height   agtypes.INT `json:"height"`
-	Data     []byte      `json:"data"`
+	Type     string  `json:"type"`
+	ChainID  string  `json:"chainid"`
+	Receiver []byte  `json:"receiver"`
+	TxHash   []byte  `json:"txhash"`
+	Height   def.INT `json:"height"`
+	Data     []byte  `json:"data"`
 }
 
 func IsCoSiTx(tx []byte) bool {
@@ -101,6 +102,7 @@ type AggregateInfo struct {
 }
 
 type IdentityAck struct {
+	Type      byte   `json:"type"`
 	PubKey    []byte `json:"pubkey"`
 	Signature []byte `json:"signature"`
 }
@@ -220,7 +222,7 @@ func (cm *CoSiModule) identifyConnection(conn net.Conn) error {
 	if err := json.Unmarshal(rBuf[:rn], id); err != nil {
 		return err
 	}
-	pk, err := crypto.PubKeyFromBytes(id.PubKey)
+	pk, err := crypto.PubKeyFromBytes(id.Type, id.PubKey)
 	if err != nil {
 		return err
 	}
@@ -228,7 +230,7 @@ func (cm *CoSiModule) identifyConnection(conn net.Conn) error {
 		return fmt.Errorf("illegal connection, pubkey: %X is not a validator", id.PubKey)
 	}
 	pubkey := [32]byte(*(pk.(*crypto.PubKeyEd25519)))
-	signature, err := crypto.SignatureFromBytes(id.Signature)
+	signature, err := crypto.SignatureFromBytes(id.Type, id.Signature)
 	if err != nil {
 		return err
 	}
@@ -447,6 +449,7 @@ func (cm *CoSiModule) FollowCoSign(leaderAddress string, data []byte) error {
 	privKey := crypto.PrivKeyEd25519(priv)
 	sig := privKey.Sign(rBuf[1:rn])
 	ack := IdentityAck{
+		Type:      crypto.PubKeyTypeEd25519,
 		PubKey:    privKey.PubKey().Bytes(),
 		Signature: sig.Bytes(),
 	}
