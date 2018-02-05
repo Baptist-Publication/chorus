@@ -14,7 +14,7 @@ const (
 	ShardsData = "data"
 )
 
-// LoadDefaultShardConfig should only be called after initAnnChainRuntime
+// LoadDefaultShardConfig should only be called after initChorusRuntime
 func LoadDefaultAngineConfig(datadir, chainID string, conf map[string]interface{}) (*viper.Viper, error) {
 	shardPath := path.Join(datadir, ShardsDir, chainID)
 	if err := common.EnsureDir(shardPath, 0700); err != nil {
