@@ -3,10 +3,10 @@ package config
 import (
 	"path"
 
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	acfg "github.com/Baptist-Publication/angine/config"
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 func GetConfig(root string) (conf *viper.Viper) {
 	var err error
 	runtime := acfg.RuntimeDir(root)
-	acfg.InitRuntime(runtime)
+	acfg.InitRuntime(runtime, conf.GetString("chain_id"))
 
 	conf = viper.New()
 	conf.SetEnvPrefix("ANGINE")

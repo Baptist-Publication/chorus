@@ -52,7 +52,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig, initApp)
+	// cobra.OnInitialize(initConfig, initApp)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -64,28 +64,28 @@ func init() {
 	viper.BindPFlag("config", RootCmd.PersistentFlags().Lookup("config"))
 }
 
-func initConfig() {
-	viper.SetEnvPrefix("civil")
-	viper.BindEnv(CONFPATH)
-	viper.AutomaticEnv() // read in environment variables that match
+// func initConfig() {
+// 	viper.SetEnvPrefix("civil")
+// 	viper.BindEnv(CONFPATH)
+// 	viper.AutomaticEnv() // read in environment variables that match
 
-	cfgFile := viper.GetString("config")
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.AddConfigPath(CivilPath())
-		viper.SetConfigName(".chorus")
-	}
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
+// 	cfgFile := viper.GetString("config")
+// 	if cfgFile != "" {
+// 		viper.SetConfigFile(cfgFile)
+// 	} else {
+// 		viper.AddConfigPath(CivilPath())
+// 		viper.SetConfigName(".chorus")
+// 	}
+// 	// If a config file is found, read it in.
+// 	if err := viper.ReadInConfig(); err == nil {
+// 		fmt.Println("Using config file:", viper.ConfigFileUsed())
+// 	} else {
 
-	}
-}
+// 	}
+// }
 
-func initApp() {
-	//	node.Apps["ikhofi"] = func(l *zap.Logger, c *viper.Viper, p crypto.PrivKey) (node.Application, error) {
-	//		return ikhofi.NewAVMApp(ikhofi.InitIkhofiConfig(c.GetString("db_dir"), c))
-	//	}
-}
+// func initApp() {
+// 	//	node.Apps["ikhofi"] = func(l *zap.Logger, c *viper.Viper, p crypto.PrivKey) (node.Application, error) {
+// 	//		return ikhofi.NewAVMApp(ikhofi.InitIkhofiConfig(c.GetString("db_dir"), c))
+// 	//	}
+// }
