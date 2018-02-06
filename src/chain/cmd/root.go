@@ -28,11 +28,11 @@ import (
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "ann",
+	Use:   "chorus",
 	Short: "Proof-of-stake blockchain from Baptist-Publication Technology",
 	Long: `
-This is the binary of the Annchain developed by Baptist-Publication Technology.
-The project's code name is chorus, cause we wanna mimic the structure of Human chorus. With our annchain, you can run multiple subchains in each node simultaneously to form a very sophisticated network which will represent your role in many different organizations.
+This is the binary of the Chorus developed by Baptist-Publication Technology.
+The project's code name is chorus, cause we wanna mimic the structure of Human chorus. With our chain, you can run multiple subchains in each node simultaneously to form a very sophisticated network which will represent your role in many different organizations.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := cmd.Help(); err != nil {

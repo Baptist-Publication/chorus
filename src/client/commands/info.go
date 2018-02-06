@@ -13,7 +13,7 @@ import (
 var (
 	InfoCommand = cli.Command{
 		Name:  "info",
-		Usage: "get annchain info",
+		Usage: "get chorus info",
 		Subcommands: []cli.Command{
 			cli.Command{
 				Name:   "last_block",
