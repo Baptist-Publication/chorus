@@ -665,7 +665,7 @@ func (met *Metropolis) executeEventUnsubscribeTx(tx *EventUnsubscribeTx, block *
 
 func (met *Metropolis) executeEventUploadCodeTx(tx *EventUploadCodeTx, block *agtypes.BlockCache) error {
 	if _, err := met.GetOrg(tx.Owner); err == nil {
-		codehash, _ := tools.HashKeccak([]byte(tx.Code))
+		codehash, _ := tools.HashRipemd160([]byte(tx.Code))
 		met.EventCodeBase.SetSync(codehash, []byte(tx.Code))
 	}
 

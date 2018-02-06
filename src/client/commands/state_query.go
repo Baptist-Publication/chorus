@@ -11,9 +11,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Baptist-Publication/angine/types"
-	"github.com/Baptist-Publication/chorus-module/lib/eth/common"
-	ethtypes "github.com/Baptist-Publication/chorus-module/lib/eth/core/types"
-	"github.com/Baptist-Publication/chorus-module/lib/eth/rlp"
 	ac "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	cl "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
 	civil "github.com/Baptist-Publication/chorus/src/chain/node"
@@ -104,7 +101,7 @@ func getNonce(chainID, address string) (nonce uint64, err error) {
 	tmResult := new(types.RPCResult)
 
 	addrHex := ac.SanitizeHex(address)
-	addr := common.Hex2Bytes(addrHex)
+	addr, _ := hex.DecodeString(addrHex)
 	query := append([]byte{civil.QueryNonce}, addr...)
 
 	_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
@@ -128,7 +125,7 @@ func queryBalance(ctx *cli.Context) error {
 	tmResult := new(types.RPCResult)
 
 	addrHex := ac.SanitizeHex(ctx.String("address"))
-	addr := common.Hex2Bytes(addrHex)
+	addr, _ := hex.DecodeString(addrHex)
 	query := append([]byte{civil.QueryBalance}, addr...)
 
 	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
@@ -156,7 +153,7 @@ func queryPower(ctx *cli.Context) error {
 	tmResult := new(types.RPCResult)
 
 	addrHex := ac.SanitizeHex(ctx.String("address"))
-	addr := common.Hex2Bytes(addrHex)
+	addr, _ := hex.DecodeString(addrHex)
 	query := append([]byte{civil.QueryPower}, addr...)
 
 	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
@@ -184,7 +181,7 @@ func queryReceipt(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
 	hashHex := ac.SanitizeHex(ctx.String("hash"))
-	hash := common.Hex2Bytes(hashHex)
+	hash, _ := hex.DecodeString(hashHex)
 	query := append([]byte{types.QueryTxExecution}, hash...)
 	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
 	if err != nil {
@@ -200,39 +197,6 @@ func queryReceipt(ctx *cli.Context) error {
 	}
 
 	fmt.Println("query result:", resultMap)
-
-	return nil
-}
-
-func queryTx(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("target chainid is missing", 127)
-	}
-	chainID := ctx.GlobalString("target")
-
-	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
-
-	hashHex := ac.SanitizeHex(ctx.String("hash"))
-	fmt.Println(hashHex)
-	hash := common.Hex2Bytes(hashHex)
-	query := append([]byte{3}, hash...)
-	fmt.Println(len(query))
-	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	res := (*tmResult).(*types.ResultQuery)
-
-	receiptForStorage := new(ethtypes.ReceiptForStorage)
-
-	err = rlp.DecodeBytes(res.Result.Data, receiptForStorage)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	fmt.Println("query result:", receiptForStorage.ContractAddress.Hex())
 
 	return nil
 }

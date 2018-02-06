@@ -80,7 +80,7 @@ func (met *Metropolis) PublishEvent(chainID string, block *agtypes.BlockCache, d
 				met.logger.Warn("[publish_event],encodeEventData failed", zap.Error(err))
 				continue
 			}
-			datahash, _ := tools.HashKeccak(datBytes)
+			datahash, _ := tools.HashRipemd160(datBytes)
 
 			met.EventWarehouse.Push(batch, subChainID, chainID, bheader.Height, datBytes)
 
@@ -236,7 +236,7 @@ func (met *Metropolis) handleEventConnection(conn net.Conn) {
 	}
 
 	eventID := fmt.Sprintf("%s,%s,%d", subID, pubID, height)
-	datahash, _ := tools.HashKeccak(data)
+	datahash, _ := tools.HashRipemd160(data)
 
 	emt := &EventMsgTx{
 		Listener: subID,
@@ -299,7 +299,7 @@ func (met *Metropolis) fetchEvent(addr string, eventID string, hash []byte) ([]b
 
 	sconn.Close()
 
-	dhash, _ := tools.HashKeccak(edata)
+	dhash, _ := tools.HashRipemd160(edata)
 	if !bytes.Equal(dhash, hash) {
 		return nil, fmt.Errorf("wrong data hash, expected: %X, got: %X", hash, dhash)
 	}

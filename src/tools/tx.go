@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/pkg/errors"
 	"github.com/Baptist-Publication/chorus-module/lib/ed25519"
 	crypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	cvtypes "github.com/Baptist-Publication/chorus/src/types"
+	"github.com/pkg/errors"
 )
 
 // TxToBytes defines a universal way to serialize ICivilTx
@@ -51,7 +51,7 @@ func TxHash(tx cvtypes.ICivilTx) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return HashKeccak(txBytes)
+	return HashRipemd160(txBytes)
 }
 
 // TxVerifySignature verifies the signature carried by the ICivilTx
