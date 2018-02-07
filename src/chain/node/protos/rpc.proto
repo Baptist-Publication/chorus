@@ -2,30 +2,20 @@ syntax = "proto3";
 
 package rpccmd;
 
-import "github.com/Baptist-Publication/angine/protos/types/types.proto"; 
+import "github.com/Baptist-Publication/angine/protos/types/types.proto";
 
 service RpcService{
 	rpc Orgs(CmdChainID) returns (types.OrgNode){}
 	rpc Status(CmdChainID)returns(types.ResultStatus){}
 	rpc NetInfo(CmdChainID) returns(types.ResultNetInfo){}
-	rpc BlockchainInfo(CmdBlockchainInfo) returns(types.ResultBlockchainInfo){}
-	rpc Genesis(CmdChainID) returns(types.ResultGenesis){}
 	rpc Block(CmdBlock) returns(types.ResultBlock){}
 	rpc Validators(CmdChainID) returns(types.ResultValidators){}
-	rpc DumpConsensusState(CmdChainID) returns(types.ResultDumpConsensusState){}
-	rpc UnconfirmedTxs(CmdChainID) returns (types.ResultUnconfirmedTxs){}
-	rpc NumUnconfirmedTxs(CmdChainID) returns (types.ResultUnconfirmedTxs){}
 	rpc ZaSurveillance(CmdChainID) returns(types.ResultSurveillance){}
-	rpc CoreVersion(CmdChainID) returns(types.ResultCoreVersion){}
 	rpc BroadcastTxCommit(CmdBroadcastTx) returns (types.ResultBroadcastTxCommit){}
 	rpc BroadcastTx(CmdBroadcastTx)returns(types.ResultBroadcastTx){}
 	rpc Query(CmdQuery) returns(types.ResultQuery){}
-	rpc Info(CmdChainID) returns(types.ResultInfo){}
 	rpc EventCode(CmdEventCode)returns(types.ResultQuery){}
-	rpc UnsafeFlushMempool(CmdChainID) returns(types.ResultUnsafeFlushMempool){}
 	rpc RequestSpecialOP(CmdRequestSpecialOP) returns (types.ResultRequestSpecialOP){}
-	rpc Blacklist(CmdChainID) returns (types.ResultRefuseList){}
-	rpc NonEmptyHeights(CmdChainID) returns (types.ResultNonEmptyHeights){}
 }
 
 message CmdChainID{
