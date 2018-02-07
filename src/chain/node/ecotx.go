@@ -70,6 +70,10 @@ func (met *Metropolis) executeEcoInitAllocTx(tx *EcoInitAllocTx) error {
 	var to crypto.PubKeyEd25519
 	copy(to[:], tx.To)
 
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+
 	if err := met.accState.AddBalance(&to, tx.Amount); err != nil {
 		return err
 	}
@@ -82,6 +86,13 @@ func (met *Metropolis) executeEcoInitAllocTx(tx *EcoInitAllocTx) error {
 func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
+
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+	if tx.Fee == nil {
+		tx.Fee = Big0
+	}
 
 	if tx.Amount.Cmp(big.NewInt(0)) < 0 {
 		return errors.New("amount cannot be negtive")
@@ -118,6 +129,13 @@ func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) e
 func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
+
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+	if tx.Fee == nil {
+		tx.Fee = Big0
+	}
 
 	if height < StartRedeemHeight {
 		return errors.New("Operation is not allow right now")
@@ -165,6 +183,13 @@ func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height def.INT) e
 	var from, to crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 	copy(to[:], tx.To)
+
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+	if tx.Fee == nil {
+		tx.Fee = Big0
+	}
 
 	if tx.Amount.Cmp(big.NewInt(0)) < 0 {
 		return errors.New("amount cannot be negtive")
