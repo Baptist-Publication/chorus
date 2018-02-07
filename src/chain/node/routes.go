@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	rpc "github.com/Baptist-Publication/chorus-module/lib/go-rpc/server"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
-	"github.com/Baptist-Publication/chorus/src/chain/version"
 )
 
 const ChainIDArg = "chainid"
