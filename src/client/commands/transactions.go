@@ -10,8 +10,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Baptist-Publication/angine/types"
-	//anginetypes "github.com/Baptist-Publication/angine/types"
+	agtypes "github.com/Baptist-Publication/angine/types"
 	gcommon "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
@@ -68,9 +67,9 @@ var (
 	}
 )
 
-func (act Transactions) jsonRPC(chainID string, p []byte) (*types.RPCResult, error) {
+func (act Transactions) jsonRPC(chainID string, p []byte) (*agtypes.RPCResult, error) {
 	clt := rpcclient.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
+	tmResult := new(agtypes.RPCResult)
 	_, err := clt.Call("broadcast_tx_sync", []interface{}{chainID, p}, tmResult)
 	if err != nil {
 		return nil, err
@@ -95,11 +94,11 @@ func (act Transactions) TransferBalance(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	privKey := crypto.PrivKeyEd25519{}
-	copy(privKey[:], privBytes)
+
+	privKey := crypto.DecryptSlcToEd25519(privBytes, nil)
 	frompubkey := privKey.PubKey().(*crypto.PubKeyEd25519)
 
-	topubkey32, err := types.StringTo32byte(to)
+	topubkey32, err := agtypes.StringTo32byte(to)
 	if err != nil {
 		return err
 	}
@@ -124,12 +123,12 @@ func (act Transactions) TransferBalance(ctx *cli.Context) error {
 		tx.Fee = big.NewInt(0)
 	}
 
-	tx.Signature, _ = tools.TxSign(tx, &privKey)
+	tx.Signature, _ = tools.TxSign(tx, privKey)
 	txbytes, err := tools.TxToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	txbytes = types.WrapTx(node.EcoTransferTag, txbytes)
+	txbytes = agtypes.WrapTx(node.EcoTransferTag, txbytes)
 
 	_, err = act.jsonRPC(chainID, txbytes)
 	if err != nil {
@@ -160,8 +159,8 @@ func (act Transactions) Mortgage(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	privKey := crypto.PrivKeyEd25519{}
-	copy(privKey[:], privBytes)
+
+	privKey := crypto.DecryptSlcToEd25519(privBytes, nil)
 	frompubkey := privKey.PubKey().(*crypto.PubKeyEd25519)
 
 	value := ctx.Int64("value")
@@ -181,12 +180,12 @@ func (act Transactions) Mortgage(ctx *cli.Context) error {
 		tx.Fee = big.NewInt(0)
 	}
 
-	tx.Signature, _ = tools.TxSign(tx, &privKey)
+	tx.Signature, _ = tools.TxSign(tx, privKey)
 	txbytes, err := tools.TxToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	txbytes = types.WrapTx(node.EcoMortgageTag, txbytes)
+	txbytes = agtypes.WrapTx(node.EcoMortgageTag, txbytes)
 
 	_, err = act.jsonRPC(chainID, txbytes)
 	if err != nil {
@@ -217,8 +216,7 @@ func (act Transactions) Redemption(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	privKey := crypto.PrivKeyEd25519{}
-	copy(privKey[:], privBytes)
+	privKey := crypto.DecryptSlcToEd25519(privBytes, nil)
 	frompubkey := privKey.PubKey().(*crypto.PubKeyEd25519)
 
 	value := ctx.Int64("value")
@@ -238,12 +236,12 @@ func (act Transactions) Redemption(ctx *cli.Context) error {
 		tx.Fee = big.NewInt(0)
 	}
 
-	tx.Signature, _ = tools.TxSign(tx, &privKey)
+	tx.Signature, _ = tools.TxSign(tx, privKey)
 	txbytes, err := tools.TxToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	txbytes = types.WrapTx(node.EcoRedemptionTag, txbytes)
+	txbytes = agtypes.WrapTx(node.EcoRedemptionTag, txbytes)
 
 	_, err = act.jsonRPC(chainID, txbytes)
 	if err != nil {

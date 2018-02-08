@@ -3,22 +3,28 @@ package tools
 import "testing"
 
 const (
+	codeOrgC = `
+	function main(params)
+		params = {
+			["params1"] = {1,2} ,      
+			["params2"] = "Hello World"
+		}
+		return params;
+	end
+	`
 	codeOrgA = `                         
-	print("in A:"..ent_params["Params1"][1]+ent_params["Params1"][2])  
-	for i = 1,  #(ent_params["Params1"]) do             
-	        print(i..","..ent_params["Params1"][i])     
-	end                                  
+	function main(params)
+		for i = 1, #(params["params1"]) do
+			print(i..","..params["params1"][i])
+		end
+		return nil
+	end
 	`
 	codeOrgB = `                         
-	print("in B:"..ent_params["Params2"])               
-	`
-	globalVarName = "ent_params"
-
-	codeOrgC = `
-	ret_params= {                
-        	["params1"] = {1,2} ,      
-        	["params2"] = "Hello World"
-	}                        
+	function main(params)
+		print("in B:"..params["params2"])               
+		return nil
+	end
 	`
 )
 
@@ -35,11 +41,13 @@ func TestGoLua(t *testing.T) {
 		t.Error("ret_param err:", ret)
 	}
 
+	L = NewLuaState()
 	_, err = ExecLuaWithParam(L, codeOrgA, ret)
 	if err != nil {
 		t.Error("codeOrgA", err, ret)
 	}
 
+	L = NewLuaState()
 	_, err = ExecLuaWithParam(L, codeOrgB, ret)
 	if err != nil {
 		t.Error("codeOrgB", err, ret)

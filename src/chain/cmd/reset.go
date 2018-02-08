@@ -17,13 +17,20 @@ import (
 	"fmt"
 	"os"
 
+	acfg "github.com/Baptist-Publication/angine/config"
+	agtypes "github.com/Baptist-Publication/angine/types"
+	crypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	libcrypto "github.com/Baptist-Publication/chorus-module/xlib/crypto"
+	"github.com/Baptist-Publication/chorus/src/chain/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	acfg "github.com/Baptist-Publication/angine/config"
-	"github.com/Baptist-Publication/angine/types"
-	"github.com/Baptist-Publication/chorus/src/chain/config"
 	"go.uber.org/zap"
 )
+
+func init() {
+	RootCmd.AddCommand(resetCmd)
+	RootCmd.AddCommand(changePwdCmd)
+}
 
 var resetCmd = &cobra.Command{
 	Use:   "reset",
@@ -32,31 +39,79 @@ var resetCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		angineconf := acfg.GetConfig(viper.GetString("runtime"))
-		conf := config.GetConfig(viper.GetString("runtime"))
+		pwd, err := libcrypto.InputPasswdForDecrypt()
+		if err != nil {
+			cmd.Println(err)
+			return
+		}
+		pwd2 := make([]byte, len(pwd))
+		copy(pwd2, pwd)
+		conf := config.GetConfig(viper.GetString("runtime"), pwd)
 		os.RemoveAll(conf.GetString("db_dir"))
 		os.RemoveAll(conf.GetString("shards"))
-		resetPrivValidator(angineconf.GetString("priv_validator_file"))
+		resetPrivValidator(angineconf.GetString("priv_validator_file"), pwd2)
 	},
 }
 
-func init() {
-	RootCmd.AddCommand(resetCmd)
+var changePwdCmd = &cobra.Command{
+	Use:   "resetpwd",
+	Short: "Reset pwd of privkey's encryption",
+	Long:  ``,
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		resetPwd(cmd)
+	},
 }
 
-func resetPrivValidator(privValidatorFile string) {
+func resetPrivValidator(privValidatorFile string, pwd []byte) {
 	var (
-		privValidator *types.PrivValidator
+		privValidator *agtypes.PrivValidator
 		logger        *zap.Logger
 	)
 
 	if _, err := os.Stat(privValidatorFile); err == nil {
-		privValidator = types.LoadPrivValidator(logger, privValidatorFile)
+		privValidator = agtypes.LoadPrivValidator(logger, privValidatorFile, pwd)
 		privValidator.Reset()
 		fmt.Println("Reset PrivValidator", "file", privValidatorFile)
 	} else {
-		privValidator = types.GenPrivValidator(logger)
+		privValidator, err = agtypes.GenPrivValidator(logger, pwd)
+		if err != nil {
+			panic(err)
+		}
 		privValidator.SetFile(privValidatorFile)
 		privValidator.Save()
 		fmt.Println("Generated PrivValidator", "file", privValidatorFile)
 	}
+}
+
+func resetPwd(cmd *cobra.Command) {
+	pwd, err := libcrypto.InputPasswdForDecrypt()
+	if err != nil {
+		cmd.Println(err)
+		return
+	}
+	angineconf := acfg.GetConfig(viper.GetString("runtime"))
+	filePath := angineconf.GetString("priv_validator_file")
+	privValidator := agtypes.LoadPrivValidator(nil, filePath, pwd)
+	if privValidator == nil {
+		cmd.Println("priv_validator can't find")
+		return
+	}
+	privEd, ok := privValidator.GetPrivKey().(*crypto.PrivKeyEd25519)
+	if !ok {
+		cmd.Println("Privkey's format error,not Ed25519")
+		return
+	}
+	var pwd2 []byte
+	pwd2, err = libcrypto.InputPasswdForEncrypt()
+	if err != nil {
+		cmd.Println(err)
+		return
+	}
+	err = privEd.ChangePwd(pwd2)
+	if err != nil {
+		cmd.Println(err)
+		return
+	}
+	privValidator.Save()
 }

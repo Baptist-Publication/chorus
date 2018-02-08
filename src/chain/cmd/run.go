@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	libcrypto "github.com/Baptist-Publication/chorus-module/xlib/crypto"
 	"github.com/Baptist-Publication/chorus/src/chain/log"
 	"github.com/Baptist-Publication/chorus/src/chain/node"
 )
@@ -43,9 +44,14 @@ var runCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		pwd, err := libcrypto.InputPasswdForDecrypt()
+		if err != nil {
+			cmd.Println(err)
+			return
+		}
 		viper.Set("log_path", logpath)
 		logger := log.Initialize(env, path.Join(logpath, "node.output.log"), path.Join(logpath, "node.err.log"))
-		node.RunNode(logger, viper.GetViper())
+		node.RunNode(logger, viper.GetViper(), pwd)
 	},
 }
 

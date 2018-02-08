@@ -100,7 +100,7 @@ func (met *Metropolis) PublishEvent(chainID string, block *agtypes.BlockCache, d
 
 		if sendNotification && len(notifications) > 0 {
 			for _, n := range notifications {
-				n.Signature, _ = cvtools.TxSign(n, &privkey)
+				n.Signature, _ = cvtools.TxSign(n, privkey)
 				txBytes, _ := cvtools.TxToBytes(n)
 				if err := met.BroadcastTx(agtypes.WrapTx(EventNotificationTag, txBytes)); err != nil {
 					return err
@@ -245,7 +245,7 @@ func (met *Metropolis) handleEventConnection(conn net.Conn) {
 		Msg:      emsg,
 		Time:     time.Now(),
 	}
-	if _, err := cvtools.TxSign(emt, &privkey); err != nil {
+	if _, err := cvtools.TxSign(emt, privkey); err != nil {
 		met.logger.Error("fail to sign EventMsgTx", zap.Error(err))
 		return
 	}

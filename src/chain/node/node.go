@@ -47,14 +47,14 @@ func AppExists(name string) (yes bool) {
 	return
 }
 
-func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
+func NewNode(logger *zap.Logger, conf *viper.Viper, pwd []byte) *Node {
 	aConf := ac.GetConfig(conf.GetString("runtime"))
 	for k, v := range conf.AllSettings() {
 		aConf.Set(k, v)
 	}
 
 	metropolis := NewMetropolis(logger, aConf)
-	metroAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf})
+	metroAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf}, pwd)
 	tune := metroAngine.Tune
 	if err := metroAngine.ConnectApp(metropolis); err != nil {
 		cmn.PanicCrisis(err)
@@ -93,8 +93,8 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 	return node
 }
 
-func RunNode(logger *zap.Logger, config *viper.Viper) {
-	node := NewNode(logger, config)
+func RunNode(logger *zap.Logger, config *viper.Viper, pwd []byte) {
+	node := NewNode(logger, config, pwd)
 	if err := node.Start(); err != nil {
 		cmn.Exit(cmn.Fmt("Failed to start node: %v", err))
 	}

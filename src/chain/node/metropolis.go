@@ -500,7 +500,7 @@ func (met *Metropolis) createOrgNode(tx *OrgTx) (*OrgNode, error) {
 	resChan := make(chan *OrgNode, 1)
 	go func(c chan<- *OrgNode) {
 		applog := log.Initialize(met.config.GetString("environment"), path.Join(conf.GetString("log_path"), tx.ChainID, "output.log"), path.Join(conf.GetString("log_path"), tx.ChainID, "err.log"))
-		n := NewOrgNode(applog, tx.App, conf, met)
+		n := NewOrgNode(applog, conf, tx.App, met)
 		if n == nil {
 			met.logger.Error("startOrgNode failed", zap.Error(err))
 			c <- nil

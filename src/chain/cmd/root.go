@@ -63,29 +63,3 @@ func init() {
 	viper.BindPFlag("runtime", RootCmd.PersistentFlags().Lookup("runtime"))
 	viper.BindPFlag("config", RootCmd.PersistentFlags().Lookup("config"))
 }
-
-// func initConfig() {
-// 	viper.SetEnvPrefix("civil")
-// 	viper.BindEnv(CONFPATH)
-// 	viper.AutomaticEnv() // read in environment variables that match
-
-// 	cfgFile := viper.GetString("config")
-// 	if cfgFile != "" {
-// 		viper.SetConfigFile(cfgFile)
-// 	} else {
-// 		viper.AddConfigPath(CivilPath())
-// 		viper.SetConfigName(".chorus")
-// 	}
-// 	// If a config file is found, read it in.
-// 	if err := viper.ReadInConfig(); err == nil {
-// 		fmt.Println("Using config file:", viper.ConfigFileUsed())
-// 	} else {
-
-// 	}
-// }
-
-// func initApp() {
-// 	//	node.Apps["ikhofi"] = func(l *zap.Logger, c *viper.Viper, p crypto.PrivKey) (node.Application, error) {
-// 	//		return ikhofi.NewAVMApp(ikhofi.InitIkhofiConfig(c.GetString("db_dir"), c))
-// 	//	}
-// }

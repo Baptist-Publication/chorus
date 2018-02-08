@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/tendermint/tmlibs/db"
 	"github.com/Baptist-Publication/chorus-module/xlib/iavl"
+	"github.com/tendermint/tmlibs/db"
 
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 )
@@ -29,6 +29,7 @@ type OrgState struct {
 var (
 	ErrAccountExisted      = fmt.Errorf("account already existed")
 	ErrAccountNotExist     = fmt.Errorf("account not existed")
+	ErrAccountGenErr       = fmt.Errorf("gen account ed25519 err")
 	ErrInvalidNonce        = fmt.Errorf("invalid nonce")
 	ErrInsufficientBalance = fmt.Errorf("balance is lower than the amount to be wired")
 )
@@ -56,7 +57,13 @@ func (os *OrgState) CreateAccount(chainID string, balance int64) (accnt *OrgAcco
 	// very coarse design
 	// here we generate a private key for the chain just by its public info "chainID",
 	// so basicly, every one can know this private key, which means it is not so "private".
-	priv := crypto.GenPrivKeyEd25519FromSecret([]byte(chainID))
+	var priv *crypto.PrivKeyEd25519
+	priv, err = crypto.GenPrivKeyEd25519FromSecret([]byte(chainID), nil)
+	if err != nil {
+		os.mtx.Unlock()
+		return nil, fmt.Errorf("%v:%v", ErrAccountGenErr, err)
+	}
+	defer priv.Destroy()
 	pubkey := priv.PubKey().(*crypto.PubKeyEd25519)
 	if _, ok := os.accountCache[chainID]; ok || os.trie.Has([]byte(chainID)) {
 		os.mtx.Unlock()

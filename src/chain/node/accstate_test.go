@@ -6,9 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/tendermint/tmlibs/db"
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/tendermint/tmlibs/db"
 )
 
 func getAccState() *AccState {
@@ -29,25 +29,41 @@ func getPowerState() *PowerState {
 	return NewPowerState(accDB)
 }
 
-func randomPubkey() *crypto.PubKeyEd25519 {
-	sk1 := crypto.GenPrivKeyEd25519()
+func randomPubkey() (*crypto.PubKeyEd25519, error) {
+	sk1, err := crypto.GenPrivKeyEd25519(nil)
+	if err != nil {
+		return nil, err
+	}
+	defer sk1.Destroy()
 	pk2 := sk1.PubKey()
 	pk2bs := pk2.(*crypto.PubKeyEd25519)
 
-	return pk2bs
+	return pk2bs, nil
 }
 
 func randomBig(max uint64) *big.Int {
 	return new(big.Int).SetUint64(rand.Uint64() % max)
 }
 
+func _checkErr(t *testing.T, err error) {
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIterateAccountState(t *testing.T) {
 	as := getAccState()
 
-	k1 := randomPubkey()
-	k2 := randomPubkey()
-	k3 := randomPubkey()
-	k4 := randomPubkey()
+	var k1, k2, k3, k4 *crypto.PubKeyEd25519
+	var err error
+	k1, err = randomPubkey()
+	_checkErr(t, err)
+	k2, err = randomPubkey()
+	_checkErr(t, err)
+	k3, err = randomPubkey()
+	_checkErr(t, err)
+	k4, err = randomPubkey()
+	_checkErr(t, err)
 
 	as.AddBalance(k1, new(big.Int).SetUint64(10))
 	as.AddBalance(k2, new(big.Int).SetUint64(20))
@@ -75,10 +91,16 @@ func TestIterateAccountState(t *testing.T) {
 func TestIteratePowerState(t *testing.T) {
 	ps := getPowerState()
 
-	k1 := randomPubkey()
-	k2 := randomPubkey()
-	k3 := randomPubkey()
-	k4 := randomPubkey()
+	var k1, k2, k3, k4 *crypto.PubKeyEd25519
+	var err error
+	k1, err = randomPubkey()
+	_checkErr(t, err)
+	k2, err = randomPubkey()
+	_checkErr(t, err)
+	k3, err = randomPubkey()
+	_checkErr(t, err)
+	k4, err = randomPubkey()
+	_checkErr(t, err)
 
 	ps.CreatePower(k1[:], new(big.Int).SetUint64(10), 1)
 	ps.CreatePower(k2[:], new(big.Int).SetUint64(20), 1)
@@ -112,7 +134,8 @@ func TestElection(t *testing.T) {
 	}
 
 	for i := 0; i < 50; i++ {
-		k := randomPubkey()
+		k, err := randomPubkey()
+		_checkErr(t, err)
 		p := new(big.Int).SetUint64(uint64(10 + i*10))
 		ps.CreatePower(k[:], p, 1)
 		as.CreateAccount(k[:], Big0)

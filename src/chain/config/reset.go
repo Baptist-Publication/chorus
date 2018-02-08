@@ -14,10 +14,10 @@ const (
 	SHARDSDIR = "shards"
 )
 
-func GetConfig(root string) (conf *viper.Viper) {
+func GetConfig(root string, pwd []byte) (conf *viper.Viper) {
 	var err error
 	runtime := acfg.RuntimeDir(root)
-	acfg.InitRuntime(runtime, conf.GetString("chain_id"))
+	acfg.InitRuntime(runtime, conf.GetString("chain_id"), pwd)
 
 	conf = viper.New()
 	conf.SetEnvPrefix("ANGINE")
