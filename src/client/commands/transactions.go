@@ -21,11 +21,11 @@ import (
 	"github.com/Baptist-Publication/chorus/src/tools"
 )
 
-type nodeActions struct{}
+type Transactions struct{}
 
 var (
-	nodeAction   = nodeActions{}
-	NodeCommands = cli.Command{
+	Transaction         = Transactions{}
+	TransactionCommands = cli.Command{
 		Name:     "tx",
 		Usage:    "commands for node  operations",
 		Category: "transaction",
@@ -33,7 +33,7 @@ var (
 			{
 				Name:   "transfer",
 				Usage:  "transfer node balance from one node to another",
-				Action: nodeAction.ChangeNodeBalance,
+				Action: Transaction.TransferBalance,
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
 					anntoolFlags.peerPubkey,
@@ -45,7 +45,7 @@ var (
 			{
 				Name:   "mortgage",
 				Usage:  "exchange node balance to voting power",
-				Action: nodeAction.Mortgage,
+				Action: Transaction.Mortgage,
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
 					anntoolFlags.value,
@@ -56,7 +56,7 @@ var (
 			{
 				Name:   "redemption",
 				Usage:  "exchange node voting power to balance",
-				Action: nodeAction.Redemption,
+				Action: Transaction.Redemption,
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
 					anntoolFlags.value,
@@ -68,7 +68,7 @@ var (
 	}
 )
 
-func (act nodeActions) jsonRPC(chainID string, p []byte) (*types.RPCResult, error) {
+func (act Transactions) jsonRPC(chainID string, p []byte) (*types.RPCResult, error) {
 	clt := rpcclient.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
 	_, err := clt.Call("broadcast_tx_sync", []interface{}{chainID, p}, tmResult)
@@ -78,7 +78,7 @@ func (act nodeActions) jsonRPC(chainID string, p []byte) (*types.RPCResult, erro
 	return tmResult, nil
 }
 
-func (act nodeActions) ChangeNodeBalance(ctx *cli.Context) error {
+func (act Transactions) TransferBalance(ctx *cli.Context) error {
 	var chainID string
 	if !ctx.GlobalIsSet("target") {
 		chainID = "chorus"
@@ -143,7 +143,7 @@ func (act nodeActions) ChangeNodeBalance(ctx *cli.Context) error {
 	return nil
 }
 
-func (act nodeActions) Mortgage(ctx *cli.Context) error {
+func (act Transactions) Mortgage(ctx *cli.Context) error {
 	var chainID string
 	if !ctx.GlobalIsSet("target") {
 		chainID = "chorus"
@@ -200,7 +200,7 @@ func (act nodeActions) Mortgage(ctx *cli.Context) error {
 	return nil
 }
 
-func (act nodeActions) Redemption(ctx *cli.Context) error {
+func (act Transactions) Redemption(ctx *cli.Context) error {
 	var chainID string
 	if !ctx.GlobalIsSet("target") {
 		chainID = "chorus"

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -28,7 +29,7 @@ var (
 				Usage:  "query account's nonce",
 				Action: queryNonce,
 				Flags: []cli.Flag{
-					anntoolFlags.addr,
+					anntoolFlags.accountPubkey,
 				},
 			},
 			{
@@ -36,7 +37,7 @@ var (
 				Usage:  "query account's balance",
 				Action: queryBalance,
 				Flags: []cli.Flag{
-					anntoolFlags.addr,
+					anntoolFlags.accountPubkey,
 				},
 			},
 			{
@@ -44,7 +45,7 @@ var (
 				Usage:  "query account's vote power",
 				Action: queryPower,
 				Flags: []cli.Flag{
-					anntoolFlags.addr,
+					anntoolFlags.accountPubkey,
 				},
 			},
 			{
@@ -75,6 +76,14 @@ var (
 				Action: queryNodeApps,
 				Flags:  []cli.Flag{},
 			},
+			{
+				Name:   "isvalidator",
+				Usage:  "query account is validator",
+				Action: queryValidator,
+				Flags: []cli.Flag{
+					anntoolFlags.accountPubkey,
+				},
+			},
 		},
 	}
 )
@@ -86,7 +95,7 @@ func queryNonce(ctx *cli.Context) error {
 	} else {
 		chainID = ctx.GlobalString("target")
 	}
-	nonce, err := getNonce(chainID, ctx.String("address"))
+	nonce, err := getNonce(chainID, ctx.String("account_pubkey"))
 	if err != nil {
 		return err
 	}
@@ -96,13 +105,13 @@ func queryNonce(ctx *cli.Context) error {
 	return nil
 }
 
-func getNonce(chainID, address string) (nonce uint64, err error) {
+func getNonce(chainID, accpub string) (nonce uint64, err error) {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
 
-	addrHex := ac.SanitizeHex(address)
-	addr, _ := hex.DecodeString(addrHex)
-	query := append([]byte{civil.QueryNonce}, addr...)
+	pubHex := ac.SanitizeHex(accpub)
+	pub, _ := hex.DecodeString(pubHex)
+	query := append([]byte{civil.QueryNonce}, pub...)
 
 	_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
 	if err != nil {
@@ -124,9 +133,9 @@ func queryBalance(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
 
-	addrHex := ac.SanitizeHex(ctx.String("address"))
-	addr, _ := hex.DecodeString(addrHex)
-	query := append([]byte{civil.QueryBalance}, addr...)
+	pubHex := ac.SanitizeHex(ctx.String("account_pubkey"))
+	pub, _ := hex.DecodeString(pubHex)
+	query := append([]byte{civil.QueryBalance}, pub...)
 
 	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
 	if err != nil {
@@ -152,9 +161,9 @@ func queryPower(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
 
-	addrHex := ac.SanitizeHex(ctx.String("address"))
-	addr, _ := hex.DecodeString(addrHex)
-	query := append([]byte{civil.QueryPower}, addr...)
+	pubHex := ac.SanitizeHex(ctx.String("account_pubkey"))
+	pub, _ := hex.DecodeString(pubHex)
+	query := append([]byte{civil.QueryPower}, pub...)
 
 	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
 	if err != nil {
@@ -273,5 +282,30 @@ func queryNodeApps(ctx *cli.Context) error {
 	}
 	res := (*tmResult).(*types.ResultOrgs)
 	fmt.Println(*res)
+	return nil
+}
+
+func queryValidator(ctx *cli.Context) error {
+	var chainID string
+	if !ctx.GlobalIsSet("target") {
+		chainID = "chorus"
+	} else {
+		chainID = ctx.GlobalString("target")
+	}
+	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
+	tmResult := new(types.RPCResult)
+
+	pubHex := strings.TrimPrefix(strings.ToUpper(ctx.String("account_pubkey")), "0x")
+	fmt.Println("account pubkey:", pubHex)
+
+	_, err := clientJSON.Call("is_validator", []interface{}{chainID, pubHex}, tmResult)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	res := (*tmResult).(*types.ResultIsValidator)
+
+	fmt.Println("result:", *res)
+
 	return nil
 }

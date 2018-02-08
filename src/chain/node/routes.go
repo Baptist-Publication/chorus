@@ -64,6 +64,7 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 		"genesis":              rpc.NewRPCFunc(h.Genesis, argsWithChainID("")),
 		"block":                rpc.NewRPCFunc(h.Block, argsWithChainID("height")),
 		"validators":           rpc.NewRPCFunc(h.Validators, argsWithChainID("")),
+		"is_validator":         rpc.NewRPCFunc(h.Is_Validator, argsWithChainID("pubkey")),
 		"dump_consensus_state": rpc.NewRPCFunc(h.DumpConsensusState, argsWithChainID("")),
 		"unconfirmed_txs":      rpc.NewRPCFunc(h.UnconfirmedTxs, argsWithChainID("")),
 		"num_unconfirmed_txs":  rpc.NewRPCFunc(h.NumUnconfirmedTxs, argsWithChainID("")),
@@ -317,6 +318,30 @@ func (h *rpcHandler) Validators(chainID string) (agtypes.RPCResult, error) {
 	return &agtypes.ResultValidators{
 		Validators:  vs.Validators,
 		BlockHeight: org.Angine.Height(),
+	}, nil
+}
+
+func (h *rpcHandler) Is_Validator(chainID, pubkey string) (agtypes.RPCResult, error) {
+	org, err := h.getOrg(chainID)
+	if err != nil {
+		return nil, ErrInvalidChainID
+	}
+
+	_, vs := org.Angine.GetValidators()
+	for _, val := range vs.Validators {
+		if pubkey == val.PubKey.KeyString() {
+			return &agtypes.ResultIsValidator{
+				IsValidator: true,
+				PubKey:      val.PubKey.KeyString(),
+				VotingPower: val.VotingPower,
+				Accum:       val.Accum,
+				IsCA:        val.IsCA,
+			}, nil
+		}
+	}
+
+	return &agtypes.ResultIsValidator{
+		IsValidator: false,
 	}, nil
 }
 
