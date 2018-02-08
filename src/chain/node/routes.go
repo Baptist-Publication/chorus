@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +11,6 @@ import (
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	rpc "github.com/Baptist-Publication/chorus-module/lib/go-rpc/server"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
-	//	"github.com/Baptist-Publication/chorus-module/lib/go-wire"
-	"github.com/Baptist-Publication/chorus/src/chain/version"
 )
 
 const ChainIDArg = "chainid"
@@ -52,23 +49,13 @@ func newRPCHandler(n *Node) *rpcHandler {
 func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 	h := newRPCHandler(n)
 	return map[string]*rpc.RPCFunc{
-		// subscribe/unsubscribe are reserved for websocket events.
-		// "subscribe":   rpc.NewWSRPCFunc(SubscribeResult, argsWithChainID("event")),
-		// "unsubscribe": rpc.NewWSRPCFunc(UnsubscribeResult, argsWithChainID("event")),
-
 		// info API
-		"organizations":        rpc.NewRPCFunc(h.Orgs, ""),
-		"status":               rpc.NewRPCFunc(h.Status, argsWithChainID("")),
-		"net_info":             rpc.NewRPCFunc(h.NetInfo, argsWithChainID("")),
-		"blockchain":           rpc.NewRPCFunc(h.BlockchainInfo, argsWithChainID("minHeight,maxHeight")),
-		"genesis":              rpc.NewRPCFunc(h.Genesis, argsWithChainID("")),
-		"block":                rpc.NewRPCFunc(h.Block, argsWithChainID("height")),
-		"validators":           rpc.NewRPCFunc(h.Validators, argsWithChainID("")),
-		"dump_consensus_state": rpc.NewRPCFunc(h.DumpConsensusState, argsWithChainID("")),
-		"unconfirmed_txs":      rpc.NewRPCFunc(h.UnconfirmedTxs, argsWithChainID("")),
-		"num_unconfirmed_txs":  rpc.NewRPCFunc(h.NumUnconfirmedTxs, argsWithChainID("")),
-		"za_surveillance":      rpc.NewRPCFunc(h.ZaSurveillance, argsWithChainID("")),
-		"core_version":         rpc.NewRPCFunc(h.CoreVersion, argsWithChainID("")),
+		"organizations":   rpc.NewRPCFunc(h.Orgs, ""),
+		"status":          rpc.NewRPCFunc(h.Status, argsWithChainID("")),
+		"net_info":        rpc.NewRPCFunc(h.NetInfo, argsWithChainID("")),
+		"block":           rpc.NewRPCFunc(h.Block, argsWithChainID("height")),
+		"validators":      rpc.NewRPCFunc(h.Validators, argsWithChainID("")),
+		"za_surveillance": rpc.NewRPCFunc(h.ZaSurveillance, argsWithChainID("")),
 
 		// broadcast API
 		"broadcast_tx_commit": rpc.NewRPCFunc(h.BroadcastTxCommit, argsWithChainID("tx")),
@@ -76,45 +63,11 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 
 		// query API
 		"query":      rpc.NewRPCFunc(h.Query, argsWithChainID("query")),
-		"info":       rpc.NewRPCFunc(h.Info, argsWithChainID("")),
 		"event_code": rpc.NewRPCFunc(h.EventCode, argsWithChainID("code_hash")), // TODO now id is base-chain's name
-
-		// control API
-		// "dial_seeds":           rpc.NewRPCFunc(h.UnsafeDialSeeds, argsWithChainID("seeds")),
-		"unsafe_flush_mempool": rpc.NewRPCFunc(h.UnsafeFlushMempool, argsWithChainID("")),
-		// "unsafe_set_config":    rpc.NewRPCFunc(h.UnsafeSetConfig, argsWithChainID("type,key,value")),
-
-		// profiler API
-		// "unsafe_start_cpu_profiler": rpc.NewRPCFunc(UnsafeStartCPUProfilerResult, argsWithChainID("filename")),
-		// "unsafe_stop_cpu_profiler":  rpc.NewRPCFunc(UnsafeStopCPUProfilerResult, argsWithChainID("")),
-		// "unsafe_write_heap_profile": rpc.NewRPCFunc(UnsafeWriteHeapProfileResult, argsWithChainID("filename")),
 
 		// specialOP API
 		"request_special_op": rpc.NewRPCFunc(h.RequestSpecialOP, argsWithChainID("tx")),
-		// "vote_special_op":    rpc.NewRPCFunc(h.VoteSpecialOP, argsWithChainID("tx")),
-		// "request_vote_channel": rpc.NewRPCFunc(RequestForVoteChannel, "tx"),
-
-		// refuse_list API
-		"blacklist": rpc.NewRPCFunc(h.Blacklist, argsWithChainID("")),
-
-		"non_empty_heights": rpc.NewRPCFunc(h.NonEmptyHeights, argsWithChainID("")),
 	}
-}
-
-func (h *rpcHandler) getOrg(chainID string) (*OrgNode, error) {
-	var org *OrgNode
-	var err error
-	if chainID == h.node.MainChainID {
-		org = h.node.MainOrg
-	} else {
-		met := h.node.MainOrg.Application.(*Metropolis)
-		org, err = met.GetOrg(chainID)
-		if err != nil {
-			return nil, ErrInvalidChainID
-		}
-	}
-
-	return org, nil
 }
 
 func (h *rpcHandler) Orgs() (agtypes.RPCResult, error) {
@@ -159,14 +112,6 @@ func (h *rpcHandler) Status(chainID string) (agtypes.RPCResult, error) {
 		LatestBlockTime:   latestBlockTime}, nil
 }
 
-func (h *rpcHandler) Genesis(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	return &agtypes.ResultGenesis{Genesis: org.GenesisDoc}, nil
-}
-
 func (h *rpcHandler) Block(chainID string, height def.INT) (agtypes.RPCResult, error) {
 	org, err := h.getOrg(chainID)
 	if err != nil {
@@ -177,77 +122,6 @@ func (h *rpcHandler) Block(chainID string, height def.INT) (agtypes.RPCResult, e
 	blockc, res.BlockMeta, err = org.Angine.GetBlock(height)
 	res.Block = blockc.Block
 	return &res, err
-}
-
-func (h *rpcHandler) BlockchainInfo(chainID string, minHeight, maxHeight def.INT) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	if minHeight > maxHeight {
-		return nil, fmt.Errorf("maxHeight has to be bigger than minHeight")
-	}
-
-	blockStoreHeight := org.Angine.Height()
-	if maxHeight == 0 {
-		maxHeight = blockStoreHeight
-	} else if blockStoreHeight < maxHeight {
-		maxHeight = blockStoreHeight
-	}
-	if minHeight == 0 {
-		if maxHeight-20 > 1 {
-			minHeight = maxHeight - 20
-		} else {
-			minHeight = 1
-		}
-	}
-	blockMetas := []*pbtypes.BlockMeta{}
-	for height := maxHeight; height >= minHeight; height-- {
-		blockMeta, err := org.Angine.GetBlockMeta(height)
-		if err != nil {
-			return nil, err
-		}
-		blockMetas = append(blockMetas, blockMeta)
-	}
-	return &agtypes.ResultBlockchainInfo{LastHeight: blockStoreHeight, BlockMetas: blockMetas}, nil
-}
-
-func (h *rpcHandler) DumpConsensusState(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	res := agtypes.ResultDumpConsensusState{}
-	res.RoundState, res.PeerRoundStates = org.Angine.GetConsensusStateInfo()
-	return &res, nil
-}
-
-func (h *rpcHandler) UnconfirmedTxs(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	res := agtypes.ResultUnconfirmedTxs{}
-	res.Txs = org.Angine.GetUnconfirmedTxs()
-	res.N = len(res.Txs)
-	return &res, nil
-}
-
-func (h *rpcHandler) NumUnconfirmedTxs(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	return &agtypes.ResultUnconfirmedTxs{N: org.Angine.GetNumUnconfirmedTxs(), Txs: nil}, nil
-}
-
-func (h *rpcHandler) UnsafeFlushMempool(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	org.Angine.FlushMempool()
-	return &agtypes.ResultUnsafeFlushMempool{}, nil
 }
 
 func (h *rpcHandler) BroadcastTx(chainID string, tx []byte) (agtypes.RPCResult, error) {
@@ -287,15 +161,6 @@ func (h *rpcHandler) Query(chainID string, query []byte) (agtypes.RPCResult, err
 	return &agtypes.ResultQuery{Result: org.Application.Query(query)}, nil
 }
 
-func (h *rpcHandler) Info(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	res := org.Application.Info()
-	return &res, nil
-}
-
 func (h *rpcHandler) EventCode(chainID string, codeHash []byte) (agtypes.RPCResult, error) {
 	if len(codeHash) == 0 {
 		return nil, ErrMissingParams
@@ -318,25 +183,6 @@ func (h *rpcHandler) Validators(chainID string) (agtypes.RPCResult, error) {
 		Validators:  vs.Validators,
 		BlockHeight: org.Angine.Height(),
 	}, nil
-}
-
-func (h *rpcHandler) CoreVersion(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	appInfo := org.Application.Info()
-	vs := strings.Split(version.GetCommitVersion(), "-")
-	res := agtypes.ResultCoreVersion{
-		Version:    vs[0],
-		AppName:    version.AppName(),
-		AppVersion: appInfo.Version,
-	}
-	if len(vs) > 1 {
-		res.Hash = vs[1]
-	}
-
-	return &res, nil
 }
 
 func (h *rpcHandler) ZaSurveillance(chainID string) (agtypes.RPCResult, error) {
@@ -412,14 +258,6 @@ func (h *rpcHandler) NetInfo(chainID string) (agtypes.RPCResult, error) {
 	return &res, nil
 }
 
-func (h *rpcHandler) Blacklist(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	return &agtypes.ResultRefuseList{Result: org.Angine.GetBlacklist()}, nil
-}
-
 func (h *rpcHandler) RequestSpecialOP(chainID string, tx []byte) (agtypes.RPCResult, error) {
 	org, err := h.getOrg(chainID)
 	if err != nil {
@@ -439,72 +277,25 @@ func (h *rpcHandler) RequestSpecialOP(chainID string, tx []byte) (agtypes.RPCRes
 	}, nil
 }
 
-func (h *rpcHandler) RequestNodeSpecialOP(chainID string, tx []byte) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-	org.Angine.BroadcastTx(tx)
-
-	return &agtypes.ResultRequestSpecialOP{
-		Code: pbtypes.CodeType_OK,
-	}, nil
-}
-
-// func (h *rpcHandler) VoteSpecialOP(chainID string, tx []byte) (agtypes.RPCResult, error) {
-// 	org, err := h.getOrg(chainID)
-// 	if err != nil {
-// 		return nil, ErrInvalidChainID
-// 	}
-// 	if !agtypes.IsSpecialOP(tx) {
-// 		return nil, fmt.Errorf("not a specialop")
-// 	}
-
-// 	cmd := new(agtypes.SpecialOPCmd)
-// 	if err = wire.ReadBinaryBytes(agtypes.UnwrapTx(tx), cmd); err != nil {
-// 		return nil, fmt.Errorf("error: %v", err)
-// 	}
-// 	res, err := org.Angine.CheckSpecialOp(cmd)
-// 	if err != nil {
-// 		return &agtypes.ResultRequestSpecialOP{
-// 			Code: agtypes.CodeType_InternalError,
-// 			Log:  err.Error(),
-// 		}, err
-// 	}
-// 	return &agtypes.ResultRequestSpecialOP{
-// 		Code: agtypes.CodeType_OK,
-// 		Data: res,
-// 	}, nil
-// }
-
-func (h *rpcHandler) NonEmptyHeights(chainID string) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-
-	it := org.Angine.GetNonEmptyBlockIterator()
-	heights := make([]def.INT, 0)
-	for it.HasMore() {
-		heights = append(heights, it.Next().Header.Height)
-	}
-
-	return &agtypes.ResultNonEmptyHeights{
-		Heights: heights,
-	}, nil
-}
-
-// func BroadcastTxCommitResult(chainID string, tx []byte) (rpctypes.TMResult, error) {
-//	shard := FindShard(chainID)
-//	if err := org.Application.CheckTx(tx); err != nil {
-//		return nil, err
-//	}
-//	org.Angine.BroadcastTxCommit(tx)
-// }
-
 func argsWithChainID(args string) string {
 	if args == "" {
 		return ChainIDArg
 	}
 	return ChainIDArg + "," + args
+}
+
+func (h *rpcHandler) getOrg(chainID string) (*OrgNode, error) {
+	var org *OrgNode
+	var err error
+	if chainID == h.node.MainChainID {
+		org = h.node.MainOrg
+	} else {
+		met := h.node.MainOrg.Application.(*Metropolis)
+		org, err = met.GetOrg(chainID)
+		if err != nil {
+			return nil, ErrInvalidChainID
+		}
+	}
+
+	return org, nil
 }
