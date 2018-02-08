@@ -78,7 +78,7 @@ func (met *Metropolis) executeEcoInitAllocTx(tx *EcoInitAllocTx) error {
 		return err
 	}
 
-	fmt.Printf("============ %X Init Alloc %s\n", tx.To, tx.Amount.String())
+	// fmt.Printf("============ %X Init Alloc %s\n", tx.To, tx.Amount.String())
 
 	return nil
 }
@@ -121,7 +121,7 @@ func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) e
 
 	met.FeeAccum = new(big.Int).Add(met.FeeAccum, tx.Fee)
 
-	fmt.Printf("============ %X Mortgage %s\n", tx.GetPubKey(), tx.Amount.String())
+	// fmt.Printf("============ %X Mortgage %s\n", tx.GetPubKey(), tx.Amount.String())
 
 	return nil
 }
@@ -158,7 +158,7 @@ func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.IN
 		// operator is validator now, cannot redeem right now, but we mark its MHeight as -1
 		met.powerState.MarkPower(&from, -1)
 
-		fmt.Printf("============ %X Redemption Mark\n", tx.GetPubKey())
+		// fmt.Printf("============ %X Redemption Mark\n", tx.GetPubKey())
 	} else {
 		if err := met.powerState.SubVTPower(&from, tx.Amount, height); err != nil {
 			return err
@@ -167,7 +167,7 @@ func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.IN
 			return err
 		}
 
-		fmt.Printf("============ %X Redemption %s\n", tx.GetPubKey(), tx.Amount.String())
+		// fmt.Printf("============ %X Redemption %s\n", tx.GetPubKey(), tx.Amount.String())
 	}
 
 	if err := met.accState.IncreaseNonce(&from, 1); err != nil {
@@ -218,7 +218,7 @@ func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height def.INT) e
 
 	met.FeeAccum = new(big.Int).Add(met.FeeAccum, tx.Fee)
 
-	fmt.Printf("============ %X Transfer %s\n", tx.GetPubKey(), tx.Amount.String())
+	// fmt.Printf("============ %X Transfer %s\n", tx.GetPubKey(), tx.Amount.String())
 
 	return nil
 }
