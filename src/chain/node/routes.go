@@ -195,18 +195,14 @@ func (h *rpcHandler) Is_Validator(chainID, pubkey string) (agtypes.RPCResult, er
 	_, vs := org.Angine.GetValidators()
 	for _, val := range vs.Validators {
 		if pubkey == val.PubKey.KeyString() {
-			return &agtypes.ResultIsValidator{
-				IsValidator: true,
-				PubKey:      val.PubKey.KeyString(),
-				VotingPower: val.VotingPower,
-				Accum:       val.Accum,
-				IsCA:        val.IsCA,
+			return &agtypes.ResultQuery{
+				Result: agtypes.NewResultOK([]byte{1}, ""),
 			}, nil
 		}
 	}
 
-	return &agtypes.ResultIsValidator{
-		IsValidator: false,
+	return &agtypes.ResultQuery{
+		Result: agtypes.NewResultOK([]byte{0}, "account not is validator"),
 	}, nil
 }
 

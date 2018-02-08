@@ -302,9 +302,8 @@ func queryValidator(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*types.ResultIsValidator)
+	res := (*tmResult).(*types.ResultQuery)
 
-	fmt.Println("result:", *res)
-
+	fmt.Println("result:", res.Result.Data[0] == 1)
 	return nil
 }
