@@ -13,7 +13,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Baptist-Publication/angine"
-	ac "github.com/Baptist-Publication/angine/config"
 	"github.com/Baptist-Publication/angine/types"
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
@@ -47,12 +46,7 @@ func AppExists(name string) (yes bool) {
 	return
 }
 
-func NewNode(logger *zap.Logger, conf *viper.Viper, pwd []byte) *Node {
-	aConf := ac.GetConfig(conf.GetString("runtime"))
-	for k, v := range conf.AllSettings() {
-		aConf.Set(k, v)
-	}
-
+func NewNode(logger *zap.Logger, aConf *viper.Viper, pwd []byte) *Node {
 	metropolis := NewMetropolis(logger, aConf)
 	metroAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf}, pwd)
 	tune := metroAngine.Tune
