@@ -296,7 +296,6 @@ func queryValidator(ctx *cli.Context) error {
 	tmResult := new(types.RPCResult)
 
 	pubHex := strings.TrimPrefix(strings.ToUpper(ctx.String("account_pubkey")), "0x")
-	fmt.Println("account pubkey:", pubHex)
 
 	_, err := clientJSON.Call("is_validator", []interface{}{chainID, pubHex}, tmResult)
 	if err != nil {

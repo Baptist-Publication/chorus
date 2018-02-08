@@ -70,11 +70,15 @@ func (met *Metropolis) executeEcoInitAllocTx(tx *EcoInitAllocTx) error {
 	var to crypto.PubKeyEd25519
 	copy(to[:], tx.To)
 
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+
 	if err := met.accState.AddBalance(&to, tx.Amount); err != nil {
 		return err
 	}
 
-	fmt.Printf("============ %X Init Alloc %s\n", tx.To, tx.Amount.String())
+	// fmt.Printf("============ %X Init Alloc %s\n", tx.To, tx.Amount.String())
 
 	return nil
 }
@@ -82,6 +86,13 @@ func (met *Metropolis) executeEcoInitAllocTx(tx *EcoInitAllocTx) error {
 func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
+
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+	if tx.Fee == nil {
+		tx.Fee = Big0
+	}
 
 	if tx.Amount.Cmp(big.NewInt(0)) < 0 {
 		return errors.New("amount cannot be negtive")
@@ -110,7 +121,7 @@ func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) e
 
 	met.FeeAccum = new(big.Int).Add(met.FeeAccum, tx.Fee)
 
-	fmt.Printf("============ %X Mortgage %s\n", tx.GetPubKey(), tx.Amount.String())
+	// fmt.Printf("============ %X Mortgage %s\n", tx.GetPubKey(), tx.Amount.String())
 
 	return nil
 }
@@ -118,6 +129,13 @@ func (met *Metropolis) executeEcoMortgageTx(tx *EcoMortgageTx, height def.INT) e
 func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.INT) error {
 	var from crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
+
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+	if tx.Fee == nil {
+		tx.Fee = Big0
+	}
 
 	if height < StartRedeemHeight {
 		return errors.New("Operation is not allow right now")
@@ -140,7 +158,7 @@ func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.IN
 		// operator is validator now, cannot redeem right now, but we mark its MHeight as -1
 		met.powerState.MarkPower(&from, -1)
 
-		fmt.Printf("============ %X Redemption Mark\n", tx.GetPubKey())
+		// fmt.Printf("============ %X Redemption Mark\n", tx.GetPubKey())
 	} else {
 		if err := met.powerState.SubVTPower(&from, tx.Amount, height); err != nil {
 			return err
@@ -149,7 +167,7 @@ func (met *Metropolis) executeEcoRedemptionTx(tx *EcoRedemptionTx, height def.IN
 			return err
 		}
 
-		fmt.Printf("============ %X Redemption %s\n", tx.GetPubKey(), tx.Amount.String())
+		// fmt.Printf("============ %X Redemption %s\n", tx.GetPubKey(), tx.Amount.String())
 	}
 
 	if err := met.accState.IncreaseNonce(&from, 1); err != nil {
@@ -165,6 +183,13 @@ func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height def.INT) e
 	var from, to crypto.PubKeyEd25519
 	copy(from[:], tx.GetPubKey())
 	copy(to[:], tx.To)
+
+	if tx.Amount == nil {
+		return fmt.Errorf("invalid tx args: amount is required")
+	}
+	if tx.Fee == nil {
+		tx.Fee = Big0
+	}
 
 	if tx.Amount.Cmp(big.NewInt(0)) < 0 {
 		return errors.New("amount cannot be negtive")
@@ -193,7 +218,7 @@ func (met *Metropolis) executeEcoTransferTx(tx *EcoTransferTx, height def.INT) e
 
 	met.FeeAccum = new(big.Int).Add(met.FeeAccum, tx.Fee)
 
-	fmt.Printf("============ %X Transfer %s\n", tx.GetPubKey(), tx.Amount.String())
+	// fmt.Printf("============ %X Transfer %s\n", tx.GetPubKey(), tx.Amount.String())
 
 	return nil
 }
