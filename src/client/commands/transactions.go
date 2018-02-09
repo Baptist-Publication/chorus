@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"time"
 	//"encoding/json"
 	"fmt"
@@ -10,12 +11,12 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Baptist-Publication/angine/types"
-	//anginetypes "github.com/Baptist-Publication/angine/types"
+	agtypes "github.com/Baptist-Publication/angine/types"
 	gcommon "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
+	libcrypto "github.com/Baptist-Publication/chorus-module/xlib/crypto"
 	"github.com/Baptist-Publication/chorus/src/chain/node"
 	"github.com/Baptist-Publication/chorus/src/client/commons"
 	"github.com/Baptist-Publication/chorus/src/tools"
@@ -36,6 +37,7 @@ var (
 				Action: Transaction.TransferBalance,
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
+					anntoolFlags.passwd,
 					anntoolFlags.peerPubkey,
 					anntoolFlags.value,
 					anntoolFlags.fee,
@@ -48,6 +50,7 @@ var (
 				Action: Transaction.Mortgage,
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
+					anntoolFlags.passwd,
 					anntoolFlags.value,
 					anntoolFlags.fee,
 					anntoolFlags.nonce,
@@ -59,6 +62,7 @@ var (
 				Action: Transaction.Redemption,
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
+					anntoolFlags.passwd,
 					anntoolFlags.value,
 					anntoolFlags.fee,
 					anntoolFlags.nonce,
@@ -68,9 +72,36 @@ var (
 	}
 )
 
-func (act Transactions) jsonRPC(chainID string, p []byte) (*types.RPCResult, error) {
+func ParsePrivkey(ctx *cli.Context) (crypto.PrivKey, error) {
+	if !ctx.IsSet(anntoolFlags.privkey.GetName()) {
+		return nil, errors.New("missing privkey")
+	}
+	privBytes, err := hex.DecodeString(gcommon.SanitizeHex(ctx.String(anntoolFlags.privkey.GetName())))
+	if err != nil {
+		return nil, err
+	}
+	var pwd []byte
+	if len(privBytes) != 64 {
+		if ctx.IsSet(anntoolFlags.passwd.GetName()) {
+			pwd = []byte(ctx.String(anntoolFlags.passwd.GetName()))
+		} else {
+			pwd, err = libcrypto.InputPasswdForDecrypt()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var pkEd *crypto.PrivKeyEd25519
+	pkEd, err = crypto.DecryptSlcToEd25519(privBytes, pwd)
+	if err != nil {
+		return nil, err
+	}
+	return pkEd, nil
+}
+
+func (act Transactions) jsonRPC(chainID string, p []byte) (*agtypes.RPCResult, error) {
 	clt := rpcclient.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
+	tmResult := new(agtypes.RPCResult)
 	_, err := clt.Call("broadcast_tx_sync", []interface{}{chainID, p}, tmResult)
 	if err != nil {
 		return nil, err
@@ -89,17 +120,14 @@ func (act Transactions) TransferBalance(ctx *cli.Context) error {
 		return cli.NewExitError("from node privkey , peer pubkey and change value is required", 127)
 	}
 
-	priv, to := gcommon.SanitizeHex(ctx.String("privkey")), gcommon.SanitizeHex(ctx.String("peer_pubkey"))
-
-	privBytes, err := hex.DecodeString(priv)
+	privKey, err := ParsePrivkey(ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err.Error(), 127)
 	}
-	privKey := crypto.PrivKeyEd25519{}
-	copy(privKey[:], privBytes)
-	frompubkey := privKey.PubKey().(*crypto.PubKeyEd25519)
+	defer privKey.Destroy()
 
-	topubkey32, err := types.StringTo32byte(to)
+	to := gcommon.SanitizeHex(ctx.String("peer_pubkey"))
+	topubkey32, err := agtypes.StringTo32byte(to)
 	if err != nil {
 		return err
 	}
@@ -109,6 +137,7 @@ func (act Transactions) TransferBalance(ctx *cli.Context) error {
 	value := ctx.Int64("value")
 
 	tx := &node.EcoTransferTx{}
+	frompubkey := privKey.PubKey().(*crypto.PubKeyEd25519)
 	tx.PubKey = frompubkey[:]
 	tx.To = topubkey[:]
 	tx.Amount = big.NewInt(value)
@@ -124,12 +153,12 @@ func (act Transactions) TransferBalance(ctx *cli.Context) error {
 		tx.Fee = big.NewInt(0)
 	}
 
-	tx.Signature, _ = tools.TxSign(tx, &privKey)
+	tx.Signature, _ = tools.TxSign(tx, privKey)
 	txbytes, err := tools.TxToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	txbytes = types.WrapTx(node.EcoTransferTag, txbytes)
+	txbytes = agtypes.WrapTx(node.EcoTransferTag, txbytes)
 
 	_, err = act.jsonRPC(chainID, txbytes)
 	if err != nil {
@@ -154,14 +183,11 @@ func (act Transactions) Mortgage(ctx *cli.Context) error {
 		return cli.NewExitError("from node privkey ,change value is required", 127)
 	}
 
-	priv := gcommon.SanitizeHex(ctx.String("privkey"))
-
-	privBytes, err := hex.DecodeString(priv)
+	privKey, err := ParsePrivkey(ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err.Error(), 127)
 	}
-	privKey := crypto.PrivKeyEd25519{}
-	copy(privKey[:], privBytes)
+	defer privKey.Destroy()
 	frompubkey := privKey.PubKey().(*crypto.PubKeyEd25519)
 
 	value := ctx.Int64("value")
@@ -181,12 +207,12 @@ func (act Transactions) Mortgage(ctx *cli.Context) error {
 		tx.Fee = big.NewInt(0)
 	}
 
-	tx.Signature, _ = tools.TxSign(tx, &privKey)
+	tx.Signature, _ = tools.TxSign(tx, privKey)
 	txbytes, err := tools.TxToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	txbytes = types.WrapTx(node.EcoMortgageTag, txbytes)
+	txbytes = agtypes.WrapTx(node.EcoMortgageTag, txbytes)
 
 	_, err = act.jsonRPC(chainID, txbytes)
 	if err != nil {
@@ -211,14 +237,11 @@ func (act Transactions) Redemption(ctx *cli.Context) error {
 		return cli.NewExitError("from node privkey , change value is required", 127)
 	}
 
-	priv := gcommon.SanitizeHex(ctx.String("privkey"))
-
-	privBytes, err := hex.DecodeString(priv)
+	privKey, err := ParsePrivkey(ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err.Error(), 127)
 	}
-	privKey := crypto.PrivKeyEd25519{}
-	copy(privKey[:], privBytes)
+	defer privKey.Destroy()
 	frompubkey := privKey.PubKey().(*crypto.PubKeyEd25519)
 
 	value := ctx.Int64("value")
@@ -238,12 +261,12 @@ func (act Transactions) Redemption(ctx *cli.Context) error {
 		tx.Fee = big.NewInt(0)
 	}
 
-	tx.Signature, _ = tools.TxSign(tx, &privKey)
+	tx.Signature, _ = tools.TxSign(tx, privKey)
 	txbytes, err := tools.TxToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	txbytes = types.WrapTx(node.EcoRedemptionTag, txbytes)
+	txbytes = agtypes.WrapTx(node.EcoRedemptionTag, txbytes)
 
 	_, err = act.jsonRPC(chainID, txbytes)
 	if err != nil {

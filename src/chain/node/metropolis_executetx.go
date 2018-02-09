@@ -280,7 +280,7 @@ func (met *Metropolis) executeOrgTx(tx *OrgTx) (err error) {
 
 	defer func() {
 		if cancelOnError && err != nil {
-			met.sendOrgCancel(tx, &pubkey, txHash)
+			met.sendOrgCancel(tx, pubkey, txHash)
 		}
 	}()
 
@@ -325,7 +325,7 @@ func (met *Metropolis) executeOrgTx(tx *OrgTx) (err error) {
 		return fmt.Errorf("unimplemented")
 	}
 
-	met.sendOrgConfirm(tx, &pubkey, txHash, node)
+	met.sendOrgConfirm(tx, pubkey, txHash, node)
 	return nil
 }
 
@@ -423,7 +423,7 @@ func (met *Metropolis) executeEventRequestTx(tx *EventRequestTx, height def.INT,
 			Data:     tx.SourceHash,
 		}
 
-		if _, err := cvtools.TxSign(ctx, &privkey); err != nil {
+		if _, err := cvtools.TxSign(ctx, privkey); err != nil {
 			return errors.Wrap(err, "[executeEventRequestTx]")
 		}
 		txBytes, _ := cvtools.TxToBytes(ctx)
@@ -485,7 +485,7 @@ func (met *Metropolis) executeCoSiInitTx(tx *CoSiInitTx, height def.INT) error {
 			Data:       append(tx.Data, []byte("|<>|"+etx.Listener)...),
 		}
 
-		if _, err := cvtools.TxSign(cositx, &privkey); err != nil {
+		if _, err := cvtools.TxSign(cositx, privkey); err != nil {
 			return errors.Wrap(err, "[executeCoSiInitTx]")
 		}
 		txBytes, _ := cvtools.TxToBytes(cositx)

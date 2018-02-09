@@ -33,7 +33,7 @@ type OrgNode struct {
 	GenesisDoc  *agtypes.GenesisDoc
 }
 
-func NewOrgNode(logger *zap.Logger, appName string, conf *viper.Viper, metro *Metropolis) *OrgNode {
+func NewOrgNode(logger *zap.Logger, conf *viper.Viper, appName string, metro *Metropolis) *OrgNode {
 	defer func() {
 		// in case App constructor calls panic
 		if err := recover(); err != nil {
@@ -45,8 +45,9 @@ func NewOrgNode(logger *zap.Logger, appName string, conf *viper.Viper, metro *Me
 		return nil
 	}
 
+	var pwd []byte
 	tune := &angine.Tunes{Conf: conf}
-	ang := angine.NewAngine(logger, tune)
+	ang := angine.NewAngine(logger, tune, pwd)
 	if ang == nil {
 		logger.Error("fail to new Angine")
 		return nil
@@ -119,17 +120,13 @@ func (o *OrgNode) GetEngine() Engine {
 	return o.Angine
 }
 
-func (o *OrgNode) GetPublicKey() (r crypto.PubKeyEd25519, b bool) {
-	var pr *crypto.PubKeyEd25519
-	pr, b = o.Angine.PrivValidator().GetPubKey().(*crypto.PubKeyEd25519)
-	r = *pr
+func (o *OrgNode) GetPublicKey() (r *crypto.PubKeyEd25519, b bool) {
+	r, b = o.Angine.PrivValidator().GetPubKey().(*crypto.PubKeyEd25519)
 	return
 }
 
-func (o *OrgNode) GetPrivateKey() (r crypto.PrivKeyEd25519, b bool) {
-	var pr *crypto.PrivKeyEd25519
-	pr, b = o.Angine.PrivValidator().GetPrivKey().(*crypto.PrivKeyEd25519)
-	r = *pr
+func (o *OrgNode) GetPrivateKey() (r *crypto.PrivKeyEd25519, b bool) {
+	r, b = o.Angine.PrivValidator().GetPrivKey().(*crypto.PrivKeyEd25519)
 	return
 }
 

@@ -43,7 +43,7 @@ func (met *Metropolis) restoreOrgConfirm(txBytes []byte) {
 func (met *Metropolis) restoreOrg(txBytes []byte) {
 	var (
 		err    error
-		pubkey crypto.PubKeyEd25519
+		pubkey *crypto.PubKeyEd25519
 		txHash []byte
 		node   *OrgNode
 

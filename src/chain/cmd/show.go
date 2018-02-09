@@ -14,11 +14,14 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/Baptist-Publication/angine"
+	libcrypto "github.com/Baptist-Publication/chorus-module/xlib/crypto"
 )
 
 var showCmd = &cobra.Command{
@@ -41,7 +44,12 @@ func init() {
 			Long:  "",
 			Args:  cobra.NoArgs,
 			Run: func(cmd *cobra.Command, args []string) {
-				ang := angine.NewAngine(zap.NewNop(), &angine.Tunes{Runtime: viper.GetString("runtime")})
+				pwd, err := libcrypto.InputPasswdForDecrypt()
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				ang := angine.NewAngine(zap.NewNop(), &angine.Tunes{Runtime: viper.GetString("runtime")}, pwd)
 				cmd.Println(ang.PrivValidator().PubKey)
 			},
 		},

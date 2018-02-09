@@ -79,10 +79,11 @@ func IsCoSiInitTx(tx []byte) bool {
 }
 
 type CoSiModule struct {
-	logger   *zap.Logger
-	mtx      *sync.Mutex
-	commuWG  *sync.WaitGroup
-	privkey  cosiED.PrivateKey
+	logger  *zap.Logger
+	mtx     *sync.Mutex
+	commuWG *sync.WaitGroup
+	//privkey  cosiED.PrivateKey
+	privkey  *crypto.PrivKeyEd25519
 	listener net.Listener
 	valset   *agtypes.ValidatorSet
 
@@ -107,12 +108,12 @@ type IdentityAck struct {
 	Signature []byte `json:"signature"`
 }
 
-func NewCoSiModule(logger *zap.Logger, privkey crypto.PrivKeyEd25519, validators *agtypes.ValidatorSet) *CoSiModule {
+func NewCoSiModule(logger *zap.Logger, privkey *crypto.PrivKeyEd25519, validators *agtypes.ValidatorSet) *CoSiModule {
 	numVal := validators.Size()
 	mdl := &CoSiModule{
 		mtx:      &sync.Mutex{},
 		commuWG:  &sync.WaitGroup{},
-		privkey:  privkey[:],
+		privkey:  privkey,
 		listener: nil,
 		logger:   logger,
 		valset:   validators,
@@ -243,9 +244,7 @@ func (cm *CoSiModule) identifyConnection(conn net.Conn) error {
 }
 
 func (cm *CoSiModule) secureConnection(conn net.Conn) (*p2p.SecretConnection, error) {
-	privKey := crypto.PrivKeyEd25519{}
-	copy(privKey[:], cm.privkey)
-	sconn, err := p2p.MakeSecretConnection(conn, privKey)
+	sconn, err := p2p.MakeSecretConnection(conn, cm.privkey)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +365,7 @@ func (cm *CoSiModule) LeadCoSign(cosiAddr string, msg []byte) ([]byte, error) {
 	aggrBytes, _ := json.Marshal(aggr)
 
 	// leader's own signature part
-	leaderSig := cosi.Cosign(cm.privkey[:], leaderSecret, msg, aggr.Pubkey, aggr.Commit)
+	leaderSig := cosi.Cosign(cm.privkey.KeyBytes(), leaderSecret, msg, aggr.Pubkey, aggr.Commit)
 	cm.SignatureParts = append(cm.SignatureParts, leaderSig)
 
 	// Begin collecting round of cosi.SignaturePart.
@@ -444,13 +443,10 @@ func (cm *CoSiModule) FollowCoSign(leaderAddress string, data []byte) error {
 		conn.Close()
 		return fmt.Errorf("CommTypeIdentity first")
 	}
-	priv := [64]byte{}
-	copy(priv[:], cm.privkey)
-	privKey := crypto.PrivKeyEd25519(priv)
-	sig := privKey.Sign(rBuf[1:rn])
+	sig := cm.privkey.Sign(rBuf[1:rn])
 	ack := IdentityAck{
 		Type:      crypto.PubKeyTypeEd25519,
-		PubKey:    privKey.PubKey().Bytes(),
+		PubKey:    cm.privkey.PubKey().Bytes(),
 		Signature: sig.Bytes(),
 	}
 	ackBytes, err := json.Marshal(ack)
@@ -524,7 +520,7 @@ func (cm *CoSiModule) FollowCoSign(leaderAddress string, data []byte) error {
 		return errors.Wrap(err, "8")
 	}
 
-	sigpart := cosi.Cosign(cm.privkey, secret, msg, cosiED.PublicKey(aggr.Pubkey), cosi.Commitment(aggr.Commit))
+	sigpart := cosi.Cosign(cm.privkey.KeyBytes(), secret, msg, cosiED.PublicKey(aggr.Pubkey), cosi.Commitment(aggr.Commit))
 	_, err = cm.Write(sc, []byte(sigpart))
 
 	if err = sc.Close(); err != nil {

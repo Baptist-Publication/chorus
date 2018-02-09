@@ -1,11 +1,10 @@
 package commands
 
 import (
-	"encoding/hex"
 	"fmt"
 
-	gcommon "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	libcrypto "github.com/Baptist-Publication/chorus-module/xlib/crypto"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -21,6 +20,9 @@ var (
 				Action:   generatePrivPubAddr,
 				Usage:    "generate new private-pub key pair",
 				Category: "Account",
+				Flags: []cli.Flag{
+					anntoolFlags.passwd,
+				},
 			},
 			{
 				Name:     "cal",
@@ -29,6 +31,7 @@ var (
 				Category: "Account",
 				Flags: []cli.Flag{
 					anntoolFlags.privkey,
+					anntoolFlags.passwd,
 				},
 			},
 		},
@@ -36,29 +39,37 @@ var (
 )
 
 func generatePrivPubAddr(ctx *cli.Context) error {
-	sk := crypto.GenPrivKeyEd25519()
+	var pwd []byte
+	var err error
+	if ctx.IsSet(anntoolFlags.passwd.GetName()) {
+		pwd = []byte(ctx.String(anntoolFlags.passwd.GetName()))
+	} else {
+		pwd, err = libcrypto.InputPasswdForEncrypt()
+		if err != nil {
+			return nil
+		}
+	}
+	sk, err := crypto.GenPrivKeyEd25519(pwd)
+	if err != nil {
+		return err
+	}
+	defer sk.Destroy()
 	pk := sk.PubKey().(*crypto.PubKeyEd25519)
 
-	fmt.Printf("privkey: %X\n", sk[:])
-	fmt.Printf("pubkey: %X\n", pk[:])
+	fmt.Printf("ori-privkey: %X\n", sk.KeyBytes())
+	fmt.Printf("privkey: %X\n", sk.Bytes())
+	fmt.Printf("pubkey: %X\n", pk.Bytes())
 
 	return nil
 }
 
 func calculatePrivPubAddr(ctx *cli.Context) error {
-	if !ctx.IsSet("privkey") {
-		return cli.NewExitError("private key is required", -1)
-	}
-
-	skBs, err := hex.DecodeString(gcommon.SanitizeHex(ctx.String("privkey")))
+	privKey, err := ParsePrivkey(ctx)
 	if err != nil {
-		return cli.NewExitError(err.Error(), -1)
+		return cli.NewExitError(err.Error(), 127)
 	}
-
-	var sk crypto.PrivKeyEd25519
-	copy(sk[:], skBs)
-
-	pk := sk.PubKey().(*crypto.PubKeyEd25519)
+	defer privKey.Destroy()
+	pk := privKey.PubKey().(*crypto.PubKeyEd25519)
 	addr := pk.Address()
 
 	fmt.Printf("pubkey : %X\n", pk[:])

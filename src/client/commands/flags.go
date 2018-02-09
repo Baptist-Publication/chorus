@@ -26,6 +26,7 @@ type AnntoolFlags struct {
 	rpc,
 	chainid,
 	to,
+	passwd,
 	codeHash cli.Flag
 }
 
@@ -99,6 +100,10 @@ var anntoolFlags = AnntoolFlags{
 	},
 	codeHash: cli.StringFlag{
 		Name:  "code_hash",
+		Value: "",
+	},
+	passwd: cli.StringFlag{
+		Name:  "pwd",
 		Value: "",
 	},
 }

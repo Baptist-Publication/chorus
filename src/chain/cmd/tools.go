@@ -11,6 +11,7 @@ import (
 	acfg "github.com/Baptist-Publication/angine/config"
 	"github.com/Baptist-Publication/angine/state"
 	agtypes "github.com/Baptist-Publication/angine/types"
+	libcrypto "github.com/Baptist-Publication/chorus-module/xlib/crypto"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	//"github.com/Baptist-Publication/chorus/src/chain/app/evm"
 	"github.com/Baptist-Publication/chorus/src/chain/config"
@@ -30,7 +31,7 @@ var branchCmd = &cobra.Command{
 	Long:  ``,
 	Args:  cobra.OnlyValidArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := revertToHeight(); err != nil {
+		if err := revertToHeight(cmd); err != nil {
 			fmt.Println("branch err:", err)
 			return
 		}
@@ -71,7 +72,7 @@ const (
 	PRIV_TOOL  = 1 << 3
 )
 
-func (rt *RevertTool) Init(appname string, agconf, appconf *viper.Viper) error {
+func (rt *RevertTool) Init(agconf, appconf *viper.Viper, appname string, pwd []byte) error {
 	dbdir := appconf.GetString("db_dir")
 	if len(viper.GetString("db_dir")) > 0 {
 		dbdir = viper.GetString("db_dir")
@@ -98,7 +99,7 @@ func (rt *RevertTool) Init(appname string, agconf, appconf *viper.Viper) error {
 		return err
 	}
 
-	if err = rt.privtool.Init(agconf.GetString("priv_validator_file")); err != nil {
+	if err = rt.privtool.Init(agconf.GetString("priv_validator_file"), pwd); err != nil {
 		return err
 	}
 	return nil
@@ -200,9 +201,13 @@ func (rt *RevertTool) saveBranchNew(branchName string, toHeight def.INT) error {
 	return nil
 }
 
-func revertToHeight() error {
+func revertToHeight(cmd *cobra.Command) error {
+	pwd, err := libcrypto.InputPasswdForDecrypt()
+	if err != nil {
+		return err
+	}
 	agconf := acfg.GetConfig(viper.GetString("runtime"))
-	appconf := config.GetConfig(viper.GetString("config"))
+	appconf := config.GetConfig(viper.GetString("config"), pwd)
 	toHeight := viper.GetInt64(REVERT_TO_HEIGHT)
 	if toHeight <= 0 {
 		return errors.New("missing param: height")
@@ -217,7 +222,7 @@ func revertToHeight() error {
 	}
 
 	var rt RevertTool
-	err := rt.Init(appname, agconf, appconf)
+	err = rt.Init(agconf, appconf, appname, pwd)
 	if err != nil {
 		return err
 	}

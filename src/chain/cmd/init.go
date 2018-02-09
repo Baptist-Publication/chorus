@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/Baptist-Publication/angine"
+	libcrypto "github.com/Baptist-Publication/chorus-module/xlib/crypto"
 )
 
 const (
@@ -33,10 +34,16 @@ var initCmd = &cobra.Command{
 	ValidArgs: []string{"chainid"},
 	Run: func(cmd *cobra.Command, args []string) {
 		chainID := cmd.Flag("chainid").Value.String()
+
+		pwd, err := libcrypto.InputPasswdForEncrypt()
+		if err != nil {
+			cmd.Println(err)
+			return
+		}
 		// initCivilConfig(viper.GetString("config"))
 		angine.Initialize(&angine.Tunes{
 			Runtime: viper.GetString("runtime"),
-		}, chainID)
+		}, chainID, pwd)
 	},
 }
 

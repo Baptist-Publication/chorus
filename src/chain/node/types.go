@@ -93,8 +93,8 @@ type (
 		Publisher
 
 		IsValidator() bool
-		GetPublicKey() (crypto.PubKeyEd25519, bool)
-		GetPrivateKey() (crypto.PrivKeyEd25519, bool)
+		GetPublicKey() (*crypto.PubKeyEd25519, bool)
+		GetPrivateKey() (*crypto.PrivKeyEd25519, bool)
 		GetChainID() string
 		GetEngine() Engine
 		BroadcastTxSuperior([]byte) error
@@ -329,7 +329,7 @@ func (app *EventAppBase) ConfirmEvent(tx *EventNotificationTx) error {
 		Time:     time.Now(),
 	}
 	ftx.TxHash, _ = tools.TxHash(tx)
-	if _, err := tools.TxSign(ftx, &privkey); err != nil {
+	if _, err := tools.TxSign(ftx, privkey); err != nil {
 		return errors.Wrap(err, "[EventAppBase ConfirmEvent]")
 	}
 	txBytes, _ := tools.TxToBytes(ftx)
@@ -421,7 +421,7 @@ func (app *EventAppBase) ExecuteTx(bs []byte, validators *agtypes.ValidatorSet) 
 			SignData:    cositx.Data,
 			CoSignature: cosignature,
 		}
-		tools.TxSign(estx, &privkey)
+		tools.TxSign(estx, privkey)
 		txBytes, _ := tools.TxToBytes(estx)
 		fmt.Println("broadcast subscription")
 		if err := app.core.BroadcastTxSuperior(agtypes.WrapTx(EventSubscribeTag, txBytes)); err != nil {
