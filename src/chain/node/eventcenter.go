@@ -7,7 +7,7 @@ import (
 
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/pkg/errors"
-	"github.com/tendermint/tmlibs/db"
+	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 )
 
 const (

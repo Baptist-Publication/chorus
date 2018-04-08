@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/tendermint/tmlibs/db"
+	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 
 	cvtools "github.com/Baptist-Publication/chorus/src/tools"
 	cvtypes "github.com/Baptist-Publication/chorus/src/types"

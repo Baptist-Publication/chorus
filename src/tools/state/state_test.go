@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	db "github.com/tendermint/tmlibs/db"
+	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 	"github.com/Baptist-Publication/chorus-module/xlib/mlist"
 )
 

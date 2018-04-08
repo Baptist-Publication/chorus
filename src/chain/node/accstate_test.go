@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/tendermint/tmlibs/db"
+	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 )
