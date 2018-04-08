@@ -14,7 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/tendermint/tmlibs/db"
+	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 	"go.uber.org/zap"
 
 	//"github.com/Baptist-Publication/angine"

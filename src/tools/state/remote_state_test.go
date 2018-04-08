@@ -8,8 +8,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/tendermint/tmlibs/db"
-
+	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 	"github.com/Baptist-Publication/chorus-module/xlib/mlist"
 	"github.com/Baptist-Publication/chorus/src/chain/log"
 )

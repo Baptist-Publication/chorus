@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/tendermint/tmlibs/db"
-
+	"github.com/Baptist-Publication/chorus-module/lib/go-db"
 	"github.com/Baptist-Publication/chorus-module/xlib"
 	"github.com/Baptist-Publication/chorus-module/xlib/iavl"
 	"github.com/Baptist-Publication/chorus-module/xlib/mlist"

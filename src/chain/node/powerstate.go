@@ -11,8 +11,8 @@ import (
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/Baptist-Publication/chorus-module/xlib/mlist"
-	"github.com/tendermint/merkleeyes/iavl"
-	"github.com/tendermint/tmlibs/db"
+	iavl "github.com/Baptist-Publication/chorus-module/lib/go-merkle"
+	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 )
 
 type PowerState struct {
