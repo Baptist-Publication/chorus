@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/Baptist-Publication/chorus/src/client/utils"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/Baptist-Publication/chorus/src/eth/accounts/abi"
 )
 
 func ParseArgs(methodName string, abiDef abi.ABI, params []interface{}) ([]interface{}, error) {

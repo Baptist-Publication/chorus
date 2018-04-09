@@ -6,34 +6,34 @@ import (
 	"fmt"
 	"math/big"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
-
-	ethcmn "github.com/ethereum/go-ethereum/common"
-	ethcore "github.com/ethereum/go-ethereum/core"
-	ethstate "github.com/ethereum/go-ethereum/core/state"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	ethvm "github.com/ethereum/go-ethereum/core/vm"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	eth "github.com/ethereum/go-ethereum/eth"
-	ethdb "github.com/ethereum/go-ethereum/ethdb"
-	ethparams "github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 
 	pbtypes "github.com/Baptist-Publication/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
+	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
+	ethcore "github.com/Baptist-Publication/chorus/src/eth/core"
+	ethstate "github.com/Baptist-Publication/chorus/src/eth/core/state"
+	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
+	ethvm "github.com/Baptist-Publication/chorus/src/eth/core/vm"
+	ethcrypto "github.com/Baptist-Publication/chorus/src/eth/crypto"
+	ethdb "github.com/Baptist-Publication/chorus/src/eth/ethdb"
+	ethparams "github.com/Baptist-Publication/chorus/src/eth/params"
+	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 const (
 	OfficialAddress     = "0x7752b42608a0f1943c19fc5802cb027e60b4c911"
 	StateRemoveEmptyObj = true
 	APP_NAME            = "evm"
+
+	DatabaseCache   = 128
+	DatabaseHandles = 1024
 )
 
 var (
@@ -76,7 +76,6 @@ type EVMApp struct {
 	agtypes.BaseApplication
 
 	datadir string
-	ethConf *eth.Config
 
 	logger        *zap.Logger
 	stateMtx      sync.Mutex // protected concurrent changes of app.state
@@ -101,7 +100,6 @@ var (
 
 	lastBlockKey = []byte("lastblock")
 	evmConfig    = ethvm.Config{DisableGasMetering: false, EnableJit: true, ForceJit: true}
-	fakePow      = ethcore.FakePow{}
 	big0         = big.NewInt(0)
 
 	errQuitExecute = fmt.Errorf("quit executing block")
@@ -147,22 +145,9 @@ func OpenDatabase(datadir string, name string, cache int, handles int) (ethdb.Da
 }
 
 func NewEVMApp(logger *zap.Logger, config *viper.Viper /*, privkey crypto.PrivKey*/) (*EVMApp, error) {
-	ethConf := &eth.Config{
-		ChainConfig:        new(ethparams.ChainConfig),
-		FastSync:           false,
-		SkipBcVersionCheck: true,
-		DatabaseCache:      128,
-		DatabaseHandles:    1024,
-		NetworkId:          1,
-		Etherbase:          ethcmn.HexToAddress(OfficialAddress),
-		MinerThreads:       runtime.NumCPU(),
-		SolcPath:           "solc",
-		AutoDAG:            false,
-	}
 	app := &EVMApp{
 		datadir:     config.GetString("db_dir"),
-		ethConf:     ethConf,
-		chainConfig: ethConf.ChainConfig,
+		chainConfig: new(ethparams.ChainConfig),
 		stateDups:   make(map[string]*stateDup),
 		logger:      logger,
 
@@ -183,7 +168,7 @@ func NewEVMApp(logger *zap.Logger, config *viper.Viper /*, privkey crypto.PrivKe
 		app.logger.Error("InitBaseApplication error", zap.Error(err))
 		return nil, errors.Wrap(err, "app error")
 	}
-	if app.chainDb, err = OpenDatabase(app.datadir, "chaindata", app.ethConf.DatabaseCache, app.ethConf.DatabaseHandles); err != nil {
+	if app.chainDb, err = OpenDatabase(app.datadir, "chaindata", DatabaseCache, DatabaseHandles); err != nil {
 		app.logger.Error("OpenDatabase error", zap.Error(err))
 		return nil, errors.Wrap(err, "app error")
 	}

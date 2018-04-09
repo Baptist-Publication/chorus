@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/Baptist-Publication/chorus/src/eth/common"
 )
 
 func ParseUint8(value interface{}) (uint8, error) {

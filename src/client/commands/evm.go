@@ -9,12 +9,12 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Baptist-Publication/chorus/src/eth/accounts/abi"
+	"github.com/Baptist-Publication/chorus/src/eth/common"
+	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
+	"github.com/Baptist-Publication/chorus/src/eth/crypto"
+	"github.com/Baptist-Publication/chorus/src/eth/rlp"
 	"github.com/bitly/go-simplejson"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Baptist-Publication/angine/types"
