@@ -21,6 +21,7 @@ import (
 	//	client "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus-module/lib/go-rpc/server"
 	"github.com/Baptist-Publication/chorus-module/lib/go-wire"
+	"github.com/Baptist-Publication/chorus/src/chain/app/evm"
 	"github.com/Baptist-Publication/chorus/src/chain/version"
 )
 
@@ -53,36 +54,38 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 		aConf.Set(k, v)
 	}
 
-	metropolis := NewMetropolis(logger, aConf)
-	metroAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf})
-	tune := metroAngine.Tune
-	if err := metroAngine.ConnectApp(metropolis); err != nil {
+	//metropolis := NewMetropolis(logger, aConf)
+	evmapp, _ := evm.NewEVMApp(logger, aConf)
+	evmAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf})
+	tune := evmAngine.Tune
+	if err := evmAngine.ConnectApp(evmapp); err != nil {
 		cmn.PanicCrisis(err)
 	}
 
 	chainID := ""
-	if metroAngine.Genesis() != nil {
-		chainID = metroAngine.Genesis().ChainID
+	if evmAngine.Genesis() != nil {
+		chainID = evmAngine.Genesis().ChainID
 	}
 	node := &Node{
 		MainChainID: chainID,
 		MainOrg: &OrgNode{
-			Application: metropolis,
-			Angine:      metroAngine,
+			Application: evmapp,
+			Angine:      evmAngine,
 			AngineTune:  tune,
-			GenesisDoc:  metroAngine.Genesis(),
+			GenesisDoc:  evmAngine.Genesis(),
 		},
 
-		nodeInfo:      makeNodeInfo(aConf, metroAngine.PrivValidator().GetPubKey().(*crypto.PubKeyEd25519), metroAngine.P2PHost(), metroAngine.P2PPort()),
+		nodeInfo:      makeNodeInfo(aConf, evmAngine.PrivValidator().GetPubKey().(*crypto.PubKeyEd25519), evmAngine.P2PHost(), evmAngine.P2PPort()),
 		config:        aConf,
-		privValidator: metroAngine.PrivValidator(),
+		privValidator: evmAngine.PrivValidator(),
 		logger:        logger,
 	}
 
 	// metroAngine.SetSpecialVoteRPC(node.GetSpecialVote)
-	metroAngine.RegisterNodeInfo(node.nodeInfo)
-	metropolis.SetNode(node)
-	metropolis.SetCore(node.MainOrg)
+	evmAngine.RegisterNodeInfo(node.nodeInfo)
+	// evmapp.SetNode(node)
+
+	// metropolis.SetCore(node.MainOrg)
 
 	// TODO reorg before runing online
 	//register validator info to metro statedb

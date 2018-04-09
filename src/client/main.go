@@ -15,9 +15,10 @@ func main() {
 
 	app.Commands = []cli.Command{
 		commands.AccountCommands,
-		commands.QueryCommands,
-		commands.TransactionCommands,
+		//commands.QueryCommands,
+		//commands.TransactionCommands,
 		commands.InfoCommand,
+		commands.EVMCommands,
 	}
 
 	app.Flags = []cli.Flag{

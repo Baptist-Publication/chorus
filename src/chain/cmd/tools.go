@@ -14,7 +14,7 @@ import (
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	//"github.com/Baptist-Publication/chorus/src/chain/app/evm"
 	"github.com/Baptist-Publication/chorus/src/chain/config"
-	"github.com/Baptist-Publication/chorus/src/chain/node"
+	// "github.com/Baptist-Publication/chorus/src/chain/node"
 )
 
 // for the case of conflicting with names already exist
@@ -81,7 +81,7 @@ func (rt *RevertTool) Init(appname string, agconf, appconf *viper.Viper) error {
 	//case "contract":
 	//rt.apptool = &evm.AppTool{}
 	case "metropolis":
-		rt.apptool = &node.AppTool{}
+		// rt.apptool = &node.AppTool{}
 	default:
 		return errors.New(fmt.Sprintf("illegal appname %v", appname))
 	}

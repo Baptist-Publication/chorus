@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/spf13/viper"
+	// "github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/Baptist-Publication/angine"
@@ -33,51 +33,51 @@ type OrgNode struct {
 	GenesisDoc  *agtypes.GenesisDoc
 }
 
-func NewOrgNode(logger *zap.Logger, appName string, conf *viper.Viper, metro *Metropolis) *OrgNode {
-	defer func() {
-		// in case App constructor calls panic
-		if err := recover(); err != nil {
-			fmt.Println(err)
-		}
-	}()
-
-	if _, ok := Apps[appName]; !ok {
-		return nil
-	}
-
-	tune := &angine.Tunes{Conf: conf}
-	ang := angine.NewAngine(logger, tune)
-	if ang == nil {
-		logger.Error("fail to new Angine")
-		return nil
-	}
-	app, err := Apps[appName](logger, conf, ang.PrivValidator().GetPrivKey())
-	if err != nil {
-		ang.Stop()
-		logger.Error("fail to create app", zap.String("appname:", appName), zap.Error(err))
-		return nil
-	}
-	if err := ang.ConnectApp(app); err != nil {
-		ang.Stop()
-		logger.Error("fail to connect app", zap.Error(err))
-		return nil
-	}
-
-	orgnode := &OrgNode{
-		running: 0,
-		logger:  logger,
-		appname: appName,
-
-		Superior:    metro,
-		Application: app,
-		Angine:      ang,
-		AngineTune:  tune,
-		GenesisDoc:  ang.Genesis(),
-	}
-	app.SetCore(orgnode)
-
-	return orgnode
-}
+// func NewOrgNode(logger *zap.Logger, appName string, conf *viper.Viper, metro *Metropolis) *OrgNode {
+// 	defer func() {
+// 		// in case App constructor calls panic
+// 		if err := recover(); err != nil {
+// 			fmt.Println(err)
+// 		}
+// 	}()
+//
+// 	if _, ok := Apps[appName]; !ok {
+// 		return nil
+// 	}
+//
+// 	tune := &angine.Tunes{Conf: conf}
+// 	ang := angine.NewAngine(logger, tune)
+// 	if ang == nil {
+// 		logger.Error("fail to new Angine")
+// 		return nil
+// 	}
+// 	app, err := Apps[appName](logger, conf, ang.PrivValidator().GetPrivKey())
+// 	if err != nil {
+// 		ang.Stop()
+// 		logger.Error("fail to create app", zap.String("appname:", appName), zap.Error(err))
+// 		return nil
+// 	}
+// 	if err := ang.ConnectApp(app); err != nil {
+// 		ang.Stop()
+// 		logger.Error("fail to connect app", zap.Error(err))
+// 		return nil
+// 	}
+//
+// 	orgnode := &OrgNode{
+// 		running: 0,
+// 		logger:  logger,
+// 		appname: appName,
+//
+// 		Superior:    metro,
+// 		Application: app,
+// 		Angine:      ang,
+// 		AngineTune:  tune,
+// 		GenesisDoc:  ang.Genesis(),
+// 	}
+// 	app.SetCore(orgnode)
+//
+// 	return orgnode
+// }
 
 func (o *OrgNode) GetAppName() string {
 	return o.appname

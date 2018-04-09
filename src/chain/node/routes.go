@@ -50,7 +50,7 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 	h := newRPCHandler(n)
 	return map[string]*rpc.RPCFunc{
 		// info API
-		"organizations":   rpc.NewRPCFunc(h.Orgs, ""),
+		// "organizations":   rpc.NewRPCFunc(h.Orgs, ""),
 		"status":          rpc.NewRPCFunc(h.Status, argsWithChainID("")),
 		"net_info":        rpc.NewRPCFunc(h.NetInfo, argsWithChainID("")),
 		"block":           rpc.NewRPCFunc(h.Block, argsWithChainID("height")),
@@ -63,24 +63,25 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 		"broadcast_tx_sync":   rpc.NewRPCFunc(h.BroadcastTx, argsWithChainID("tx")),
 
 		// query API
-		"query":      rpc.NewRPCFunc(h.Query, argsWithChainID("query")),
-		"event_code": rpc.NewRPCFunc(h.EventCode, argsWithChainID("code_hash")), // TODO now id is base-chain's name
+		"query": rpc.NewRPCFunc(h.Query, argsWithChainID("query")),
+		// "event_code": rpc.NewRPCFunc(h.EventCode, argsWithChainID("code_hash")), // TODO now id is base-chain's name
 
 		// specialOP API
 		"request_special_op": rpc.NewRPCFunc(h.RequestSpecialOP, argsWithChainID("tx")),
 	}
 }
 
-func (h *rpcHandler) Orgs() (agtypes.RPCResult, error) {
-	app := h.node.MainOrg.Application.(*Metropolis)
-	app.Lock()
-	defer app.Unlock()
-	names := make([]string, 0, len(app.Orgs))
-	for n := range app.Orgs {
-		names = append(names, string(n))
-	}
-	return &agtypes.ResultOrgs{Names: names}, nil
-}
+// func (h *rpcHandler) Orgs() (agtypes.RPCResult, error) {
+// 	// app := h.node.MainOrg.Application.(*Metropolis)
+// 	app := h.node.MainOrg.Application.(*evm.EVMApp)
+// 	app.Lock()
+// 	defer app.Unlock()
+// 	names := make([]string, 0, len(app.Orgs))
+// 	for n := range app.Orgs {
+// 		names = append(names, string(n))
+// 	}
+// 	return &agtypes.ResultOrgs{Names: names}, nil
+// }
 
 func (h *rpcHandler) Status(chainID string) (agtypes.RPCResult, error) {
 	org, err := h.getOrg(chainID)
@@ -162,16 +163,16 @@ func (h *rpcHandler) Query(chainID string, query []byte) (agtypes.RPCResult, err
 	return &agtypes.ResultQuery{Result: org.Application.Query(query)}, nil
 }
 
-func (h *rpcHandler) EventCode(chainID string, codeHash []byte) (agtypes.RPCResult, error) {
-	if len(codeHash) == 0 {
-		return nil, ErrMissingParams
-	}
-	app := h.node.MainOrg.Application.(*Metropolis)
-	ret := app.EventCodeBase.Get(codeHash)
-	return &agtypes.ResultQuery{
-		Result: agtypes.NewResultOK(ret, ""),
-	}, nil
-}
+// func (h *rpcHandler) EventCode(chainID string, codeHash []byte) (agtypes.RPCResult, error) {
+// 	if len(codeHash) == 0 {
+// 		return nil, ErrMissingParams
+// 	}
+// 	app := h.node.MainOrg.Application.(*Metropolis)
+// 	ret := app.EventCodeBase.Get(codeHash)
+// 	return &agtypes.ResultQuery{
+// 		Result: agtypes.NewResultOK(ret, ""),
+// 	}, nil
+// }
 
 func (h *rpcHandler) Validators(chainID string) (agtypes.RPCResult, error) {
 	org, err := h.getOrg(chainID)
@@ -307,15 +308,15 @@ func argsWithChainID(args string) string {
 
 func (h *rpcHandler) getOrg(chainID string) (*OrgNode, error) {
 	var org *OrgNode
-	var err error
+	// var err error
 	if chainID == h.node.MainChainID {
 		org = h.node.MainOrg
 	} else {
-		met := h.node.MainOrg.Application.(*Metropolis)
-		org, err = met.GetOrg(chainID)
-		if err != nil {
-			return nil, ErrInvalidChainID
-		}
+		// met := h.node.MainOrg.Application.(*Metropolis)
+		// org, err = met.GetOrg(chainID)
+		// if err != nil {
+		return nil, ErrInvalidChainID
+		// }
 	}
 
 	return org, nil
