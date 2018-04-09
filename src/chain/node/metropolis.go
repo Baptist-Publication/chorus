@@ -12,22 +12,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-	"github.com/tendermint/tmlibs/db"
-	"go.uber.org/zap"
-
-	//"github.com/Baptist-Publication/angine"
 	ac "github.com/Baptist-Publication/angine/config"
 	pbtypes "github.com/Baptist-Publication/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/angine/types"
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/lib/go-db"
 	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/xlib"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	acfg "github.com/Baptist-Publication/chorus/src/chain/config"
 	"github.com/Baptist-Publication/chorus/src/chain/log"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 const (

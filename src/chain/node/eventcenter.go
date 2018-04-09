@@ -5,9 +5,9 @@ import (
 	"encoding/gob"
 	"fmt"
 
+	"github.com/Baptist-Publication/chorus-module/lib/go-db"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/pkg/errors"
-	"github.com/tendermint/tmlibs/db"
 )
 
 const (

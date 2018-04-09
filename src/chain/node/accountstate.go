@@ -8,9 +8,9 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/tendermint/tmlibs/db"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
-	"github.com/Baptist-Publication/chorus-module/xlib/iavl"
+	"github.com/Baptist-Publication/chorus-module/lib/go-db"
+	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/xlib/mlist"
 )
 
@@ -18,7 +18,7 @@ type AccState struct {
 	mtx      sync.Mutex
 	database db.DB
 	rootHash []byte
-	trie     *iavl.IAVLTree
+	trie     *merkle.IAVLTree
 
 	//key is ed25519 pubkey
 	accountCache *mlist.MapList
@@ -34,7 +34,7 @@ func NewAccState(database db.DB) *AccState {
 	return &AccState{
 		//dirty:        make(map[string]struct{}),
 		database:     database,
-		trie:         iavl.NewIAVLTree(1024, database),
+		trie:         merkle.NewIAVLTree(1024, database),
 		accountCache: mlist.NewMapList(),
 	}
 }

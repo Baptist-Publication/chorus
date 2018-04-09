@@ -9,17 +9,17 @@ import (
 	"sync"
 
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/lib/go-db"
+	merkle "github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	"github.com/Baptist-Publication/chorus-module/xlib/mlist"
-	"github.com/tendermint/merkleeyes/iavl"
-	"github.com/tendermint/tmlibs/db"
 )
 
 type PowerState struct {
 	mtx      sync.Mutex
 	database db.DB
 	rootHash []byte
-	trie     *iavl.IAVLTree
+	trie     *merkle.IAVLTree
 
 	//key is ed25519 pubkey
 	PowerCache *mlist.MapList
@@ -35,7 +35,7 @@ func NewPowerState(database db.DB) *PowerState {
 	return &PowerState{
 		//dirty:        make(map[string]struct{}),
 		database:   database,
-		trie:       iavl.NewIAVLTree(1024, database),
+		trie:       merkle.NewIAVLTree(1024, database),
 		PowerCache: mlist.NewMapList(),
 	}
 }

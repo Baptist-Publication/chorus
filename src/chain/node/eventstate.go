@@ -5,8 +5,8 @@ import (
 	"encoding/gob"
 	"sync"
 
-	"github.com/tendermint/tmlibs/db"
-	"github.com/Baptist-Publication/chorus-module/xlib/iavl"
+	"github.com/Baptist-Publication/chorus-module/lib/go-db"
+	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 )
 
 type CodeHash = []byte
@@ -16,7 +16,7 @@ type EventState struct {
 	mtx      sync.Mutex
 	database db.DB
 	rootHash []byte
-	trie     *iavl.IAVLTree
+	trie     *merkle.IAVLTree
 
 	dirty        map[string]struct{}
 	order        []string
@@ -35,7 +35,7 @@ type EventAccount struct {
 func NewEventState(database db.DB) *EventState {
 	return &EventState{
 		database:     database,
-		trie:         iavl.NewIAVLTree(1024, database),
+		trie:         merkle.NewIAVLTree(1024, database),
 		accountCache: make(map[string]*EventAccount),
 		dirty:        make(map[string]struct{}),
 		order:        make([]string, 0),

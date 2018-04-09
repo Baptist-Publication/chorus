@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/tendermint/tmlibs/db"
-	"github.com/Baptist-Publication/chorus-module/xlib/iavl"
-
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus-module/lib/go-db"
+	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 )
 
 type OrgState struct {
 	mtx      sync.Mutex
 	database db.DB
 	rootHash []byte
-	trie     *iavl.IAVLTree
+	trie     *merkle.IAVLTree
 
 	// dirty just holds everything that will be write down to disk on commit
 	dirty map[string]struct{}
@@ -36,7 +35,7 @@ var (
 func NewOrgState(database db.DB) *OrgState {
 	return &OrgState{
 		database:     database,
-		trie:         iavl.NewIAVLTree(1024, database),
+		trie:         merkle.NewIAVLTree(1024, database),
 		dirty:        make(map[string]struct{}),
 		accountCache: make(map[string]*OrgAccount),
 		order:        make([]string, 0),
@@ -216,7 +215,7 @@ func (os *OrgState) Copy() *OrgState {
 	cp := &OrgState{
 		database:     os.database,
 		rootHash:     os.rootHash,
-		trie:         os.trie.Copy().(*iavl.IAVLTree),
+		trie:         os.trie.Copy().(*merkle.IAVLTree),
 		accountCache: make(map[string]*OrgAccount),
 		dirty:        make(map[string]struct{}),
 		order:        make([]string, len(os.order), cap(os.order)),
