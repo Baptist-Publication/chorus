@@ -3,7 +3,6 @@ package evm
 import (
 	"bytes"
 	"encoding/gob"
-	//"encoding/hex"
 	"fmt"
 	"math/big"
 	"path/filepath"
@@ -11,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	//	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethcore "github.com/ethereum/go-ethereum/core"
 	ethstate "github.com/ethereum/go-ethereum/core/state"
@@ -28,13 +26,7 @@ import (
 
 	pbtypes "github.com/Baptist-Publication/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/angine/types"
-	//cmn "gitlab.zhonganonline.com/ann/ann-module/lib/go-common"
-	//"gitlab.zhonganonline.com/ann/ann-module/lib/go-crypto"
-	//"gitlab.zhonganonline.com/ann/ann-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
-	//civil "gitlab.zhonganonline.com/ann/civilization/src/chain/node"
-	//civil "github.com/Baptist-Publication/chorus/src/chain/node"
-	//evmabi "gitlab.zhonganonline.com/ann/civilization/src/tools/evmabi"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 )
 
@@ -82,11 +74,6 @@ type abiBox = struct {
 
 type EVMApp struct {
 	agtypes.BaseApplication
-	//agtypes.CommApplication
-
-	//civil.EventAppBase
-
-	//core civil.Core
 
 	datadir string
 	ethConf *eth.Config
@@ -98,9 +85,8 @@ type EVMApp struct {
 	chainConfig   *ethparams.ChainConfig
 	chainDb       ethdb.Database // Block chain database
 	blockChain    *ethcore.BlockChain
-	//privkey       crypto.PrivKeyEd25519
-	stateDupsMtx sync.RWMutex // protect concurrent changes of app fields
-	stateDups    map[string]*stateDup
+	stateDupsMtx  sync.RWMutex // protect concurrent changes of app fields
+	stateDups     map[string]*stateDup
 
 	abis []abiBox
 
@@ -120,15 +106,6 @@ var (
 
 	errQuitExecute = fmt.Errorf("quit executing block")
 )
-
-//func init() {
-//	if _, ok := civil.Apps[APP_NAME]; ok {
-//		cmn.PanicSanity("app name is preoccupied")
-//	}
-//	civil.Apps[APP_NAME] = func(l *zap.Logger, c *viper.Viper, p crypto.PrivKey) (civil.Application, error) {
-//		return NewEVMApp(l, c, p)
-//	}
-//}
 
 func makeCurrentHeader(block *agtypes.BlockCache) *ethtypes.Header {
 	return &ethtypes.Header{
@@ -188,13 +165,10 @@ func NewEVMApp(logger *zap.Logger, config *viper.Viper /*, privkey crypto.PrivKe
 		chainConfig: ethConf.ChainConfig,
 		stateDups:   make(map[string]*stateDup),
 		logger:      logger,
-		//privkey:     *(privkey.(*crypto.PrivKeyEd25519)),
 
 		abis: newABIs(),
 
 		Config: config,
-
-		//EventAppBase: civil.NewEventAppBase(logger, config.GetString("cosi_laddr")),
 	}
 
 	app.AngineHooks = agtypes.Hooks{
@@ -216,11 +190,6 @@ func NewEVMApp(logger *zap.Logger, config *viper.Viper /*, privkey crypto.PrivKe
 
 	return app, nil
 }
-
-//func (app *EVMApp) SetCore(core civil.Core) {
-//app.core = core
-//app.EventAppBase.SetCore(core)
-//}
 
 func (app *EVMApp) Start() (err error) {
 	lastBlock := &LastBlockInfo{
@@ -244,11 +213,6 @@ func (app *EVMApp) Start() (err error) {
 		app.logger.Error("fail to new ethstate", zap.Error(err))
 		return
 	}
-
-	//if _, err := app.EventAppBase.Start(); err != nil {
-	//	app.Stop()
-	//	return errors.Wrap(err, "[EVMApp Start]")
-	//}
 
 	return nil
 }
@@ -299,21 +263,6 @@ func (app *EVMApp) ExecuteEVMTx(stateDup *stateDup, header *ethtypes.Header, blo
 
 	return tx.Hash().Bytes(), err
 }
-
-// This is 'OnNewRound' for running evm txs on prevote, dealing with multi-version state
-// func (app *EVMApp) OnNewRound(height, round int, block *agtypes.BlockCache) (interface{}, error) {
-// 	app.stateDupsMtx.Lock()
-// 	for _, st := range app.stateDups {
-// 		if st.height < height {
-// 			st.lock.Lock()
-// 			st.quit <- struct{}{}
-// 			delete(app.stateDups, st.key)
-// 			st.lock.Unlock()
-// 		}
-// 	}
-// 	app.stateDupsMtx.Unlock()
-// 	return agtypes.NewRoundResult{}, nil
-// }
 
 func (app *EVMApp) OnNewRound(height, round def.INT, block *agtypes.BlockCache) (interface{}, error) {
 	return agtypes.NewRoundResult{}, nil
@@ -378,11 +327,7 @@ func (app *EVMApp) OnExecute(height, round def.INT, block *agtypes.BlockCache) (
 		err error
 
 		sk = stateKey(block, height, round)
-
-		//eventData = make([]civil.EventData, 0)
 	)
-
-	//	_, validators := app.core.GetEngine().GetValidators()
 
 	// normal transaction
 	app.stateDupsMtx.Lock()
@@ -404,12 +349,7 @@ func (app *EVMApp) OnExecute(height, round def.INT, block *agtypes.BlockCache) (
 				// txhash, err
 				if _, err := app.ExecuteEVMTx(stateDup, currentHeader, blockHash, tx, i); err != nil {
 					res.InvalidTxs = append(res.InvalidTxs, agtypes.ExecuteInvalidTx{Bytes: tx, Error: err})
-				} //else {
-				//res.ValidTxs = append(res.ValidTxs, tx)
-				//if ed, err := app.generateEventData(tx); err == nil && ed != nil {
-				//eventData = append(eventData, ed)
-				//}
-				//}
+				}
 			case bytes.Equal(txType, EVMCreateContractTxTag):
 				txCreate, err := DecodeCreateContract(agtypes.UnwrapTx(tx))
 				if err != nil {
@@ -430,16 +370,10 @@ func (app *EVMApp) OnExecute(height, round def.INT, block *agtypes.BlockCache) (
 						key: append(ABIPrefix, createdAddress.Bytes()...),
 						val: txCreate.EthAbi,
 					})
-
-					// eventData = append(eventData, )
 				}
 
 			}
 
-			// handle event related txs
-			//if err := app.EventAppBase.ExecuteTx(tx, validators); err != nil {
-			//	app.logger.Error("cosi error", zap.Error(err))
-			//}
 		}
 		stateDup.lock.Unlock()
 
@@ -447,83 +381,8 @@ func (app *EVMApp) OnExecute(height, round def.INT, block *agtypes.BlockCache) (
 	}
 	app.stateDupsMtx.Unlock()
 
-	// if app wanna support event system, find a place to call core.BroadcastSuperior
-	//if len(eventData) > 0 {
-	//	if err := app.PublishEvent(eventData, block); err != nil {
-	//		app.logger.Error("publish event error", zap.Error(err))
-	//	}
-	//}
-
 	return res, err
 }
-
-//func (app *EVMApp) generateEventData(bs []byte) (civil.EventData, error) {
-//	if !bytes.Equal(EVMTxTag, bs[:4]) {
-//		return nil, errors.Wrap(errors.New("only evm transaction is supported"), "[EVMApp generateEventData]")
-//	}
-//
-//	txBytes := agtypes.UnwrapTx(bs)
-//	tx := new(ethtypes.Transaction)
-//	if err := rlp.DecodeBytes(txBytes, tx); err != nil {
-//		return nil, errors.Wrap(err, "[EVMApp generateEventData]")
-//	}
-//
-//	contractAddress := tx.To()
-//	abiBytes, err := app.chainDb.Get(append(ABIPrefix, contractAddress.Bytes()...))
-//	if err != nil {
-//		return nil, errors.Wrap(err, "[EVMApp generateEventData]")
-//	}
-//	if len(abiBytes) == 0 {
-//		return nil, errors.Wrap(errors.New("no abi definition found"), "[EVMApp generateEventData]")
-//	}
-//
-//	abi := new(ethabi.ABI)
-//	if err := abi.UnmarshalJSON(abiBytes); err != nil {
-//		return nil, errors.Wrap(err, "[EVMApp generateEventData]")
-//	}
-//
-//	from, _ := ethtypes.Sender(EthSigner, tx) // no way parsing sender will fail
-//	eventData := make(civil.EventData)
-//	eventData["from"] = hex.EncodeToString(from[:])
-//	eventData["to"] = hex.EncodeToString(contractAddress[:])
-//	eventData["value"] = tx.Value().Int64()
-//	eventData["nonce"] = tx.Nonce()
-//
-//	txdata := tx.Data()
-//	if len(txdata) == 0 {
-//		return eventData, nil
-//	}
-//
-//	argData := txdata[4:]
-//	method, err := evmabi.LocateMethod(abi, txdata[:4])
-//	if err != nil {
-//		return nil, errors.Wrap(err, "[EVMApp generateEventData]")
-//	}
-//
-//	contractCall := make(map[string]interface{})
-//	contractCall["function"] = method.Name
-//
-//	for i, a := range method.Inputs {
-//		if a.Indexed {
-//			continue
-//		}
-//		res, err := evmabi.ToGoType(i, a.Type, argData)
-//		if err != nil {
-//			return nil, errors.Wrap(err, "[EVMApp generateEventData]")
-//		}
-//
-//		switch typedRes := res.(type) {
-//		case *big.Int:
-//			contractCall[a.Name] = typedRes.String()
-//		default:
-//			contractCall[a.Name] = typedRes
-//		}
-//	}
-//
-//	eventData["contract_call"] = contractCall
-//
-//	return eventData, nil
-//}
 
 // OnCommit run in a sync way, we don't need to lock stateDupMtx, but stateMtx is still needed
 func (app *EVMApp) OnCommit(height, round def.INT, block *agtypes.BlockCache) (interface{}, error) {
@@ -574,19 +433,6 @@ func (app *EVMApp) OnCommit(height, round def.INT, block *agtypes.BlockCache) (i
 	}, nil
 }
 
-//func (app *EVMApp) HandleEvent(eventData civil.EventData, notification *civil.EventNotificationTx) {
-// for _, tx := range data {
-// 	if !bytes.Equal(tx[:4], EVMTxTag) {
-// 		continue
-// 	}
-// 	etx := new(ethtypes.Transaction)
-// 	if err := rlp.DecodeBytes(tx[4:], etx); err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	app.logger.Debug("event", zap.String("ethereum transaction", fmt.Sprintf("%+v", etx)))
-// }
-//}
-
 func (app *EVMApp) CheckTx(bs []byte) error {
 	var err error
 	txBytes := agtypes.UnwrapTx(bs)
@@ -627,10 +473,6 @@ func (app *EVMApp) CheckTx(bs []byte) error {
 		}
 		return nil
 	}
-
-	//if err = app.EventAppBase.CheckTx(bs); err != nil {
-	//	return err
-	//}
 
 	return nil
 }

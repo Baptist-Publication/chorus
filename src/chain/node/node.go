@@ -18,7 +18,6 @@ import (
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/lib/go-p2p"
-	//	client "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus-module/lib/go-rpc/server"
 	"github.com/Baptist-Publication/chorus-module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/src/chain/app/evm"
@@ -54,7 +53,6 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 		aConf.Set(k, v)
 	}
 
-	//metropolis := NewMetropolis(logger, aConf)
 	evmapp, _ := evm.NewEVMApp(logger, aConf)
 	evmAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf})
 	tune := evmAngine.Tune
@@ -81,11 +79,7 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 		logger:        logger,
 	}
 
-	// metroAngine.SetSpecialVoteRPC(node.GetSpecialVote)
 	evmAngine.RegisterNodeInfo(node.nodeInfo)
-	// evmapp.SetNode(node)
-
-	// metropolis.SetCore(node.MainOrg)
 
 	// TODO reorg before runing online
 	//register validator info to metro statedb
@@ -192,19 +186,3 @@ func (n *Node) PrivValidator() *types.PrivValidator {
 func (n *Node) GetConf() *viper.Viper {
 	return n.config
 }
-
-// func (n *Node) GetSpecialVote(data []byte, validator *types.Validator) ([]byte, error) {
-// 	clientJSON := client.NewClientJSONRPC(n.logger, validator.RPCAddress) // all shard nodes share the same rpc address of the Node
-// 	tmResult := new(types.RPCResult)
-// 	_, err := clientJSON.Call("vote_special_op", []interface{}{n.MainChainID, data}, tmResult)
-// 	if err != nil {
-// 		n.logger.Error("vote_special_op", zap.Error(err))
-// 		return nil, err
-// 	}
-// 	res := (*tmResult).(*types.ResultRequestSpecialOP)
-// 	if res.Code == types.CodeType_OK {
-// 		return res.Data, nil
-// 	}
-// 	n.logger.Error("vote_special_op", zap.String("resultlog", res.Log))
-// 	return nil, fmt.Errorf(res.Log)
-// }

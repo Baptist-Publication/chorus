@@ -31,6 +31,12 @@ var (
 					anntoolFlags.privkey,
 				},
 			},
+			{
+				Name:     "geneth",
+				Action:   generateSecpPrivPubAddr,
+				Usage:    "generate new private-pub key pair",
+				Category: "Account",
+			},
 		},
 	}
 )
@@ -63,6 +69,18 @@ func calculatePrivPubAddr(ctx *cli.Context) error {
 
 	fmt.Printf("pubkey : %X\n", pk[:])
 	fmt.Printf("address: %X\n", addr)
+
+	return nil
+}
+
+func generateSecpPrivPubAddr(ctx *cli.Context) error {
+	sk := crypto.GenPrivKeySecp256k1()
+	pk := sk.PubKey().(*crypto.PubKeySecp256k1)
+	addr := pk.Address()
+
+	fmt.Printf("privkey: %X\n", sk[:])
+	fmt.Printf("pubkey: %X\n", pk[:])
+	fmt.Printf("address : %X\n", addr)
 
 	return nil
 }
