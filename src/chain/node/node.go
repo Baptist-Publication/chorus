@@ -9,9 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
-
 	"github.com/Baptist-Publication/angine"
 	ac "github.com/Baptist-Publication/angine/config"
 	"github.com/Baptist-Publication/angine/types"
@@ -20,13 +17,14 @@ import (
 	"github.com/Baptist-Publication/chorus-module/lib/go-p2p"
 	"github.com/Baptist-Publication/chorus-module/lib/go-rpc/server"
 	"github.com/Baptist-Publication/chorus-module/lib/go-wire"
-	"github.com/Baptist-Publication/chorus/src/chain/app/evm"
+	"github.com/Baptist-Publication/chorus/src/chain/app"
 	"github.com/Baptist-Publication/chorus/src/chain/version"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 const (
-	ReceiptsPrefix  = "receipts-"
-	OfficialAddress = "0x7752b42608a0f1943c19fc5802cb027e60b4c911"
+	ReceiptsPrefix = "receipts-"
 )
 
 var Apps = make(map[string]AppMaker)
@@ -53,7 +51,7 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 		aConf.Set(k, v)
 	}
 
-	evmapp, _ := evm.NewEVMApp(logger, aConf)
+	evmapp, _ := app.NewEVMApp(logger, aConf)
 	evmAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf})
 	tune := evmAngine.Tune
 	if err := evmAngine.ConnectApp(evmapp); err != nil {

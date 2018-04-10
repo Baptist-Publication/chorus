@@ -1,4 +1,4 @@
-package evm
+package app
 
 import (
 	"bytes"
@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	OfficialAddress     = "0x7752b42608a0f1943c19fc5802cb027e60b4c911"
 	StateRemoveEmptyObj = true
 	APP_NAME            = "evm"
 
@@ -144,7 +143,7 @@ func OpenDatabase(datadir string, name string, cache int, handles int) (ethdb.Da
 	return ethdb.NewLDBDatabase(filepath.Join(datadir, name), cache, handles)
 }
 
-func NewEVMApp(logger *zap.Logger, config *viper.Viper /*, privkey crypto.PrivKey*/) (*EVMApp, error) {
+func NewEVMApp(logger *zap.Logger, config *viper.Viper) (*EVMApp, error) {
 	app := &EVMApp{
 		datadir:     config.GetString("db_dir"),
 		chainConfig: new(ethparams.ChainConfig),
