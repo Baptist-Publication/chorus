@@ -1,5 +1,5 @@
-.PHONY: chorus chorustool test all
-all: chorus chorustool test
+.PHONY: chorus chorustool all
+all: chorus chorustool
 
 chorus:
 	go build  -ldflags "-X github.com/Baptist-Publication/chorus/src/chain/version.commitVer=`git rev-parse HEAD`" -o ./build/chorus ./src/chain
