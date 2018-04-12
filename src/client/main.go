@@ -15,7 +15,7 @@ func main() {
 
 	app.Commands = []cli.Command{
 		commands.AccountCommands,
-		//commands.QueryCommands,
+		commands.QueryCommands,
 		//commands.TransactionCommands,
 		commands.InfoCommand,
 		commands.EVMCommands,

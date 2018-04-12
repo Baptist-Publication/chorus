@@ -20,7 +20,7 @@ import (
 	"github.com/Baptist-Publication/angine/types"
 	ac "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	cl "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
-	"github.com/Baptist-Publication/chorus/src/chain/app/evm"
+	"github.com/Baptist-Publication/chorus/src/chain/app"
 	"github.com/Baptist-Publication/chorus/src/client/commons"
 )
 
@@ -290,7 +290,7 @@ func executeContract(ctx *cli.Context) error {
 
 		tmResult := new(types.RPCResult)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{chainID, types.WrapTx(evm.EVMTxTag, b)}, tmResult)
+		_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{chainID, types.WrapTx(app.EVMTxTag, b)}, tmResult)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 123)
 		}
@@ -356,15 +356,15 @@ func createContract(ctx *cli.Context) error {
 			return cli.NewExitError(err.Error(), 110)
 		}
 
-		cctx := evm.CreateContractTx{
+		cctx := app.CreateContractTx{
 			EthTx:  b,
 			EthAbi: abiBytes,
 		}
-		cctxBytes, err := evm.EncodeCreateContract(cctx)
+		cctxBytes, err := app.EncodeCreateContract(cctx)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 110)
 		}
-		bytesLoad := types.WrapTx(evm.EVMCreateContractTxTag, cctxBytes)
+		bytesLoad := types.WrapTx(app.EVMCreateContractTxTag, cctxBytes)
 		tmResult := new(types.RPCResult)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, bytesLoad}, tmResult)
