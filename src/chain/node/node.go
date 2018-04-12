@@ -51,12 +51,13 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 		aConf.Set(k, v)
 	}
 
-	evmapp, _ := app.NewEVMApp(logger, aConf)
+	App, _ := app.NewApp(logger, aConf)
 	evmAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf})
 	tune := evmAngine.Tune
-	if err := evmAngine.ConnectApp(evmapp); err != nil {
+	if err := evmAngine.ConnectApp(App); err != nil {
 		cmn.PanicCrisis(err)
 	}
+	App.AngineRef = evmAngine
 
 	chainID := ""
 	if evmAngine.Genesis() != nil {
@@ -65,7 +66,7 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 	node := &Node{
 		MainChainID: chainID,
 		MainOrg: &OrgNode{
-			Application: evmapp,
+			Application: App,
 			Angine:      evmAngine,
 			AngineTune:  tune,
 			GenesisDoc:  evmAngine.Genesis(),

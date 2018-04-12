@@ -65,15 +65,12 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 		// query API
 		"query": rpc.NewRPCFunc(h.Query, argsWithChainID("query")),
 		// "event_code": rpc.NewRPCFunc(h.EventCode, argsWithChainID("code_hash")), // TODO now id is base-chain's name
-
-		// specialOP API
-		"request_special_op": rpc.NewRPCFunc(h.RequestSpecialOP, argsWithChainID("tx")),
 	}
 }
 
 // func (h *rpcHandler) Orgs() (agtypes.RPCResult, error) {
 // 	// app := h.node.MainOrg.Application.(*Metropolis)
-// 	app := h.node.MainOrg.Application.(*evm.EVMApp)
+// 	app := h.node.MainOrg.Application.(*evm.App)
 // 	app.Lock()
 // 	defer app.Unlock()
 // 	names := make([]string, 0, len(app.Orgs))
@@ -278,25 +275,6 @@ func (h *rpcHandler) NetInfo(chainID string) (agtypes.RPCResult, error) {
 	res := agtypes.ResultNetInfo{}
 	res.Listening, res.Listeners, res.Peers = org.Angine.GetP2PNetInfo()
 	return &res, nil
-}
-
-func (h *rpcHandler) RequestSpecialOP(chainID string, tx []byte) (agtypes.RPCResult, error) {
-	org, err := h.getOrg(chainID)
-	if err != nil {
-		return nil, ErrInvalidChainID
-	}
-
-	if err := org.Angine.ProcessSpecialOP(tx); err != nil {
-		res := &agtypes.ResultRequestSpecialOP{
-			Code: pbtypes.CodeType_InternalError,
-			Log:  err.Error(),
-		}
-		return res, err
-	}
-
-	return &agtypes.ResultRequestSpecialOP{
-		Code: pbtypes.CodeType_OK,
-	}, nil
 }
 
 func argsWithChainID(args string) string {
