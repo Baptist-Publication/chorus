@@ -98,7 +98,7 @@ func readContract(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	aabbii, _, err := getAbiJSON(ctx)
+	aabbii, err := getAbiJSON(ctx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -236,7 +236,7 @@ func executeContract(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	aabbii, _, err := getAbiJSON(ctx)
+	aabbii, err := getAbiJSON(ctx)
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func createContract(ctx *cli.Context) error {
 	if err != nil {
 		cli.NewExitError(err.Error(), 127)
 	}
-	aabbii, abiBytes, err := getAbiJSON(ctx)
+	aabbii, err := getAbiJSON(ctx)
 	if err != nil {
 		cli.NewExitError(err.Error(), 127)
 	}
@@ -356,15 +356,7 @@ func createContract(ctx *cli.Context) error {
 			return cli.NewExitError(err.Error(), 110)
 		}
 
-		cctx := app.CreateContractTx{
-			EthTx:  b,
-			EthAbi: abiBytes,
-		}
-		cctxBytes, err := app.EncodeCreateContract(cctx)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 110)
-		}
-		bytesLoad := types.WrapTx(app.EVMCreateContractTxTag, cctxBytes)
+		bytesLoad := types.WrapTx(app.EVMTxTag, b)
 		tmResult := new(types.RPCResult)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, bytesLoad}, tmResult)
@@ -453,21 +445,20 @@ func getCallParamsJSON(ctx *cli.Context) (*simplejson.Json, error) {
 	return simplejson.NewJson([]byte(calljson))
 }
 
-func getAbiJSON(ctx *cli.Context) (*abi.ABI, []byte, error) {
+func getAbiJSON(ctx *cli.Context) (*abi.ABI, error) {
 	var abijson string
 	if ctx.String("abif") == "" {
 		abijson = ctx.String("abi")
 	} else {
 		dat, err := ioutil.ReadFile(ctx.String("abif"))
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		abijson = string(dat)
 	}
 	jAbi, err := abi.JSON(strings.NewReader(abijson))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	return &jAbi, []byte(abijson), nil
+	return &jAbi, nil
 }
