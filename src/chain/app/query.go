@@ -129,9 +129,22 @@ func (app *App) queryReceipt(txHashBytes []byte) agtypes.Result {
 		return agtypes.NewError(pbtypes.CodeType_BaseInvalidInput, "Invalid txhash")
 	}
 	key := append(ReceiptsPrefix, txHashBytes...)
-	data, err := app.chainDb.Get(key)
+	data, err := app.evmStateDb.Get(key)
 	if err != nil {
 		return agtypes.NewError(pbtypes.CodeType_InternalError, "fail to get receipt for tx:"+string(key))
 	}
 	return agtypes.NewResultOK(data, "")
+}
+
+func (app *App) CheckTx(bs []byte) error {
+	txBytes := agtypes.UnwrapTx(bs)
+
+	switch {
+	case bytes.HasPrefix(bs, EVMTag):
+		return app.CheckEVMTx(txBytes)
+	case bytes.HasPrefix(bs, EcoTag):
+		return app.CheckEcoTx(txBytes)
+	}
+
+	return nil
 }

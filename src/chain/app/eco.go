@@ -1,6 +1,8 @@
 package app
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -8,21 +10,29 @@ import (
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	crypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
+	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
+	ctypes "github.com/Baptist-Publication/chorus/src/types"
+)
+
+var (
+	EcoTag            = []byte{'e', 'c', 'o'}
+	EcoInitTokenTxTag = append(EcoTag, 0x01)
+	EcoInitShareTxTag = append(EcoTag, 0x02)
 )
 
 func (app *App) RegisterValidators(validatorset *agtypes.ValidatorSet) {
 	for _, validator := range validatorset.Validators {
 		if pub, ok := validator.GetPubKey().(*crypto.PubKeyEd25519); ok {
 			// app.accState.CreateAccount(pub[:], Big0)
-			app.currentPowerState.CreatePower(pub[:], new(big.Int).SetUint64(uint64(validator.VotingPower)), 1)
+			app.currentShareState.CreateShare(pub[:], new(big.Int).SetUint64(uint64(validator.VotingPower)), 1)
 		}
 	}
 }
 
-type comparablePower Power
+type comparableShare Share
 
-func (ca *comparablePower) Less(o interface{}) bool {
-	return ca.VTPower.Cmp(o.(*comparablePower).VTPower) < 0
+func (ca *comparableShare) Less(o interface{}) bool {
+	return ca.ShareBalance.Cmp(o.(*comparableShare).ShareBalance) < 0
 }
 
 func CalcVP(base int, position int) uint64 {
@@ -42,19 +52,19 @@ func (app *App) ValSetLoader() agtypes.ValSetLoaderFunc {
 }
 
 func (app *App) fakeRandomVals(height, round def.INT, size int) []*agtypes.Validator {
-	pwrs := make([]*Power, 0, 21)
+	pwrs := make([]*Share, 0, 21)
 
 	// Iterate power list of world state
 	// to get all power account than joining current election
-	accList := make([]*Power, 0, app.powerState.Size())
+	accList := make([]*Share, 0, app.ShareState.Size())
 	vsetHeap := cmn.NewHeap() // max heap of length 15
-	app.powerState.Iterate(func(pwr *Power) bool {
+	app.ShareState.Iterate(func(pwr *Share) bool {
 		if pwr.MHeight == -1 { // indicate he is not in
 			return false
 		}
 
 		accList = append(accList, pwr)
-		vsetHeap.Push(pwr, (*comparablePower)(pwr))
+		vsetHeap.Push(pwr, (*comparableShare)(pwr))
 		if vsetHeap.Len() > 15 {
 			vsetHeap.Pop()
 		}
@@ -88,11 +98,11 @@ func (app *App) fakeRandomVals(height, round def.INT, size int) []*agtypes.Valid
 	// Pick the rich-guys
 	// max(rich-guys) = 15
 	// min(rich-guys) = 7
-	exists := make(map[*Power]struct{})
+	exists := make(map[*Share]struct{})
 	i := int(vsetHeap.Len())
 	for vsetHeap.Len() > 0 {
-		pwr := vsetHeap.Pop().(*Power)
-		pwr.VTPower = new(big.Int).SetUint64(CalcVP(6, i)) // re-calculate power
+		pwr := vsetHeap.Pop().(*Share)
+		pwr.ShareBalance = new(big.Int).SetUint64(CalcVP(6, i)) // re-calculate power
 		pwrs = append(pwrs, pwr)
 		exists[pwr] = struct{}{}
 		i--
@@ -102,14 +112,14 @@ func (app *App) fakeRandomVals(height, round def.INT, size int) []*agtypes.Valid
 	// we use a map(means exists) to identify the elected guys
 	retry := 1
 	bigbang := new(big.Int).SetBytes(app.evmState.IntermediateRoot(true).Bytes())
-	luckyguys := make([]*Power, 0, numLuckyGuys)
+	luckyguys := make([]*Share, 0, numLuckyGuys)
 	for len(luckyguys) < numLuckyGuys {
 		guy, err := fakeRandomAccount(accList, exists, height, round, bigbang, &retry)
 		if err != nil {
 			fmt.Println("error in fakeRandomAccount:", err.Error())
 			return nil
 		}
-		guy.VTPower = new(big.Int).SetUint64(1)
+		guy.ShareBalance = new(big.Int).SetUint64(1)
 		luckyguys = append(luckyguys, guy)
 	}
 
@@ -124,14 +134,14 @@ func (app *App) fakeRandomVals(height, round def.INT, size int) []*agtypes.Valid
 		vals[i] = &agtypes.Validator{
 			PubKey:      crypto.StPubKey{PubKey: &pk},
 			Address:     pk.Address(),
-			VotingPower: v.VTPower.Int64(),
+			VotingPower: v.ShareBalance.Int64(),
 		}
 	}
 
 	return vals
 }
 
-func fakeRandomAccount(accs []*Power, exists map[*Power]struct{}, height, round def.INT, bigbang *big.Int, retry *int) (*Power, error) {
+func fakeRandomAccount(accs []*Share, exists map[*Share]struct{}, height, round def.INT, bigbang *big.Int, retry *int) (*Share, error) {
 	if len(accs) == len(exists) {
 		return nil, fmt.Errorf("No account can be picked any more")
 	}
@@ -151,4 +161,57 @@ func fakeRandomAccount(accs []*Power, exists map[*Power]struct{}, height, round 
 			index++
 		}
 	}
+}
+
+func (app *App) CheckEcoTx(bs []byte) error {
+	// nothing to do
+	return nil
+}
+
+func (app *App) executeBlockRewards(block *agtypes.BlockCache) error {
+	addr := ethcmn.BytesToAddress(block.Header.CoinBase)
+	app.currentEvmState.AddBalance(addr, big.NewInt(100000))
+
+	return nil
+}
+
+func (app *App) ExecuteEcoTx(block *agtypes.BlockCache, bs []byte, txIndex int) (hash []byte, err error) {
+	if app.AngineRef.Height() != 1 {
+		return nil, fmt.Errorf("Insufficient block height")
+	}
+
+	switch {
+	case bytes.HasPrefix(bs, EcoInitTokenTxTag):
+		err = app.executeTokenInitTx(agtypes.UnwrapTx(bs))
+	case bytes.HasPrefix(bs, EcoInitShareTxTag):
+		err = app.executeShareInitTx(agtypes.UnwrapTx(bs))
+	}
+
+	return nil, err
+}
+
+func (app *App) executeTokenInitTx(bs []byte) error {
+	var tx ctypes.EcoInitTokenTx
+	err := json.Unmarshal(bs, &tx)
+	if err != nil {
+		return fmt.Errorf("Unmarshal tx failed:%s", err.Error())
+	}
+
+	var addr ethcmn.Address
+	copy(addr[:], tx.To)
+	app.currentEvmState.AddBalance(addr, tx.Amount)
+
+	return nil
+}
+
+func (app *App) executeShareInitTx(bs []byte) error {
+	var tx ctypes.EcoInitShareTx
+	err := json.Unmarshal(bs, &tx)
+	if err != nil {
+		return fmt.Errorf("Unmarshal tx failed:%s", err.Error())
+	}
+
+	app.currentShareState.CreateShare(tx.To, tx.Amount, 1)
+
+	return nil
 }

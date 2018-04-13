@@ -23,12 +23,15 @@ import (
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"github.com/vmihailenco/msgpack"
 	"go.uber.org/zap"
 )
 
 const (
 	StateRemoveEmptyObj = true
 	APP_NAME            = "evm"
+	lastBlockKey        = "lastblock"
+	stateRootPrefix     = "state-prefix-"
 
 	DatabaseCache   = 128
 	DatabaseHandles = 1024
@@ -37,11 +40,11 @@ const (
 type LastBlockInfo struct {
 	Height         def.INT
 	EvmStateHash   []byte
-	PowerStateHash []byte
+	ShareStateHash []byte
 }
 
 func (lb *LastBlockInfo) AppHash() []byte {
-	return merkle.SimpleHashFromTwoHashes(lb.EvmStateHash, lb.PowerStateHash)
+	return merkle.SimpleHashFromTwoHashes(lb.EvmStateHash, lb.ShareStateHash)
 }
 
 type App struct {
@@ -54,18 +57,18 @@ type App struct {
 	AngineHooks agtypes.Hooks
 	AngineRef   *angine.Angine
 
-	evmStateMtx     sync.Mutex // protected concurrent changes of app.evmState
+	evmStateMtx     sync.Mutex
+	evmStateDb      ethdb.Database
 	evmState        *ethstate.StateDB
 	currentEvmState *ethstate.StateDB
 
-	powerStateMtx     sync.Mutex
-	powerStateDB      db.DB
-	powerState        *PowerState
-	currentPowerState *PowerState
+	ShareStateMtx     sync.Mutex
+	ShareStateDB      db.DB
+	ShareState        *ShareState
+	currentShareState *ShareState
 
 	currentHeader *ethtypes.Header
 	chainConfig   *ethparams.ChainConfig
-	chainDb       ethdb.Database // Block chain database
 	blockChain    *ethcore.BlockChain
 
 	receipts ethtypes.Receipts
@@ -76,9 +79,8 @@ var (
 	EthSigner     = ethtypes.HomesteadSigner{}
 	IsHomestead   = true
 
-	lastBlockKey = []byte("lastblock")
-	evmConfig    = ethvm.Config{DisableGasMetering: false, EnableJit: true, ForceJit: true}
-	big0         = big.NewInt(0)
+	evmConfig = ethvm.Config{DisableGasMetering: false, EnableJit: true, ForceJit: true}
+	big0      = big.NewInt(0)
 
 	errQuitExecute = fmt.Errorf("quit executing block")
 )
@@ -118,9 +120,13 @@ func NewApp(logger *zap.Logger, config *viper.Viper) (*App, error) {
 		app.logger.Error("InitBaseApplication error", zap.Error(err))
 		return nil, errors.Wrap(err, "app error")
 	}
-	if app.chainDb, err = OpenDatabase(app.datadir, "chaindata", DatabaseCache, DatabaseHandles); err != nil {
+
+	if app.evmStateDb, err = OpenDatabase(app.datadir, "chaindata", DatabaseCache, DatabaseHandles); err != nil {
 		app.logger.Error("OpenDatabase error", zap.Error(err))
 		return nil, errors.Wrap(err, "app error")
+	}
+	if app.ShareStateDB, err = db.NewGoLevelDB("powerstate", app.datadir); err != nil {
+		cmn.PanicCrisis(err)
 	}
 
 	return app, nil
@@ -130,7 +136,7 @@ func (app *App) Start() (err error) {
 	lastBlock := &LastBlockInfo{
 		Height:         0,
 		EvmStateHash:   make([]byte, 0),
-		PowerStateHash: make([]byte, 0),
+		ShareStateHash: make([]byte, 0),
 	}
 	if res, err := app.LoadLastBlock(lastBlock); err == nil && res != nil {
 		lastBlock = res.(*LastBlockInfo)
@@ -145,25 +151,23 @@ func (app *App) Start() (err error) {
 	if len(lastBlock.EvmStateHash) > 0 {
 		trieRoot = ethcmn.BytesToHash(lastBlock.EvmStateHash)
 	}
-	if app.evmState, err = ethstate.New(trieRoot, app.chainDb); err != nil {
+	if app.evmState, err = ethstate.New(trieRoot, app.evmStateDb); err != nil {
 		app.Stop()
 		app.logger.Error("fail to new ethstate", zap.Error(err))
 		return
 	}
 
 	// Load power state when starting
-	if app.powerStateDB, err = db.NewGoLevelDB("powerstate", app.datadir); err != nil {
-		cmn.PanicCrisis(err)
-	}
-	app.powerState = NewPowerState(app.powerStateDB)
-	app.powerState.Load(lastBlock.PowerStateHash)
+	app.ShareState = NewShareState(app.ShareStateDB)
+	app.ShareState.Load(lastBlock.ShareStateHash)
 
 	return nil
 }
 
 func (app *App) Stop() {
 	app.BaseApplication.Stop()
-	app.chainDb.Close()
+	app.evmStateDb.Close()
+	app.ShareStateDB.Close()
 }
 
 func (app *App) GetAngineHooks() agtypes.Hooks {
@@ -190,9 +194,9 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 	app.currentEvmState = app.evmState.DeepCopy()
 	app.evmStateMtx.Unlock()
 
-	app.powerStateMtx.Lock()
-	app.currentPowerState = app.powerState.Copy()
-	app.powerStateMtx.Unlock()
+	app.ShareStateMtx.Lock()
+	app.currentShareState = app.ShareState.Copy()
+	app.ShareStateMtx.Unlock()
 
 	// genesis block
 	if height == 1 {
@@ -200,15 +204,21 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 		app.RegisterValidators(vSet)
 	}
 
+	// block rewards
+	err = app.executeBlockRewards(block)
+	if err != nil {
+		return nil, err
+	}
+
 	currentHeader := makeCurrentHeader(block)
 	blockHash := ethcmn.BytesToHash(block.Hash())
 
 	for i, tx := range block.Data.Txs {
-		txType := tx[:4]
 		switch {
-		case bytes.Equal(txType, EVMTxTag):
+		case bytes.HasPrefix(tx, EVMTag):
 			_, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, i)
-
+		case bytes.HasPrefix(tx, EcoTag):
+			_, err = app.ExecuteEcoTx(block, tx, i)
 		}
 
 		if err != nil {
@@ -229,15 +239,17 @@ func (app *App) OnCommit(height, round def.INT, block *agtypes.BlockCache) (inte
 		return nil, err
 	}
 
-	powerStateHash, err := app.currentPowerState.Commit()
+	ShareStateHash, err := app.currentShareState.Commit()
 	if err != nil {
-		app.logger.Error("fail to commit powerState", zap.Error(err))
+		app.logger.Error("fail to commit ShareState", zap.Error(err))
 		return nil, err
 	}
 
-	lb := LastBlockInfo{Height: height, EvmStateHash: evmStateHash.Bytes(), PowerStateHash: powerStateHash}
+	lb := LastBlockInfo{Height: height, EvmStateHash: evmStateHash.Bytes(), ShareStateHash: ShareStateHash}
 	app.SaveLastBlock(lb)
 	rHash := app.SaveReceipts()
+
+	app.SaveStateRootHashs(evmStateHash.Bytes(), ShareStateHash)
 
 	// Reload status
 	app.evmStateMtx.Lock()
@@ -248,13 +260,14 @@ func (app *App) OnCommit(height, round def.INT, block *agtypes.BlockCache) (inte
 		return nil, err
 	}
 
-	app.powerStateMtx.Lock()
-	app.powerState.Reload(powerStateHash)
-	app.powerStateMtx.Unlock()
+	app.ShareStateMtx.Lock()
+	app.ShareState.Reload(ShareStateHash)
+	app.ShareStateMtx.Unlock()
 
 	app.receipts = app.receipts[:0]
 
-	fmt.Println("height:", height, "power size:", app.powerState.Size())
+	fmt.Println("height:", height, "power size:", app.ShareState.Size())
+	fmt.Printf("appHash:%X\n", lb.AppHash())
 
 	return agtypes.CommitResult{
 		AppHash:      lb.AppHash(),
@@ -262,34 +275,9 @@ func (app *App) OnCommit(height, round def.INT, block *agtypes.BlockCache) (inte
 	}, nil
 }
 
-func (app *App) CheckTx(bs []byte) error {
-	var err error
-	txBytes := agtypes.UnwrapTx(bs)
-
-	if bytes.HasPrefix(bs, EVMTxTag) {
-		tx := new(ethtypes.Transaction)
-		err = rlp.DecodeBytes(txBytes, tx)
-		if err != nil {
-			return err
-		}
-		from, _ := ethtypes.Sender(EthSigner, tx)
-		app.evmStateMtx.Lock()
-		defer app.evmStateMtx.Unlock()
-		if app.evmState.GetNonce(from) > tx.Nonce() {
-			return fmt.Errorf("nonce too low")
-		}
-		if app.evmState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-			return fmt.Errorf("not enough funds")
-		}
-		return nil
-	}
-
-	return nil
-}
-
 func (app *App) SaveReceipts() []byte {
 	savedReceipts := make([][]byte, 0, len(app.receipts))
-	receiptBatch := app.chainDb.NewBatch()
+	receiptBatch := app.evmStateDb.NewBatch()
 
 	for _, receipt := range app.receipts {
 		storageReceipt := (*ethtypes.ReceiptForStorage)(receipt)
@@ -312,18 +300,30 @@ func (app *App) SaveReceipts() []byte {
 	return merkle.SimpleHashFromHashes(savedReceipts)
 }
 
-func (app *App) Info() (resInfo agtypes.ResultInfo) {
-	lb := &LastBlockInfo{
-		EvmStateHash:   make([]byte, 0),
-		PowerStateHash: make([]byte, 0),
-		Height:         0,
+func (app *App) SaveStateRootHashs(evmStateHash, ShareStateHash []byte) {
+	type stateRoot struct {
+		EvmStateHash   []byte
+		ShareStateHash []byte
 	}
+	sr := stateRoot{
+		EvmStateHash:   evmStateHash,
+		ShareStateHash: ShareStateHash,
+	}
+	srb, err := msgpack.Marshal(sr)
+	if err != nil {
+		cmn.PanicCrisis(err)
+	}
+	app.Database.SetSync([]byte(fmt.Sprintf("%s%d", stateRootPrefix, app.AngineRef.Height())), srb)
+}
+
+func (app *App) Info() (resInfo agtypes.ResultInfo) {
+	lb := &LastBlockInfo{}
 	if res, err := app.LoadLastBlock(lb); err == nil {
 		lb = res.(*LastBlockInfo)
 	}
 	resInfo.LastBlockAppHash = lb.AppHash()
 	resInfo.LastBlockHeight = lb.Height
 	resInfo.Version = "alpha 0.2"
-	resInfo.Data = "evm-1.5.9 with cosi and eventtx"
+	resInfo.Data = "evm-1.5.9"
 	return
 }

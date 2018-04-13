@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	agtypes "github.com/Baptist-Publication/angine/types"
 	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
 	ethcore "github.com/Baptist-Publication/chorus/src/eth/core"
@@ -47,4 +49,22 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs 
 	}
 
 	return tx.Hash().Bytes(), err
+}
+
+func (app *App) CheckEVMTx(bs []byte) error {
+	tx := new(ethtypes.Transaction)
+	err := rlp.DecodeBytes(bs, tx)
+	if err != nil {
+		return err
+	}
+	from, _ := ethtypes.Sender(EthSigner, tx)
+	app.evmStateMtx.Lock()
+	defer app.evmStateMtx.Unlock()
+	if app.evmState.GetNonce(from) > tx.Nonce() {
+		return fmt.Errorf("nonce too low")
+	}
+	if app.evmState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+		return fmt.Errorf("not enough funds")
+	}
+	return nil
 }
