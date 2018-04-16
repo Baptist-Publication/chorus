@@ -57,12 +57,12 @@ type App struct {
 	AngineHooks agtypes.Hooks
 	AngineRef   *angine.Angine
 
-	evmStateMtx     sync.Mutex
+	evmStateMtx     sync.RWMutex
 	evmStateDb      ethdb.Database
 	evmState        *ethstate.StateDB
 	currentEvmState *ethstate.StateDB
 
-	ShareStateMtx     sync.Mutex
+	ShareStateMtx     sync.RWMutex
 	ShareStateDB      db.DB
 	ShareState        *ShareState
 	currentShareState *ShareState
@@ -185,18 +185,8 @@ func (app *App) OnPrevote(height, round def.INT, block *agtypes.BlockCache) (int
 }
 
 func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (interface{}, error) {
-	var (
-		res agtypes.ExecuteResult
-		err error
-	)
-
-	app.evmStateMtx.Lock()
 	app.currentEvmState = app.evmState.DeepCopy()
-	app.evmStateMtx.Unlock()
-
-	app.ShareStateMtx.Lock()
 	app.currentShareState = app.ShareState.Copy()
-	app.ShareStateMtx.Unlock()
 
 	// genesis block
 	if height == 1 {
@@ -205,7 +195,7 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 	}
 
 	// block rewards
-	err = app.executeBlockRewards(block)
+	err := app.doCoinbaseTx(block)
 	if err != nil {
 		return nil, err
 	}
@@ -213,6 +203,7 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 	currentHeader := makeCurrentHeader(block)
 	blockHash := ethcmn.BytesToHash(block.Hash())
 
+	var res agtypes.ExecuteResult
 	for i, tx := range block.Data.Txs {
 		switch {
 		case bytes.HasPrefix(tx, EVMTag):

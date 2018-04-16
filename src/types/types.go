@@ -18,3 +18,18 @@ func BigInt0() *big.Int {
 }
 
 type ParamUData = map[string]interface{}
+
+const (
+	QueryTypeContract = iota
+	QueryTypeNonce
+	QueryTypeBalance
+	QueryTypeReceipt
+	QueryTypeContractExistance
+	QueryTypeShare
+)
+
+type QueryShareResult struct {
+	ShareBalance  *big.Int
+	ShareGuaranty *big.Int
+	MHeight       uint64
+}

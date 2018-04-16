@@ -13,6 +13,7 @@ import (
 	ethvm "github.com/Baptist-Publication/chorus/src/eth/core/vm"
 	ethparams "github.com/Baptist-Publication/chorus/src/eth/params"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/types"
 )
 
 func (app *App) Query(query []byte) agtypes.Result {
@@ -23,16 +24,18 @@ func (app *App) Query(query []byte) agtypes.Result {
 	action := query[0]
 	load := query[1:]
 	switch action {
-	case 0:
+	case types.QueryTypeContract:
 		res = app.queryContract(load)
-	case 1:
+	case types.QueryTypeNonce:
 		res = app.queryNonce(load)
-	case 2:
+	case types.QueryTypeBalance:
 		res = app.queryBalance(load)
-	case 3:
+	case types.QueryTypeReceipt:
 		res = app.queryReceipt(load)
-	case 4:
+	case types.QueryTypeContractExistance:
 		res = app.queryContractExistence(load)
+	case types.QueryTypeShare:
+		res = app.queryShare(load)
 	default:
 		res = agtypes.NewError(pbtypes.CodeType_BaseInvalidInput, "unimplemented query")
 	}
@@ -50,9 +53,9 @@ func (app *App) queryContractExistence(load []byte) agtypes.Result {
 	}
 	contractAddr := tx.To()
 
-	app.evmStateMtx.Lock()
+	app.evmStateMtx.RLock()
 	hashBytes := app.evmState.GetCodeHash(*contractAddr).Bytes()
-	app.evmStateMtx.Unlock()
+	app.evmStateMtx.RUnlock()
 
 	if bytes.Equal(tx.Data(), hashBytes) {
 		return agtypes.NewResultOK(append([]byte{}, byte(0x01)), "contract exists")
@@ -79,13 +82,13 @@ func (app *App) queryContract(load []byte) agtypes.Result {
 	envCxt := ethcore.NewEVMContext(txMsg, fakeHeader, nil)
 
 	app.evmStateMtx.Lock()
+	defer app.evmStateMtx.Unlock()
 	vmEnv := ethvm.NewEVM(envCxt, app.evmState.Copy(), app.chainConfig, evmConfig)
 	gpl := new(ethcore.GasPool).AddGas(ethcmn.MaxBig)
 	res, _, err := ethcore.ApplyMessage(vmEnv, txMsg, gpl) // we don't care about gasUsed
 	if err != nil {
 		// logger.Debug("transition error", err)
 	}
-	app.evmStateMtx.Unlock()
 
 	return agtypes.NewResultOK(res, "")
 }
@@ -96,9 +99,9 @@ func (app *App) queryNonce(addrBytes []byte) agtypes.Result {
 	}
 	addr := ethcmn.BytesToAddress(addrBytes)
 
-	app.evmStateMtx.Lock()
+	app.evmStateMtx.RLock()
 	nonce := app.evmState.GetNonce(addr)
-	app.evmStateMtx.Unlock()
+	app.evmStateMtx.RUnlock()
 
 	data, err := rlp.EncodeToBytes(nonce)
 	if err != nil {
@@ -113,9 +116,9 @@ func (app *App) queryBalance(addrBytes []byte) agtypes.Result {
 	}
 	addr := ethcmn.BytesToAddress(addrBytes)
 
-	app.evmStateMtx.Lock()
+	app.evmStateMtx.RLock()
 	balance := app.evmState.GetBalance(addr)
-	app.evmStateMtx.Unlock()
+	app.evmStateMtx.RUnlock()
 
 	data, err := rlp.EncodeToBytes(balance)
 	if err != nil {
@@ -133,6 +136,34 @@ func (app *App) queryReceipt(txHashBytes []byte) agtypes.Result {
 	if err != nil {
 		return agtypes.NewError(pbtypes.CodeType_InternalError, "fail to get receipt for tx:"+string(key))
 	}
+	return agtypes.NewResultOK(data, "")
+}
+
+func (app *App) queryShare(pubkeyBytes []byte) agtypes.Result {
+	if len(pubkeyBytes) == 0 {
+		return agtypes.NewError(pbtypes.CodeType_BaseInvalidInput, "Invalid address")
+	}
+
+	app.ShareStateMtx.RLock()
+	share := app.ShareState.GetShareAccount(pubkeyBytes)
+	app.ShareStateMtx.RUnlock()
+
+	res := types.QueryShareResult{}
+	if share == nil {
+		res.ShareBalance = big0
+		res.ShareGuaranty = big0
+		res.MHeight = 0
+	} else {
+		res.ShareBalance = share.ShareBalance
+		res.ShareGuaranty = share.ShareGuaranty
+		res.MHeight = uint64(share.MHeight)
+	}
+
+	data, err := rlp.EncodeToBytes(res)
+	if err != nil {
+		return agtypes.NewError(pbtypes.CodeType_InternalError, err.Error())
+	}
+
 	return agtypes.NewResultOK(data, "")
 }
 

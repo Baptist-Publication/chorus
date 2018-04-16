@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 
 	agtypes "github.com/Baptist-Publication/angine/types"
@@ -24,7 +25,7 @@ func (app *App) RegisterValidators(validatorset *agtypes.ValidatorSet) {
 	for _, validator := range validatorset.Validators {
 		if pub, ok := validator.GetPubKey().(*crypto.PubKeyEd25519); ok {
 			// app.accState.CreateAccount(pub[:], Big0)
-			app.currentShareState.CreateShare(pub[:], new(big.Int).SetUint64(uint64(validator.VotingPower)), 1)
+			app.currentShareState.CreateShareAccount(pub[:], new(big.Int).SetUint64(uint64(validator.VotingPower)), 1)
 		}
 	}
 }
@@ -168,11 +169,28 @@ func (app *App) CheckEcoTx(bs []byte) error {
 	return nil
 }
 
-func (app *App) executeBlockRewards(block *agtypes.BlockCache) error {
-	addr := ethcmn.BytesToAddress(block.Header.CoinBase)
-	app.currentEvmState.AddBalance(addr, big.NewInt(100000))
+func (app *App) doCoinbaseTx(block *agtypes.BlockCache) error {
+	var addr ethcmn.Address
+	copy(addr[:], block.Header.CoinBase)
 
+	rewards := calculateRewards(uint64(block.Header.Height))
+
+	app.currentEvmState.AddBalance(addr, rewards)
 	return nil
+}
+
+func calculateRewards(height uint64) *big.Int {
+	startRewards := uint64(128 * 1000000000)
+	declinePerBlocks := uint64(5000000)
+
+	declineCount := height / declinePerBlocks
+	if declineCount > 7 {
+		declineCount = 7
+	}
+	declineBase := uint64(math.Pow(2, float64(declineCount)))
+	rewards := startRewards / declineBase
+
+	return new(big.Int).SetUint64(rewards)
 }
 
 func (app *App) ExecuteEcoTx(block *agtypes.BlockCache, bs []byte, txIndex int) (hash []byte, err error) {
@@ -211,7 +229,7 @@ func (app *App) executeShareInitTx(bs []byte) error {
 		return fmt.Errorf("Unmarshal tx failed:%s", err.Error())
 	}
 
-	app.currentShareState.CreateShare(tx.To, tx.Amount, 1)
+	app.currentShareState.CreateShareAccount(tx.To, tx.Amount, 1)
 
 	return nil
 }

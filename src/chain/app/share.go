@@ -17,7 +17,7 @@ import (
 
 type ShareState struct {
 	root     []byte
-	mtx      sync.Mutex
+	mtx      sync.RWMutex
 	database db.DB
 	rootHash []byte
 	trie     *merkle.IAVLTree
@@ -62,43 +62,37 @@ func (ps *ShareState) Unlock() {
 	ps.mtx.Unlock()
 }
 
-func (ps *ShareState) CreateShare(pubkey []byte, power *big.Int, height def.INT) {
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-
+func (ps *ShareState) CreateShareAccount(pubkey []byte, balance *big.Int, height def.INT) {
 	pub := crypto.PubKeyEd25519{}
 	copy(pub[:], pubkey[:])
 
 	pwr := &Share{
-		Pubkey:       pubkey,
-		ShareBalance: new(big.Int).Set(power),
-		MHeight:      height,
+		Pubkey:        pubkey,
+		ShareBalance:  new(big.Int).Set(balance),
+		ShareGuaranty: big0,
+		MHeight:       height,
 	}
 
 	ps.ShareCache.Set(pub.KeyString(), pwr)
 }
 
-func (ps *ShareState) GetShare(pubkey []byte) (*Share, error) {
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
+func (ps *ShareState) GetShareAccount(pubkey []byte) *Share {
 	pub := crypto.PubKeyEd25519{}
 	copy(pub[:], pubkey)
 
 	if pwr, ok := ps.ShareCache.Get(pub.KeyString()); ok {
-		return pwr.(*Share), nil
+		return pwr.(*Share)
 	}
 	if _, Sharebytes, exist := ps.trie.Get([]byte(pub.KeyString())); exist {
 		pwr := new(Share)
 		pwr.FromBytes(Sharebytes)
-		return pwr, nil
+		return pwr
 	}
-	return nil, fmt.Errorf("Share not exist: %X", pubkey)
+	return nil
 }
 
 func (ps *ShareState) QueryShare(pubkey crypto.PubKey) (*big.Int, def.INT) {
 	keystring := pubkey.KeyString()
-	ps.Lock()
-	defer ps.Unlock()
 
 	// from cache
 	if itfc, ok := ps.ShareCache.Get(keystring); ok {
@@ -122,8 +116,6 @@ func (ps *ShareState) QueryShare(pubkey crypto.PubKey) (*big.Int, def.INT) {
 
 func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int, height def.INT) error {
 	keystring := pubkey.KeyString()
-	ps.Lock()
-	defer ps.Unlock()
 
 	// from cache
 	if itfc, ok := ps.ShareCache.Get(keystring); ok {
@@ -149,9 +141,10 @@ func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int, hei
 	// new account
 	pk := pubkey.(*crypto.PubKeyEd25519)
 	pwr := &Share{
-		Pubkey:       pk[:],
-		ShareBalance: amount,
-		MHeight:      height,
+		Pubkey:        pk[:],
+		ShareBalance:  amount,
+		ShareGuaranty: big0,
+		MHeight:       height,
 	}
 	ps.ShareCache.Set(pk.KeyString(), pwr)
 	return nil
@@ -159,8 +152,6 @@ func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int, hei
 
 func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int, height def.INT) error {
 	keystring := pubkey.KeyString()
-	ps.Lock()
-	defer ps.Unlock()
 
 	// from cache
 	if itfc, ok := ps.ShareCache.Get(keystring); ok {
@@ -195,8 +186,6 @@ func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int, hei
 
 func (ps *ShareState) MarkShare(pubkey crypto.PubKey, mValue def.INT) error {
 	keystring := pubkey.KeyString()
-	ps.Lock()
-	defer ps.Unlock()
 
 	// from cache
 	if itfc, ok := ps.ShareCache.Get(keystring); ok {
@@ -222,9 +211,6 @@ func (ps *ShareState) MarkShare(pubkey crypto.PubKey, mValue def.INT) error {
 
 // Commit returns the new root bytes
 func (ps *ShareState) Commit() ([]byte, error) {
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-
 	ps.ShareCache.Exec(func(k string, v interface{}) {
 		pwr := v.(*Share)
 		if pwr.ShareBalance.Cmp(big0) == 0 {
@@ -240,26 +226,19 @@ func (ps *ShareState) Commit() ([]byte, error) {
 
 // Load dumps all the buffer, start every thing from a clean state
 func (ps *ShareState) Load(root []byte) {
-	ps.Lock()
 	ps.ShareCache = mlist.NewMapList()
 	ps.trie.Load(root)
 	ps.root = root
-	ps.Unlock()
 }
 
 // Reload works the same as Load, just for semantic purpose
 func (ps *ShareState) Reload(root []byte) {
-	ps.Lock()
 	ps.ShareCache = mlist.NewMapList()
 	ps.trie.Load(root)
 	ps.root = root
-	ps.Unlock()
 }
 
 func (ps *ShareState) Iterate(fn func(*Share) bool) {
-	ps.Lock()
-	defer ps.Unlock()
-
 	// Iterate cache first
 	ps.ShareCache.Exec(func(key string, value interface{}) {
 		pwr := value.(*Share)
@@ -288,16 +267,10 @@ func (ps *ShareState) Iterate(fn func(*Share) bool) {
 }
 
 func (ps *ShareState) Hash() []byte {
-	ps.Lock()
-	defer ps.Unlock()
-
 	return ps.trie.Hash()
 }
 
 func (ps *ShareState) Size() int {
-	ps.Lock()
-	defer ps.Unlock()
-
 	return ps.trie.Size()
 }
 

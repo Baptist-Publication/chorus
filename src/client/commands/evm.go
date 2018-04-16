@@ -9,19 +9,19 @@ import (
 	"reflect"
 	"strings"
 
+	agtypes "github.com/Baptist-Publication/angine/types"
+	ac "github.com/Baptist-Publication/chorus-module/lib/go-common"
+	cl "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
+	"github.com/Baptist-Publication/chorus/src/chain/app"
+	"github.com/Baptist-Publication/chorus/src/client/commons"
 	"github.com/Baptist-Publication/chorus/src/eth/accounts/abi"
 	"github.com/Baptist-Publication/chorus/src/eth/common"
 	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
 	"github.com/Baptist-Publication/chorus/src/eth/crypto"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/types"
 	"github.com/bitly/go-simplejson"
 	"gopkg.in/urfave/cli.v1"
-
-	"github.com/Baptist-Publication/angine/types"
-	ac "github.com/Baptist-Publication/chorus-module/lib/go-common"
-	cl "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
-	"github.com/Baptist-Publication/chorus/src/chain/app"
-	"github.com/Baptist-Publication/chorus/src/client/commons"
 )
 
 var (
@@ -151,15 +151,15 @@ func readContract(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err.Error(), 127)
 		}
-		query := append([]byte{0}, b...)
+		query := append([]byte{types.QueryTypeContract}, b...)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		tmResult := new(types.RPCResult)
+		tmResult := new(agtypes.RPCResult)
 		_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 127)
 		}
 
-		res := (*tmResult).(*types.ResultQuery)
+		res := (*tmResult).(*agtypes.ResultQuery)
 		hex := common.Bytes2Hex(res.Result.Data)
 		fmt.Println("query result:", hex)
 		parseResult, _ := unpackResult(function, *aabbii, string(res.Result.Data))
@@ -288,9 +288,9 @@ func executeContract(ctx *cli.Context) error {
 			return cli.NewExitError(err.Error(), 123)
 		}
 
-		tmResult := new(types.RPCResult)
+		tmResult := new(agtypes.RPCResult)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{chainID, types.WrapTx(app.EVMTxTag, b)}, tmResult)
+		_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{chainID, agtypes.WrapTx(app.EVMTxTag, b)}, tmResult)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 123)
 		}
@@ -356,8 +356,8 @@ func createContract(ctx *cli.Context) error {
 			return cli.NewExitError(err.Error(), 110)
 		}
 
-		bytesLoad := types.WrapTx(app.EVMTxTag, b)
-		tmResult := new(types.RPCResult)
+		bytesLoad := agtypes.WrapTx(app.EVMTxTag, b)
+		tmResult := new(agtypes.RPCResult)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, bytesLoad}, tmResult)
 		if err != nil {
@@ -413,15 +413,15 @@ func existContract(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
-	query := append([]byte{4}, txBytes...)
+	query := append([]byte{types.QueryTypeContractExistance}, txBytes...)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
+	tmResult := new(agtypes.RPCResult)
 	_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*types.ResultQuery)
+	res := (*tmResult).(*agtypes.ResultQuery)
 	hex := common.Bytes2Hex(res.Result.Data)
 	if hex == "01" {
 		fmt.Println("Yes!!!")
