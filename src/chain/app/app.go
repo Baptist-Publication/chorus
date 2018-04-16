@@ -194,29 +194,36 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 		app.RegisterValidators(vSet)
 	}
 
-	// block rewards
-	err := app.doCoinbaseTx(block)
-	if err != nil {
-		return nil, err
-	}
-
 	currentHeader := makeCurrentHeader(block)
 	blockHash := ethcmn.BytesToHash(block.Hash())
 
+	var err error
 	var res agtypes.ExecuteResult
+	totalUsedGas := big.NewInt(0)
 	for i, tx := range block.Data.Txs {
+		var usedGas *big.Int
 		switch {
 		case bytes.HasPrefix(tx, EVMTag):
-			_, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, i)
+			_, usedGas, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, i)
 		case bytes.HasPrefix(tx, EcoTag):
-			_, err = app.ExecuteEcoTx(block, tx, i)
+			_, usedGas, err = app.ExecuteEcoTx(block, tx, i)
 		}
+
+		// TODO process gas
+		// what if tx execute faield ?
+		totalUsedGas.Add(totalUsedGas, usedGas)
 
 		if err != nil {
 			res.InvalidTxs = append(res.InvalidTxs, agtypes.ExecuteInvalidTx{Bytes: tx, Error: err})
 		} else {
 			res.ValidTxs = append(res.ValidTxs, tx)
 		}
+	}
+
+	// block rewards
+	err = app.doCoinbaseTx(block, totalUsedGas)
+	if err != nil {
+		return nil, err
 	}
 
 	return res, err

@@ -169,13 +169,13 @@ func (app *App) CheckEcoTx(bs []byte) error {
 	return nil
 }
 
-func (app *App) doCoinbaseTx(block *agtypes.BlockCache) error {
+func (app *App) doCoinbaseTx(block *agtypes.BlockCache, fee *big.Int) error {
 	var addr ethcmn.Address
 	copy(addr[:], block.Header.CoinBase)
 
 	rewards := calculateRewards(uint64(block.Header.Height))
 
-	app.currentEvmState.AddBalance(addr, rewards)
+	app.currentEvmState.AddBalance(addr, new(big.Int).Add(rewards, fee))
 	return nil
 }
 
@@ -193,10 +193,12 @@ func calculateRewards(height uint64) *big.Int {
 	return new(big.Int).SetUint64(rewards)
 }
 
-func (app *App) ExecuteEcoTx(block *agtypes.BlockCache, bs []byte, txIndex int) (hash []byte, err error) {
+func (app *App) ExecuteEcoTx(block *agtypes.BlockCache, bs []byte, txIndex int) (hash []byte, usedGas *big.Int, err error) {
 	if app.AngineRef.Height() != 1 {
-		return nil, fmt.Errorf("Insufficient block height")
+		return nil, nil, fmt.Errorf("Insufficient block height")
 	}
+
+	// TODO process gas
 
 	switch {
 	case bytes.HasPrefix(bs, EcoInitTokenTxTag):
@@ -205,7 +207,7 @@ func (app *App) ExecuteEcoTx(block *agtypes.BlockCache, bs []byte, txIndex int) 
 		err = app.executeShareInitTx(agtypes.UnwrapTx(bs))
 	}
 
-	return nil, err
+	return nil, big0, err
 }
 
 func (app *App) executeTokenInitTx(bs []byte) error {

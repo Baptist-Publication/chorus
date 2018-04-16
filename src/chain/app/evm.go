@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"math/big"
 
 	agtypes "github.com/Baptist-Publication/angine/types"
 	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
@@ -18,7 +19,7 @@ var (
 )
 
 // ExecuteEVMTx execute tx one by one in the loop, without lock, so should always be called between Lock() and Unlock() on the *stateDup
-func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs []byte, txIndex int) (hash []byte, err error) {
+func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs []byte, txIndex int) (hash []byte, usedGas *big.Int, err error) {
 	state := app.currentEvmState
 	stateSnapshot := state.Snapshot()
 	txBytes := agtypes.UnwrapTx(bs)
@@ -29,7 +30,7 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs 
 
 	gp := new(ethcore.GasPool).AddGas(ethcmn.MaxBig)
 	state.StartRecord(tx.Hash(), blockHash, txIndex)
-	receipt, _, err := ethcore.ApplyTransaction(
+	receipt, usedGas, err := ethcore.ApplyTransaction(
 		app.chainConfig,
 		nil,
 		gp,
@@ -48,7 +49,7 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs 
 		app.receipts = append(app.receipts, receipt)
 	}
 
-	return tx.Hash().Bytes(), err
+	return tx.Hash().Bytes(), usedGas, err
 }
 
 func (app *App) CheckEVMTx(bs []byte) error {
