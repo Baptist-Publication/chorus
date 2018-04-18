@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/Baptist-Publication/chorus/src/eth/common"
@@ -171,19 +172,18 @@ func (self *StateTransition) addGas(amount *big.Int) {
 func (self *StateTransition) buyGas() error {
 	mgas := self.msg.Gas()
 
-	// Edit by Kyli
-	// mgval := new(big.Int).Mul(mgas, self.gasPrice)
-	// sender := self.from()
-	// if sender.Balance().Cmp(mgval) < 0 {
-	// 	return fmt.Errorf("insufficient ETH for gas (%x). Req %v, has %v", sender.Address().Bytes()[:4], mgval, sender.Balance())
-	// }
+	mgval := new(big.Int).Mul(mgas, self.gasPrice)
+	sender := self.from()
+	if sender.Balance().Cmp(mgval) < 0 {
+		return fmt.Errorf("insufficient balance for gas (%x). Req %v, has %v", sender.Address().Bytes()[:4], mgval, sender.Balance())
+	}
 	if err := self.gp.SubGas(mgas); err != nil {
 		return err
 	}
 	self.addGas(mgas)
 	self.initialGas.Set(mgas)
-	// Edit by Kyli
-	// sender.SubBalance(mgval)
+
+	sender.SubBalance(mgval)
 	return nil
 }
 
@@ -198,13 +198,12 @@ func (self *StateTransition) preCheck() (err error) {
 		}
 	}
 
-	// Edit by: Kyli
 	// Pre-pay gas
 	if err = self.buyGas(); err != nil {
-		// 	if IsGasLimitErr(err) {
-		// 		return err
-		// 	}
-		// 	return InvalidTxError(err)
+		if IsGasLimitErr(err) {
+			return err
+		}
+		return InvalidTxError(err)
 	}
 
 	return nil
@@ -221,7 +220,6 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 
 	// Pay intrinsic gas
 	// homestead := self.env.ChainConfig().IsHomestead(self.env.BlockNumber)
-	// Edit by Kyli
 	if err = self.useGas(IntrinsicGas(self.data, contractCreation, true)); err != nil {
 		return nil, nil, nil, InvalidTxError(err)
 	}
@@ -251,9 +249,8 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	}
 
 	requiredGas = new(big.Int).Set(self.gasUsed())
-	// Edit by: Kyli
-	// self.refundGas()
-	// self.state.AddBalance(self.env.Coinbase, new(big.Int).Mul(self.gasUsed(), self.gasPrice))
+	self.refundGas()
+	self.state.AddBalance(self.env.Coinbase, new(big.Int).Mul(self.gasUsed(), self.gasPrice))
 
 	return ret, requiredGas, self.gasUsed(), err
 }

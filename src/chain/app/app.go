@@ -85,13 +85,14 @@ var (
 	errQuitExecute = fmt.Errorf("quit executing block")
 )
 
-func makeCurrentHeader(block *agtypes.BlockCache) *ethtypes.Header {
+func makeCurrentHeader(block *agtypes.BlockCache, conf *viper.Viper) *ethtypes.Header {
 	return &ethtypes.Header{
 		ParentHash: ethcmn.HexToHash("0x00"),
 		Difficulty: big0,
-		GasLimit:   ethcmn.MaxBig,
+		GasLimit:   big.NewInt(conf.GetInt64("block_gaslimit")),
 		Number:     ethparams.MainNetSpuriousDragon,
 		Time:       big.NewInt(block.Header.Time),
+		Coinbase:   ethcmn.BytesToAddress(block.Header.CoinBase),
 	}
 }
 
@@ -194,7 +195,7 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 		app.RegisterValidators(vSet)
 	}
 
-	currentHeader := makeCurrentHeader(block)
+	currentHeader := makeCurrentHeader(block, app.Config)
 	blockHash := ethcmn.BytesToHash(block.Hash())
 
 	var err error

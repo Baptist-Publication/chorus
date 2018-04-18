@@ -31,10 +31,15 @@ func LoadDefaultAngineConfig(datadir, chainID string, conf map[string]interface{
 	c.Set("chain_id", chainID)
 
 	loadDefaultSqlConfig(c)
+	loadDefaultEVMConfig(c)
 	return c, nil
 }
 
 func loadDefaultSqlConfig(c *viper.Viper) {
 	c.Set("db_type", "sqlite3")
 	c.Set("db_conn_str", "")
+}
+
+func loadDefaultEVMConfig(c *viper.Viper) {
+	c.Set("block_gaslimit", 80000000)
 }

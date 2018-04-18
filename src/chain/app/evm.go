@@ -28,7 +28,8 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs 
 		return
 	}
 
-	gp := new(ethcore.GasPool).AddGas(ethcmn.MaxBig)
+	gp := new(ethcore.GasPool).AddGas(header.GasLimit)
+	fmt.Println("remaining gas of gaspool: ", gp)
 	state.StartRecord(tx.Hash(), blockHash, txIndex)
 	receipt, usedGas, err := ethcore.ApplyTransaction(
 		app.chainConfig,
