@@ -53,6 +53,9 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 
 	App, _ := app.NewApp(logger, aConf)
 	evmAngine := angine.NewAngine(logger, &angine.Tunes{Conf: aConf})
+	if evmAngine == nil {
+		cmn.Exit("fail to start, please check your angine config")
+	}
 	tune := evmAngine.Tune
 	if err := evmAngine.ConnectApp(App); err != nil {
 		cmn.PanicCrisis(err)
