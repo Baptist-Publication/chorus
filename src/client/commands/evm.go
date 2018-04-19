@@ -29,8 +29,9 @@ var (
 	ethSigner = ethtypes.HomesteadSigner{}
 
 	// gasLimit is the amount we will borrow from gas pool
-	gasLimit = big.NewInt(90000000000)
+	gasLimit = big.NewInt(210000)
 
+	gasPrice = big.NewInt(2)
 	//ContractCommands defines a more git-like subcommand system
 	EVMCommands = cli.Command{
 		Name:     "evm",
@@ -131,7 +132,7 @@ func readContract(ctx *cli.Context) error {
 		panic("should provide privkey or address-passwd pair.")
 	}
 	privkey = ac.SanitizeHex(privkey)
-	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(0), gasLimit, big.NewInt(0), data)
+	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(0), gasLimit, gasPrice, data)
 
 	if privkey != "" {
 		key, err := crypto.HexToECDSA(privkey)
@@ -268,7 +269,7 @@ func executeContract(ctx *cli.Context) error {
 		panic("should provide privkey or address-passwd pair.")
 	}
 	privkey = ac.SanitizeHex(privkey)
-	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(0), gasLimit, big.NewInt(0), data)
+	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(0), gasLimit, gasPrice, data)
 
 	if privkey != "" {
 		key, err := crypto.HexToECDSA(privkey)
@@ -342,7 +343,7 @@ func createContract(ctx *cli.Context) error {
 		}
 	}
 
-	tx := ethtypes.NewContractCreation(nonce, big.NewInt(0), gasLimit, big.NewInt(0), bytecode)
+	tx := ethtypes.NewContractCreation(nonce, big.NewInt(0), gasLimit, gasPrice, bytecode)
 	privkey = ac.SanitizeHex(privkey)
 	if privkey != "" {
 		key, err := crypto.HexToECDSA(privkey)
@@ -396,7 +397,7 @@ func existContract(ctx *cli.Context) error {
 	data := common.Hex2Bytes(bytecode)
 	privkey = ac.SanitizeHex(privkey)
 	contractAddr := common.HexToAddress(ac.SanitizeHex(contractAddress))
-	tx := ethtypes.NewTransaction(0, contractAddr, big.NewInt(0), gasLimit, big.NewInt(0), crypto.Keccak256(data))
+	tx := ethtypes.NewTransaction(0, contractAddr, big.NewInt(0), gasLimit, gasPrice, crypto.Keccak256(data))
 	key, err := crypto.HexToECDSA(privkey)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)

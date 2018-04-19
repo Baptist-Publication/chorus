@@ -13,6 +13,7 @@ import (
 	db "github.com/Baptist-Publication/chorus-module/lib/go-db"
 	"github.com/Baptist-Publication/chorus-module/lib/go-merkle"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
+	appconfig "github.com/Baptist-Publication/chorus/src/chain/config"
 	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
 	ethcore "github.com/Baptist-Publication/chorus/src/eth/core"
 	ethstate "github.com/Baptist-Publication/chorus/src/eth/core/state"
@@ -116,6 +117,8 @@ func NewApp(logger *zap.Logger, config *viper.Viper) (*App, error) {
 		OnExecute:  agtypes.NewHook(app.OnExecute),
 	}
 
+	appconfig.LoadDefaultAngineConfig(config)
+
 	var err error
 	if err = app.BaseApplication.InitBaseApplication(APP_NAME, app.datadir); err != nil {
 		app.logger.Error("InitBaseApplication error", zap.Error(err))
@@ -200,19 +203,19 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 
 	var err error
 	var res agtypes.ExecuteResult
-	totalUsedGas := big.NewInt(0)
+	// totalUsedGas := big.NewInt(0)
 	for i, tx := range block.Data.Txs {
-		var usedGas *big.Int
+		// var usedGas *big.Int
 		switch {
 		case bytes.HasPrefix(tx, EVMTag):
-			_, usedGas, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, i)
+			_, _, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, i)
 		case bytes.HasPrefix(tx, EcoTag):
-			_, usedGas, err = app.ExecuteEcoTx(block, tx, i)
+			_, _, err = app.ExecuteEcoTx(block, tx, i)
 		}
 
 		// TODO process gas
 		// what if tx execute faield ?
-		totalUsedGas.Add(totalUsedGas, usedGas)
+		// totalUsedGas.Add(totalUsedGas, usedGas)
 
 		if err != nil {
 			res.InvalidTxs = append(res.InvalidTxs, agtypes.ExecuteInvalidTx{Bytes: tx, Error: err})
@@ -222,7 +225,7 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 	}
 
 	// block rewards
-	err = app.doCoinbaseTx(block, totalUsedGas)
+	err = app.doCoinbaseTx(block)
 	if err != nil {
 		return nil, err
 	}

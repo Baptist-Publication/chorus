@@ -169,13 +169,13 @@ func (app *App) CheckEcoTx(bs []byte) error {
 	return nil
 }
 
-func (app *App) doCoinbaseTx(block *agtypes.BlockCache, fee *big.Int) error {
+func (app *App) doCoinbaseTx(block *agtypes.BlockCache) error {
 	var addr ethcmn.Address
 	copy(addr[:], block.Header.CoinBase)
 
 	rewards := calculateRewards(uint64(block.Header.Height))
 
-	app.currentEvmState.AddBalance(addr, new(big.Int).Add(rewards, fee))
+	app.currentEvmState.AddBalance(addr, rewards)
 	return nil
 }
 
