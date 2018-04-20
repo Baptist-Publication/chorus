@@ -46,7 +46,7 @@ func (bc BlockChain) GetHeader(common.Hash, uint64) *types.Header {
 // indicating the block was invalid.
 func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, gp *GasPool, statedb *state.StateDB, header *types.Header,
 	tx *types.Transaction, txHash []byte, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *big.Int, error) {
-	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
+	msg, err := tx.AsMessage()
 	if err != nil {
 		return nil, nil, err
 	}

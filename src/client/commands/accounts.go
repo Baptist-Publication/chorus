@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	gcommon "github.com/Baptist-Publication/chorus-module/lib/go-common"
-	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	agcrypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
+	"github.com/Baptist-Publication/chorus/src/eth/crypto"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -42,8 +43,8 @@ var (
 )
 
 func generatePrivPubAddr(ctx *cli.Context) error {
-	sk := crypto.GenPrivKeyEd25519()
-	pk := sk.PubKey().(*crypto.PubKeyEd25519)
+	sk := agcrypto.GenPrivKeyEd25519()
+	pk := sk.PubKey().(*agcrypto.PubKeyEd25519)
 
 	fmt.Printf("privkey: %X\n", sk[:])
 	fmt.Printf("pubkey: %X\n", pk[:])
@@ -61,10 +62,10 @@ func calculatePrivPubAddr(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), -1)
 	}
 
-	var sk crypto.PrivKeyEd25519
+	var sk agcrypto.PrivKeyEd25519
 	copy(sk[:], skBs)
 
-	pk := sk.PubKey().(*crypto.PubKeyEd25519)
+	pk := sk.PubKey().(*agcrypto.PubKeyEd25519)
 	addr := pk.Address()
 
 	fmt.Printf("pubkey : %X\n", pk[:])
@@ -74,13 +75,13 @@ func calculatePrivPubAddr(ctx *cli.Context) error {
 }
 
 func generateSecpPrivPubAddr(ctx *cli.Context) error {
-	sk := crypto.GenPrivKeySecp256k1()
-	pk := sk.PubKey().(*crypto.PubKeySecp256k1)
-	addr := pk.Address()
+	sk, _ := crypto.GenerateKey()
+	pk := crypto.FromECDSAPub(&sk.PublicKey)
+	addr := crypto.PubkeyToAddress(sk.PublicKey)
 
-	fmt.Printf("privkey: %X\n", sk[:])
+	fmt.Printf("privkey: %X\n", crypto.FromECDSA(sk))
 	fmt.Printf("pubkey: %X\n", pk[:])
-	fmt.Printf("address : %X\n", addr)
+	fmt.Printf("address : %X\n", addr[:])
 
 	return nil
 }

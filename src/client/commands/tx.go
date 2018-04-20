@@ -60,6 +60,7 @@ func sendTx(ctx *cli.Context) error {
 	bodyTx := types.TxEvmCommon{
 		To:     to[:],
 		Amount: big.NewInt(value),
+		Load:   data,
 	}
 	bodyBs, err := tools.TxToBytes(bodyTx)
 	if err != nil {
@@ -67,7 +68,8 @@ func sendTx(ctx *cli.Context) error {
 	}
 
 	from := crypto.PubkeyToAddress(privkey.PublicKey)
-	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], data)
+	fmt.Printf("%x\n", from)
+	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], bodyBs)
 
 	if err := tx.Sign(privkey); err != nil {
 		return cli.NewExitError(err.Error(), 127)
@@ -86,7 +88,7 @@ func sendTx(ctx *cli.Context) error {
 	}
 	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
 
-	fmt.Println("tx result:", sigTx.Hash().Hex())
+	fmt.Printf("tx result: %x\n", tx.Hash())
 
 	return nil
 }

@@ -18,16 +18,12 @@ package types
 
 import (
 	"container/heap"
-	"encoding/json"
 	"errors"
 	"io"
 	"math/big"
 	"sync/atomic"
 
 	"github.com/Baptist-Publication/chorus/src/eth/common"
-	"github.com/Baptist-Publication/chorus/src/eth/common/hexutil"
-	"github.com/Baptist-Publication/chorus/src/eth/crypto"
-	"github.com/Baptist-Publication/chorus/src/eth/params"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
 )
 
@@ -38,15 +34,6 @@ var (
 	errMissingTxFields          = errors.New("missing required JSON transaction fields")
 	errNoSigner                 = errors.New("missing signing methods")
 )
-
-// deriveSigner makes a *best* guess about which signer to use.
-func deriveSigner(V *big.Int) Signer {
-	if V.BitLen() > 0 && isProtectedV(V) {
-		return EIP155Signer{chainId: deriveChainId(V)}
-	} else {
-		return HomesteadSigner{}
-	}
-}
 
 type Transaction struct {
 	data txdata
@@ -59,48 +46,32 @@ type Transaction struct {
 type txdata struct {
 	AccountNonce    uint64
 	Price, GasLimit *big.Int
+	From            *common.Address
 	Recipient       *common.Address `rlp:"nil"` // nil means contract creation
 	Amount          *big.Int
 	Payload         []byte
-	V               *big.Int // signature
-	R, S            *big.Int // signature
 }
 
-type jsonTransaction struct {
-	Hash         *common.Hash    `json:"hash"`
-	AccountNonce *hexutil.Uint64 `json:"nonce"`
-	Price        *hexutil.Big    `json:"gasPrice"`
-	GasLimit     *hexutil.Big    `json:"gas"`
-	Recipient    *common.Address `json:"to"`
-	Amount       *hexutil.Big    `json:"value"`
-	Payload      *hexutil.Bytes  `json:"input"`
-	V            *hexutil.Big    `json:"v"`
-	R            *hexutil.Big    `json:"r"`
-	S            *hexutil.Big    `json:"s"`
+func NewTransaction(nonce uint64, from, to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
+	return newTransaction(nonce, &from, &to, amount, gasLimit, gasPrice, data)
 }
 
-func NewTransaction(nonce uint64, to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
-	return newTransaction(nonce, &to, amount, gasLimit, gasPrice, data)
+func NewContractCreation(nonce uint64, from common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
+	return newTransaction(nonce, &from, nil, amount, gasLimit, gasPrice, data)
 }
 
-func NewContractCreation(nonce uint64, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
-	return newTransaction(nonce, nil, amount, gasLimit, gasPrice, data)
-}
-
-func newTransaction(nonce uint64, to *common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
+func newTransaction(nonce uint64, from, to *common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *Transaction {
 	if len(data) > 0 {
 		data = common.CopyBytes(data)
 	}
 	d := txdata{
 		AccountNonce: nonce,
+		From:         from,
 		Recipient:    to,
 		Payload:      data,
 		Amount:       new(big.Int),
 		GasLimit:     new(big.Int),
 		Price:        new(big.Int),
-		V:            new(big.Int),
-		R:            new(big.Int),
-		S:            new(big.Int),
 	}
 	if amount != nil {
 		d.Amount.Set(amount)
@@ -115,29 +86,6 @@ func newTransaction(nonce uint64, to *common.Address, amount, gasLimit, gasPrice
 	return &Transaction{data: d}
 }
 
-func pickSigner(rules params.Rules) Signer {
-	var signer Signer
-	switch {
-	case rules.IsEIP155:
-		signer = NewEIP155Signer(rules.ChainId)
-	case rules.IsHomestead:
-		signer = HomesteadSigner{}
-	default:
-		signer = FrontierSigner{}
-	}
-	return signer
-}
-
-// ChainId returns which chain id this transaction was signed for (if at all)
-func (tx *Transaction) ChainId() *big.Int {
-	return deriveChainId(tx.data.V)
-}
-
-// Protected returns whether the transaction is protected from replay protection.
-func (tx *Transaction) Protected() bool {
-	return isProtectedV(tx.data.V)
-}
-
 func isProtectedV(V *big.Int) bool {
 	if V.BitLen() <= 8 {
 		v := V.Uint64()
@@ -150,51 +98,6 @@ func isProtectedV(V *big.Int) bool {
 // DecodeRLP implements rlp.Encoder
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, &tx.data)
-}
-
-// UnmarshalJSON decodes the web3 RPC transaction format.
-func (tx *Transaction) UnmarshalJSON(input []byte) error {
-	var dec jsonTransaction
-	if err := json.Unmarshal(input, &dec); err != nil {
-		return err
-	}
-	// Ensure that all fields are set. V, R, S are checked separately because they're a
-	// recent addition to the RPC spec (as of August 2016) and older implementations might
-	// not provide them. Note that Recipient is not checked because it can be missing for
-	// contract creations.
-	if dec.V == nil || dec.R == nil || dec.S == nil {
-		return errMissingTxSignatureFields
-	}
-
-	var V byte
-	if isProtectedV((*big.Int)(dec.V)) {
-		chainId := deriveChainId((*big.Int)(dec.V)).Uint64()
-		V = byte(dec.V.ToInt().Uint64() - 35 - 2*chainId)
-	} else {
-		V = byte(((*big.Int)(dec.V)).Uint64() - 27)
-	}
-	if !crypto.ValidateSignatureValues(V, (*big.Int)(dec.R), (*big.Int)(dec.S), false) {
-		return ErrInvalidSig
-	}
-
-	if dec.AccountNonce == nil || dec.Price == nil || dec.GasLimit == nil || dec.Amount == nil || dec.Payload == nil {
-		return errMissingTxFields
-	}
-	// Assign the fields. This is not atomic but reusing transactions
-	// for decoding isn't thread safe anyway.
-	*tx = Transaction{}
-	tx.data = txdata{
-		AccountNonce: uint64(*dec.AccountNonce),
-		Recipient:    dec.Recipient,
-		Amount:       (*big.Int)(dec.Amount),
-		GasLimit:     (*big.Int)(dec.GasLimit),
-		Price:        (*big.Int)(dec.Price),
-		Payload:      *dec.Payload,
-		V:            (*big.Int)(dec.V),
-		R:            (*big.Int)(dec.R),
-		S:            (*big.Int)(dec.S),
-	}
-	return nil
 }
 
 func (tx *Transaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
@@ -215,18 +118,12 @@ func (tx *Transaction) To() *common.Address {
 	}
 }
 
-// SigHash returns the hash to be signed by the sender.
-// It does not uniquely identify the transaction.
-func (tx *Transaction) SigHash(signer Signer) common.Hash {
-	return signer.Hash(tx)
-}
-
 // AsMessage returns the transaction as a core.Message.
 //
 // AsMessage requires a signer to derive the sender.
 //
 // XXX Rename message to something less arbitrary?
-func (tx *Transaction) AsMessage(s Signer) (Message, error) {
+func (tx *Transaction) AsMessage() (Message, error) {
 	msg := Message{
 		nonce:      tx.data.AccountNonce,
 		price:      new(big.Int).Set(tx.data.Price),
@@ -238,14 +135,8 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 	}
 
 	var err error
-	msg.from, err = Sender(s, tx)
+	msg.from = *tx.data.From
 	return msg, err
-}
-
-// WithSignature returns a new transaction with the given signature.
-// This signature needs to be formatted as described in the yellow paper (v+27).
-func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, error) {
-	return signer.WithSignature(tx, sig)
 }
 
 // Cost returns amount + gasprice * gaslimit.
@@ -253,10 +144,6 @@ func (tx *Transaction) Cost() *big.Int {
 	total := new(big.Int).Mul(tx.data.Price, tx.data.GasLimit)
 	total.Add(total, tx.data.Amount)
 	return total
-}
-
-func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
-	return tx.data.V, tx.data.R, tx.data.S
 }
 
 // Transaction slice type for basic sorting.
@@ -360,9 +247,7 @@ func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
 
 // Shift replaces the current best head with the next one from the same account.
 func (t *TransactionsByPriceAndNonce) Shift() {
-	signer := deriveSigner(t.heads[0].data.V)
-	// derive signer but don't cache.
-	acc, _ := Sender(signer, t.heads[0]) // we only sort valid txs so this cannot fail
+	acc := *t.heads[0].data.From // we only sort valid txs so this cannot fail
 	if txs, ok := t.txs[acc]; ok && len(txs) > 0 {
 		t.heads[0], t.txs[acc] = txs[0], txs[1:]
 		heap.Fix(&t.heads, 0)

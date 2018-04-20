@@ -170,7 +170,7 @@ func tryValidate(tx *appTx) {
 func exeWithCPUSerialVeirfy(txs [][]byte, quit chan struct{},
 	whenExec func(index int, raw []byte, tx *types.BlockTx), whenError func(raw []byte, err error)) error {
 	for i, raw := range txs {
-		var tx *types.BlockTx
+		tx := &types.BlockTx{}
 		if bytes.HasPrefix(raw, types.TxTagApp) {
 			if err := rlp.DecodeBytes(agtypes.UnwrapTx(raw), tx); err != nil {
 				whenError(raw, err)

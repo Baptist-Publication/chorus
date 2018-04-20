@@ -18,15 +18,13 @@ import (
 	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
 	"github.com/Baptist-Publication/chorus/src/eth/crypto"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/tools"
 	"github.com/Baptist-Publication/chorus/src/types"
 	"github.com/bitly/go-simplejson"
 	"gopkg.in/urfave/cli.v1"
 )
 
 var (
-	// this signer appears to be a must in evm 1.5.9
-	ethSigner = ethtypes.HomesteadSigner{}
-
 	// gasLimit is the amount we will borrow from gas pool
 	gasLimit = big.NewInt(210000)
 
@@ -130,41 +128,31 @@ func readContract(ctx *cli.Context) error {
 	if privkey == "" && (address == "" || passwd == "") {
 		panic("should provide privkey or address-passwd pair.")
 	}
-	privkey = ac.SanitizeHex(privkey)
-	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(0), gasLimit, gasPrice, data)
-
-	if privkey != "" {
-		key, err := crypto.HexToECDSA(privkey)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 127)
-		}
-
-		sig, err := crypto.Sign(tx.SigHash(ethSigner).Bytes(), key)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 127)
-		}
-		sigTx, err := tx.WithSignature(ethSigner, sig)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 127)
-		}
-		b, err := rlp.EncodeToBytes(sigTx)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 127)
-		}
-		query := append([]byte{types.QueryTypeContract}, b...)
-		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		tmResult := new(agtypes.RPCResult)
-		_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 127)
-		}
-
-		res := (*tmResult).(*agtypes.ResultQuery)
-		hex := common.Bytes2Hex(res.Result.Data)
-		fmt.Println("query result:", hex)
-		parseResult, _ := unpackResult(function, *aabbii, string(res.Result.Data))
-		fmt.Println("parse result:", reflect.TypeOf(parseResult), parseResult)
+	key, err := crypto.HexToECDSA(privkey)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
 	}
+	from := crypto.PubkeyToAddress(key.PublicKey)
+	privkey = ac.SanitizeHex(privkey)
+	tx := ethtypes.NewTransaction(nonce, from, to, big.NewInt(0), gasLimit, gasPrice, data)
+
+	b, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+	query := append([]byte{types.QueryTypeContract}, b...)
+	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
+	tmResult := new(agtypes.RPCResult)
+	_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	res := (*tmResult).(*agtypes.ResultQuery)
+	hex := common.Bytes2Hex(res.Result.Data)
+	fmt.Println("query result:", hex)
+	parseResult, _ := unpackResult(function, *aabbii, string(res.Result.Data))
+	fmt.Println("parse result:", reflect.TypeOf(parseResult), parseResult)
 
 	return nil
 }
@@ -253,52 +241,52 @@ func executeContract(ctx *cli.Context) error {
 		return err
 	}
 
-	//fmt.Println("call data:", common.Bytes2Hex(data))
-
 	privkey := ctx.String("privkey")
 	if privkey == "" {
 		privkey = json.Get("privkey").MustString()
 	}
-	address := ac.SanitizeHex(ctx.String("address"))
-	passwd := ctx.String("passwd")
-	nonce := ctx.Uint64("nonce")
-	to := common.HexToAddress(contractAddress)
-
-	if privkey == "" && (address == "" || passwd == "") {
-		panic("should provide privkey or address-passwd pair.")
+	if privkey == "" {
+		return cli.NewExitError("privkey is required", 123)
 	}
-	privkey = ac.SanitizeHex(privkey)
-	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(0), gasLimit, gasPrice, data)
+	key, err := crypto.HexToECDSA(privkey)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
+	from := crypto.PubkeyToAddress(key.PublicKey)
+	to := common.HexToAddress(contractAddress)
+	nonce := ctx.Uint64("nonce")
 
-	if privkey != "" {
-		key, err := crypto.HexToECDSA(privkey)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 123)
-		}
-		sig, err := crypto.Sign(tx.SigHash(ethSigner).Bytes(), key)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 123)
-		}
-		sigTx, err := tx.WithSignature(ethSigner, sig)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 123)
-		}
-		b, err := rlp.EncodeToBytes(sigTx)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 123)
-		}
+	bodyTx := &types.TxEvmCommon{
+		To:   to[:],
+		Load: data,
+	}
+	bodyBs, err := tools.TxToBytes(bodyTx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
 
-		tmResult := new(agtypes.RPCResult)
-		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 123)
-		}
+	tx := types.NewBlockTx(gasLimit, gasPrice, nonce, from[:], bodyBs)
+	err = tx.Sign(key)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
+	b, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
 
-		//tmRes := tmResult.(*ctypes.RPCResult)
-		//res := (*tmResult).(*ctypes.ResultBroadcastTx)
+	tmResult := new(agtypes.RPCResult)
+	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
+	_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
 
-		fmt.Println("tx result:", sigTx.Hash().Hex())
+	res := (*tmResult).(*agtypes.ResultBroadcastTx)
+	if res.Code != 0 {
+		fmt.Println("Error:", res.Log)
+	} else {
+		fmt.Printf("txHash: %x", tx.Hash())
 	}
 
 	return nil
@@ -309,7 +297,6 @@ func createContract(ctx *cli.Context) error {
 		return cli.NewExitError("target chain is required", 127)
 	}
 	chainID := ctx.GlobalString("target")
-	nonce := ctx.Uint64("nonce")
 	json, err := getCallParamsJSON(ctx)
 	if err != nil {
 		cli.NewExitError(err.Error(), 127)
@@ -320,6 +307,16 @@ func createContract(ctx *cli.Context) error {
 	}
 	params := json.Get("params").MustArray()
 	privkey := json.Get("privkey").MustString()
+	if privkey == "" {
+		privkey = json.Get("privkey").MustString()
+	}
+	if privkey == "" {
+		return cli.NewExitError("privkey is required", 123)
+	}
+	key, err := crypto.HexToECDSA(privkey)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 110)
+	}
 	bytecode := common.Hex2Bytes(json.Get("bytecode").MustString())
 	if len(bytecode) == 0 {
 		cli.NewExitError("please give me the bytecode the contract", 127)
@@ -336,41 +333,44 @@ func createContract(ctx *cli.Context) error {
 		bytecode = append(bytecode, data...)
 	}
 
-	if privkey == "" {
-		if privkey = ctx.String("privkey"); privkey == "" {
-			return errors.New("should provide privkey or address-passwd pair")
-		}
+	from := crypto.PubkeyToAddress(key.PublicKey)
+	nonce := ctx.Uint64("nonce")
+
+	bodyTx := &types.TxEvmCommon{
+		Load: bytecode,
+	}
+	bodyBs, err := tools.TxToBytes(bodyTx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
 	}
 
-	tx := ethtypes.NewContractCreation(nonce, big.NewInt(0), gasLimit, gasPrice, bytecode)
-	privkey = ac.SanitizeHex(privkey)
-	if privkey != "" {
-		key, err := crypto.HexToECDSA(privkey)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 110)
-		}
-		sig, _ := crypto.Sign(tx.SigHash(ethSigner).Bytes(), key)
-		signedTx, _ := tx.WithSignature(ethSigner, sig)
-		b, err := rlp.EncodeToBytes(signedTx)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 110)
-		}
-
-		bytesLoad := agtypes.WrapTx(types.TxTagAppEvmCommon, b)
-		tmResult := new(agtypes.RPCResult)
-		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, bytesLoad}, tmResult)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 110)
-		}
-
-		//tmRes := tmResult.(*ctypes.RPCResult)
-		//res := (*tmResult).(*ctypes.ResultBroadcastTx)
-		fmt.Println("tx result:", signedTx.Hash().Hex())
-		sender, _ := ethtypes.Sender(ethSigner, signedTx)
-		contractAddr := crypto.CreateAddress(sender, signedTx.Nonce())
-		fmt.Println("contract address:", contractAddr.Hex())
+	tx := types.NewBlockTx(gasLimit, gasPrice, nonce, from[:], bodyBs)
+	err = tx.Sign(key)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
 	}
+	b, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
+
+	bytesLoad := agtypes.WrapTx(types.TxTagAppEvmCommon, b)
+	tmResult := new(agtypes.RPCResult)
+	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, bytesLoad}, tmResult)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 110)
+	}
+
+	res := (*tmResult).(*agtypes.ResultBroadcastTx)
+	if res.Code != 0 {
+		fmt.Println("Error:", res.Log)
+	} else {
+		fmt.Printf("txHash: %x", tx.Hash())
+	}
+
+	contractAddr := crypto.CreateAddress(from, nonce)
+	fmt.Println("contract address:", contractAddr.Hex())
 
 	return nil
 }
@@ -386,30 +386,17 @@ func existContract(ctx *cli.Context) error {
 	}
 	bytecode := json.Get("bytecode").MustString()
 	contractAddress := json.Get("contract").MustString()
-	privkey := json.Get("privkey").MustString()
-	if privkey == "" || contractAddress == "" || bytecode == "" {
+	if contractAddress == "" || bytecode == "" {
 		return cli.NewExitError("missing params", 127)
 	}
 	if strings.Contains(bytecode, "f300") {
 		bytecode = strings.Split(bytecode, "f300")[1]
 	}
 	data := common.Hex2Bytes(bytecode)
-	privkey = ac.SanitizeHex(privkey)
 	contractAddr := common.HexToAddress(ac.SanitizeHex(contractAddress))
-	tx := ethtypes.NewTransaction(0, contractAddr, big.NewInt(0), gasLimit, gasPrice, crypto.Keccak256(data))
-	key, err := crypto.HexToECDSA(privkey)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	sig, err := crypto.Sign(tx.SigHash(ethSigner).Bytes(), key)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	signedTx, err := tx.WithSignature(ethSigner, sig)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	txBytes, err := rlp.EncodeToBytes(signedTx)
+	tx := ethtypes.NewTransaction(0, common.Address{}, contractAddr, big.NewInt(0), gasLimit, gasPrice, crypto.Keccak256(data))
+
+	txBytes, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}

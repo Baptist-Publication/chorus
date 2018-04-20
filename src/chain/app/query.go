@@ -78,7 +78,7 @@ func (app *App) queryContract(load []byte) agtypes.Result {
 		Number:     ethparams.MainNetSpuriousDragon,
 		Time:       big.NewInt(time.Now().Unix()),
 	}
-	txMsg, _ := tx.AsMessage(EthSigner)
+	txMsg, _ := tx.AsMessage()
 	envCxt := ethcore.NewEVMContext(txMsg, fakeHeader, nil)
 
 	app.evmStateMtx.Lock()

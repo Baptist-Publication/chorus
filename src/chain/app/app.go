@@ -78,7 +78,6 @@ type App struct {
 
 var (
 	EmptyTrieRoot = ethcmn.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	EthSigner     = ethtypes.HomesteadSigner{}
 	IsHomestead   = true
 
 	evmConfig = ethvm.Config{DisableGasMetering: false, EnableJit: true, ForceJit: true}
