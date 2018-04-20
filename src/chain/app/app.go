@@ -22,6 +22,7 @@ import (
 	ethdb "github.com/Baptist-Publication/chorus/src/eth/ethdb"
 	ethparams "github.com/Baptist-Publication/chorus/src/eth/params"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/vmihailenco/msgpack"
@@ -203,26 +204,25 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 
 	var err error
 	var res agtypes.ExecuteResult
-	// totalUsedGas := big.NewInt(0)
-	for i, tx := range block.Data.Txs {
-		// var usedGas *big.Int
-		switch {
-		case bytes.HasPrefix(tx, EVMTag):
-			_, _, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, i)
-		case bytes.HasPrefix(tx, EcoTag):
-			_, _, err = app.ExecuteEcoTx(block, tx, i)
-		}
+	exeWithCPUSerialVeirfy(block.Data.Txs, nil,
+		func(index int, raw []byte, tx *types.BlockTx) {
+			switch {
+			case bytes.HasPrefix(raw, types.TxTagAppEvm):
+				_, _, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, index)
+			case bytes.HasPrefix(raw, types.TxTagAppInit):
+				_, _, err = app.ExecuteAppInitTx(block, raw, index)
+			case bytes.HasPrefix(raw, types.TxTagAppEco):
+				_, _, err = app.ExecuteAppEcoTx(block, tx, index)
+			}
 
-		// TODO process gas
-		// what if tx execute faield ?
-		// totalUsedGas.Add(totalUsedGas, usedGas)
-
-		if err != nil {
-			res.InvalidTxs = append(res.InvalidTxs, agtypes.ExecuteInvalidTx{Bytes: tx, Error: err})
-		} else {
-			res.ValidTxs = append(res.ValidTxs, tx)
-		}
-	}
+			if err != nil {
+				res.InvalidTxs = append(res.InvalidTxs, agtypes.ExecuteInvalidTx{Bytes: raw, Error: err})
+			} else {
+				res.ValidTxs = append(res.ValidTxs, raw)
+			}
+		}, func(bs []byte, err error) {
+			res.InvalidTxs = append(res.InvalidTxs, agtypes.ExecuteInvalidTx{Bytes: bs, Error: err})
+		})
 
 	// block rewards
 	err = app.doCoinbaseTx(block)

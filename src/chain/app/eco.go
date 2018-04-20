@@ -12,13 +12,8 @@ import (
 	crypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
+	"github.com/Baptist-Publication/chorus/src/types"
 	ctypes "github.com/Baptist-Publication/chorus/src/types"
-)
-
-var (
-	EcoTag            = []byte{'e', 'c', 'o'}
-	EcoInitTokenTxTag = append(EcoTag, 0x01)
-	EcoInitShareTxTag = append(EcoTag, 0x02)
 )
 
 func (app *App) RegisterValidators(validatorset *agtypes.ValidatorSet) {
@@ -193,17 +188,22 @@ func calculateRewards(height uint64) *big.Int {
 	return new(big.Int).SetUint64(rewards)
 }
 
-func (app *App) ExecuteEcoTx(block *agtypes.BlockCache, bs []byte, txIndex int) (hash []byte, usedGas *big.Int, err error) {
+func (app *App) ExecuteAppEcoTx(block *agtypes.BlockCache, bs *types.BlockTx, txIndex int) (hash []byte, usedGas *big.Int, err error) {
+	// TODO
+	// transfer ? guaranty ? ...
+
+	return
+}
+
+func (app *App) ExecuteAppInitTx(block *agtypes.BlockCache, bs []byte, txIndex int) (hash []byte, usedGas *big.Int, err error) {
 	if app.AngineRef.Height() != 1 {
 		return nil, nil, fmt.Errorf("Insufficient block height")
 	}
 
-	// TODO process gas
-
 	switch {
-	case bytes.HasPrefix(bs, EcoInitTokenTxTag):
+	case bytes.HasPrefix(bs, types.TxTagAppInitToken):
 		err = app.executeTokenInitTx(agtypes.UnwrapTx(bs))
-	case bytes.HasPrefix(bs, EcoInitShareTxTag):
+	case bytes.HasPrefix(bs, types.TxTagAppInitShare):
 		err = app.executeShareInitTx(agtypes.UnwrapTx(bs))
 	}
 

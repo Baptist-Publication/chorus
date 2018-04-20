@@ -4,45 +4,43 @@ import (
 	"fmt"
 	"math/big"
 
-	agtypes "github.com/Baptist-Publication/angine/types"
 	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
 	ethcore "github.com/Baptist-Publication/chorus/src/eth/core"
 	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/tools"
+	"github.com/Baptist-Publication/chorus/src/types"
 )
 
 var (
 	ReceiptsPrefix = []byte("receipts-")
-
-	EVMTag   = []byte{'e', 'v', 'm'}
-	EVMTxTag = append(EVMTag, 0x01)
 )
 
 // ExecuteEVMTx execute tx one by one in the loop, without lock, so should always be called between Lock() and Unlock() on the *stateDup
-func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs []byte, txIndex int) (hash []byte, usedGas *big.Int, err error) {
-	state := app.currentEvmState
-	stateSnapshot := state.Snapshot()
-	txBytes := agtypes.UnwrapTx(bs)
-	tx := new(ethtypes.Transaction)
-	if err = rlp.DecodeBytes(txBytes, tx); err != nil {
+func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx *types.BlockTx, txIndex int) (hash []byte, usedGas *big.Int, err error) {
+	stateSnapshot := app.currentEvmState.Snapshot()
+
+	txBody := &types.TxEvmCommon{}
+	if err = tools.TxFromBytes(tx.Payload, txBody); err != nil {
 		return
 	}
 
+	evmTx := ethtypes.NewTransaction(tx.Nonce, ethcmn.BytesToAddress(txBody.To), txBody.Amount, tx.GasLimit, tx.GasPrice, txBody.Load)
 	gp := new(ethcore.GasPool).AddGas(header.GasLimit)
 	fmt.Println("remaining gas of gaspool: ", gp)
-	state.StartRecord(tx.Hash(), blockHash, txIndex)
+	app.currentEvmState.StartRecord(evmTx.Hash(), blockHash, txIndex)
 	receipt, usedGas, err := ethcore.ApplyTransaction(
 		app.chainConfig,
 		nil,
 		gp,
-		state,
+		app.currentEvmState,
 		header,
-		tx,
+		evmTx,
 		big0,
 		evmConfig)
 
 	if err != nil {
-		state.RevertToSnapshot(stateSnapshot)
+		app.currentEvmState.RevertToSnapshot(stateSnapshot)
 		return
 	}
 
@@ -50,23 +48,30 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, bs 
 		app.receipts = append(app.receipts, receipt)
 	}
 
-	return tx.Hash().Bytes(), usedGas, err
+	return evmTx.Hash().Bytes(), usedGas, err
 }
 
 func (app *App) CheckEVMTx(bs []byte) error {
-	tx := new(ethtypes.Transaction)
+	tx := new(types.BlockTx)
 	err := rlp.DecodeBytes(bs, tx)
 	if err != nil {
 		return err
 	}
-	from, _ := ethtypes.Sender(EthSigner, tx)
+	valid, err := tools.TxVerifySignature(tx)
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return fmt.Errorf("invalid signature")
+	}
+	from := ethcmn.BytesToAddress(tx.Sender)
 	app.evmStateMtx.Lock()
 	defer app.evmStateMtx.Unlock()
-	if app.evmState.GetNonce(from) > tx.Nonce() {
+	if app.evmState.GetNonce(from) > tx.Nonce {
 		return fmt.Errorf("nonce too low")
 	}
-	if app.evmState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		return fmt.Errorf("not enough funds")
-	}
+	// if app.evmState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+	// 	return fmt.Errorf("not enough funds")
+	// }
 	return nil
 }

@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"math/big"
 
+	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus/src/eth/common"
 	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
 	"github.com/Baptist-Publication/chorus/src/eth/crypto"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/types"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Baptist-Publication/angine/types"
 	cl "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
-	"github.com/Baptist-Publication/chorus/src/chain/app"
 	"github.com/Baptist-Publication/chorus/src/client/commons"
 )
 
@@ -70,9 +70,9 @@ func sendTx(ctx *cli.Context) error {
 			panic(err)
 		}
 
-		tmResult := new(types.RPCResult)
+		tmResult := new(agtypes.RPCResult)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, types.WrapTx(app.EVMTxTag, b)}, tmResult)
+		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
 		if err != nil {
 			panic(err)
 		}

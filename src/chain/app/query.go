@@ -171,9 +171,9 @@ func (app *App) CheckTx(bs []byte) error {
 	txBytes := agtypes.UnwrapTx(bs)
 
 	switch {
-	case bytes.HasPrefix(bs, EVMTag):
+	case bytes.HasPrefix(bs, types.TxTagAppEvm):
 		return app.CheckEVMTx(txBytes)
-	case bytes.HasPrefix(bs, EcoTag):
+	case bytes.HasPrefix(bs, types.TxTagAppEco):
 		return app.CheckEcoTx(txBytes)
 	}
 

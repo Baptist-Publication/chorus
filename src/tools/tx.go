@@ -1,73 +1,67 @@
 package tools
 
 import (
-	"encoding/json"
-	"reflect"
+	"bytes"
+	"crypto/ecdsa"
 
-	"github.com/Baptist-Publication/chorus-module/lib/ed25519"
-	crypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
-	cvtypes "github.com/Baptist-Publication/chorus/src/types"
-	"github.com/pkg/errors"
+	"github.com/Baptist-Publication/chorus/src/eth/crypto"
+	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/types"
 )
 
-// TxToBytes defines a universal way to serialize ICivilTx
-func TxToBytes(tx cvtypes.ICivilTx) ([]byte, error) {
-	return json.Marshal(tx)
+func TxToBytes(tx interface{}) ([]byte, error) {
+	return rlp.EncodeToBytes(tx)
 }
 
-// TxFromBytes is just the reverse operation of TxToBytes
-func TxFromBytes(bytes []byte, tx cvtypes.ICivilTx) error {
-	tType, tValue := reflect.TypeOf(tx), reflect.ValueOf(tx)
-	if tType.Kind() != reflect.Ptr {
-		return errors.Errorf("the second param should be a pointer")
-	}
-	if tValue.IsNil() {
-		return errors.Errorf("the second param should not be nil")
-	}
-
-	return json.Unmarshal(bytes, tx)
+func TxFromBytes(bs []byte, tx interface{}) error {
+	return rlp.DecodeBytes(bs, tx)
 }
 
-// TxSign now will also embed the pubkey of the signer, don't need filling pubkey manually
-func TxSign(tx cvtypes.ICivilTx, p crypto.PrivKey) ([]byte, error) {
-	priv, ok := p.(*crypto.PrivKeyEd25519)
-	if !ok {
-		return nil, errors.Wrap(errors.Errorf("private key fails, only support Ed25519"), "[TxSign]")
-	}
-	pubkey := priv.PubKey().(*crypto.PubKeyEd25519)
-	tx.SetPubKey(pubkey[:])
-	txBytes, err := TxToBytes(tx)
-	if err != nil {
-		return nil, errors.Wrap(err, "[TxSign]")
-	}
-	sig := priv.Sign(txBytes).(*crypto.SignatureEd25519)
-	tx.SetSignature(sig[:])
-	return sig[:], nil
-}
-
-// TxHash hashes ICivilTx
-func TxHash(tx cvtypes.ICivilTx) ([]byte, error) {
-	txBytes, err := TxToBytes(tx)
+func sigHash(tx *types.BlockTx) ([]byte, error) {
+	txbytes, err := rlp.EncodeToBytes([]interface{}{
+		tx.GasLimit,
+		tx.GasPrice,
+		tx.Nonce,
+		tx.Sender,
+		tx.Payload,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return HashRipemd160(txBytes)
+
+	h := crypto.Sha256(txbytes)
+	return h, nil
 }
 
-// TxVerifySignature verifies the signature carried by the ICivilTx
-func TxVerifySignature(tx cvtypes.ICivilTx) (bool, error) {
-	sig := tx.PopSignature()
-	defer tx.SetSignature(sig)
+func TxSign(tx *types.BlockTx, privkey *ecdsa.PrivateKey) error {
+	h, err := sigHash(tx)
+	if err != nil {
+		return err
+	}
 
-	pubkey := crypto.PubKeyEd25519{}
-	copy(pubkey[:], tx.GetPubKey())
-	signature := crypto.SignatureEd25519{}
-	copy(signature[:], sig)
-	tBytes, err := TxToBytes(tx)
+	sig, err := crypto.Sign(h, privkey)
+	if err != nil {
+		return err
+	}
+
+	tx.Signature = sig
+	return nil
+}
+
+func TxVerifySignature(tx *types.BlockTx) (bool, error) {
+	if len(tx.Signature) == 0 {
+		return false, nil
+	}
+
+	h, err := sigHash(tx)
 	if err != nil {
 		return false, err
 	}
-	s64 := [64]byte(signature)
-	p32 := [32]byte(pubkey)
-	return ed25519.Verify(&p32, tBytes, &s64), nil
+
+	pub, err := crypto.Ecrecover(h, tx.Signature)
+	if err != nil {
+		return false, err
+	}
+	addr := crypto.Keccak256(pub[1:])[12:]
+	return bytes.Equal(tx.Sender, addr), nil
 }

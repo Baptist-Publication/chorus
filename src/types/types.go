@@ -5,7 +5,17 @@ import (
 )
 
 var (
-	_BIG_INT_0 = big.NewInt(0)
+	big0 = big.NewInt(0)
+
+	TxTagApp          = []byte{1}
+	TxTagAppEvm       = append(TxTagApp, 0x01)
+	TxTagAppEvmCommon = append(TxTagAppEvm, 0x01)
+
+	TxTagAppInit      = append(TxTagApp, 0x02)
+	TxTagAppInitToken = append(TxTagAppInit, 0x01)
+	TxTagAppInitShare = append(TxTagAppInit, 0x02)
+
+	TxTagAppEco = append(TxTagApp, 0x03)
 )
 
 const (
@@ -14,10 +24,8 @@ const (
 )
 
 func BigInt0() *big.Int {
-	return _BIG_INT_0
+	return big0
 }
-
-type ParamUData = map[string]interface{}
 
 const (
 	QueryTypeContract = iota
