@@ -209,10 +209,12 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 			switch {
 			case bytes.HasPrefix(raw, types.TxTagAppEvm):
 				_, _, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, index)
-			case bytes.HasPrefix(raw, types.TxTagAppInit):
+			case bytes.HasPrefix(raw, types.TxTagAngineInit):
 				_, _, err = app.ExecuteAppInitTx(block, raw, index)
 			case bytes.HasPrefix(raw, types.TxTagAppEco):
 				_, _, err = app.ExecuteAppEcoTx(block, tx, index)
+			default:
+				return
 			}
 
 			if err != nil {

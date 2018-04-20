@@ -20,7 +20,6 @@ import (
 	"container/heap"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
@@ -153,35 +152,6 @@ func (tx *Transaction) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, &tx.data)
 }
 
-// DecodeRLP implements rlp.Decoder
-func (tx *Transaction) DecodeRLP(s *rlp.Stream) error {
-	_, size, _ := s.Kind()
-	err := s.Decode(&tx.data)
-	if err == nil {
-		tx.size.Store(common.StorageSize(rlp.ListSize(size)))
-	}
-
-	return err
-}
-
-// MarshalJSON encodes transactions into the web3 RPC response block format.
-func (tx *Transaction) MarshalJSON() ([]byte, error) {
-	hash := tx.Hash()
-
-	return json.Marshal(&jsonTransaction{
-		Hash:         &hash,
-		AccountNonce: (*hexutil.Uint64)(&tx.data.AccountNonce),
-		Price:        (*hexutil.Big)(tx.data.Price),
-		GasLimit:     (*hexutil.Big)(tx.data.GasLimit),
-		Recipient:    tx.data.Recipient,
-		Amount:       (*hexutil.Big)(tx.data.Amount),
-		Payload:      (*hexutil.Bytes)(&tx.data.Payload),
-		V:            (*hexutil.Big)(tx.data.V),
-		R:            (*hexutil.Big)(tx.data.R),
-		S:            (*hexutil.Big)(tx.data.S),
-	})
-}
-
 // UnmarshalJSON decodes the web3 RPC transaction format.
 func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	var dec jsonTransaction
@@ -245,31 +215,10 @@ func (tx *Transaction) To() *common.Address {
 	}
 }
 
-// Hash hashes the RLP encoding of tx.
-// It uniquely identifies the transaction.
-func (tx *Transaction) Hash() common.Hash {
-	if hash := tx.hash.Load(); hash != nil {
-		return hash.(common.Hash)
-	}
-	v := rlpHash(tx)
-	tx.hash.Store(v)
-	return v
-}
-
 // SigHash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (tx *Transaction) SigHash(signer Signer) common.Hash {
 	return signer.Hash(tx)
-}
-
-func (tx *Transaction) Size() common.StorageSize {
-	if size := tx.size.Load(); size != nil {
-		return size.(common.StorageSize)
-	}
-	c := writeCounter(0)
-	rlp.Encode(&c, &tx.data)
-	tx.size.Store(common.StorageSize(c))
-	return common.StorageSize(c)
 }
 
 // AsMessage returns the transaction as a core.Message.
@@ -310,58 +259,6 @@ func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
 	return tx.data.V, tx.data.R, tx.data.S
 }
 
-func (tx *Transaction) String() string {
-	var from, to string
-	if tx.data.V != nil {
-		// make a best guess about the signer and use that to derive
-		// the sender.
-		signer := deriveSigner(tx.data.V)
-		if f, err := Sender(signer, tx); err != nil { // derive but don't cache
-			from = "[invalid sender: invalid sig]"
-		} else {
-			from = fmt.Sprintf("%x", f[:])
-		}
-	} else {
-		from = "[invalid sender: nil V field]"
-	}
-
-	if tx.data.Recipient == nil {
-		to = "[contract creation]"
-	} else {
-		to = fmt.Sprintf("%x", tx.data.Recipient[:])
-	}
-	enc, _ := rlp.EncodeToBytes(&tx.data)
-	return fmt.Sprintf(`
-	TX(%x)
-	Contract: %v
-	From:     %s
-	To:       %s
-	Nonce:    %v
-	GasPrice: %#x
-	GasLimit  %#x
-	Value:    %#x
-	Data:     0x%x
-	V:        %#x
-	R:        %#x
-	S:        %#x
-	Hex:      %x
-`,
-		tx.Hash(),
-		len(tx.data.Recipient) == 0,
-		from,
-		to,
-		tx.data.AccountNonce,
-		tx.data.Price,
-		tx.data.GasLimit,
-		tx.data.Amount,
-		tx.data.Payload,
-		tx.data.V,
-		tx.data.R,
-		tx.data.S,
-		enc,
-	)
-}
-
 // Transaction slice type for basic sorting.
 type Transactions []*Transaction
 
@@ -378,22 +275,22 @@ func (s Transactions) GetRlp(i int) []byte {
 }
 
 // Returns a new set t which is the difference between a to b
-func TxDifference(a, b Transactions) (keep Transactions) {
-	keep = make(Transactions, 0, len(a))
+// func TxDifference(a, b Transactions) (keep Transactions) {
+// 	keep = make(Transactions, 0, len(a))
 
-	remove := make(map[common.Hash]struct{})
-	for _, tx := range b {
-		remove[tx.Hash()] = struct{}{}
-	}
+// 	remove := make(map[common.Hash]struct{})
+// 	for _, tx := range b {
+// 		remove[tx.Hash()] = struct{}{}
+// 	}
 
-	for _, tx := range a {
-		if _, ok := remove[tx.Hash()]; !ok {
-			keep = append(keep, tx)
-		}
-	}
+// 	for _, tx := range a {
+// 		if _, ok := remove[tx.Hash()]; !ok {
+// 			keep = append(keep, tx)
+// 		}
+// 	}
 
-	return keep
-}
+// 	return keep
+// }
 
 // TxByNonce implements the sort interface to allow sorting a list of transactions
 // by their nonces. This is usually only useful for sorting transactions from a

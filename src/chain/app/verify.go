@@ -10,7 +10,6 @@ import (
 
 	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
-	"github.com/Baptist-Publication/chorus/src/tools"
 	"github.com/Baptist-Publication/chorus/src/types"
 )
 
@@ -100,6 +99,9 @@ func makeTxQueue(txs [][]byte, apptxQ []appTx, exit *int32) {
 			if err := rlp.DecodeBytes(agtypes.UnwrapTx(raw), apptxQ[i].tx); err != nil {
 				apptxQ[i].err = err
 			}
+		} else {
+			// non-app tx will pass directly
+			atomic.StoreInt32(&apptxQ[i].status, appTxStatusChecked)
 		}
 
 		atomic.StoreInt32(&apptxQ[i].status, appTxStatusInit)
@@ -149,7 +151,7 @@ func tryValidate(tx *appTx) {
 		return
 	}
 
-	valid, err := tools.TxVerifySignature(tx.tx)
+	valid, err := tx.tx.VerifySignature()
 	if err != nil {
 		atomic.StoreInt32(&tx.status, appTxStatusFailed)
 		tx.err = err
@@ -174,15 +176,17 @@ func exeWithCPUSerialVeirfy(txs [][]byte, quit chan struct{},
 				whenError(raw, err)
 				continue
 			}
+
+			valid, err := tx.VerifySignature()
+			if err != nil {
+				whenError(raw, err)
+				continue
+			}
+			if !valid {
+				whenError(raw, fmt.Errorf("tx verify failed"))
+			}
 		}
-		valid, err := tools.TxVerifySignature(tx)
-		if err != nil {
-			whenError(raw, err)
-			continue
-		}
-		if !valid {
-			whenError(raw, fmt.Errorf("tx verify failed"))
-		}
+
 		whenExec(i, raw, tx)
 	}
 

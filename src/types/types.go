@@ -7,15 +7,18 @@ import (
 var (
 	big0 = big.NewInt(0)
 
-	TxTagApp          = []byte{1}
+	TxTagApp          = []byte{0x01}
 	TxTagAppEvm       = append(TxTagApp, 0x01)
 	TxTagAppEvmCommon = append(TxTagAppEvm, 0x01)
 
-	TxTagAppInit      = append(TxTagApp, 0x02)
-	TxTagAppInitToken = append(TxTagAppInit, 0x01)
-	TxTagAppInitShare = append(TxTagAppInit, 0x02)
-
 	TxTagAppEco = append(TxTagApp, 0x03)
+)
+
+var (
+	TxTagAngine          = []byte{0x02}
+	TxTagAngineInit      = append(TxTagAngine, 0x01)
+	TxTagAngineInitToken = append(TxTagAngineInit, 0x01)
+	TxTagAngineInitShare = append(TxTagAngineInit, 0x02)
 )
 
 const (

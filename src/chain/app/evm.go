@@ -25,10 +25,12 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx 
 		return
 	}
 
+	txHash := tx.Hash()
+
 	evmTx := ethtypes.NewTransaction(tx.Nonce, ethcmn.BytesToAddress(txBody.To), txBody.Amount, tx.GasLimit, tx.GasPrice, txBody.Load)
 	gp := new(ethcore.GasPool).AddGas(header.GasLimit)
 	fmt.Println("remaining gas of gaspool: ", gp)
-	app.currentEvmState.StartRecord(evmTx.Hash(), blockHash, txIndex)
+	app.currentEvmState.StartRecord(ethcmn.BytesToHash(txHash), blockHash, txIndex)
 	receipt, usedGas, err := ethcore.ApplyTransaction(
 		app.chainConfig,
 		nil,
@@ -36,6 +38,7 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx 
 		app.currentEvmState,
 		header,
 		evmTx,
+		txHash,
 		big0,
 		evmConfig)
 
@@ -48,7 +51,7 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx 
 		app.receipts = append(app.receipts, receipt)
 	}
 
-	return evmTx.Hash().Bytes(), usedGas, err
+	return txHash, usedGas, err
 }
 
 func (app *App) CheckEVMTx(bs []byte) error {
@@ -57,7 +60,7 @@ func (app *App) CheckEVMTx(bs []byte) error {
 	if err != nil {
 		return err
 	}
-	valid, err := tools.TxVerifySignature(tx)
+	valid, err := tx.VerifySignature()
 	if err != nil {
 		return err
 	}

@@ -201,9 +201,9 @@ func (app *App) ExecuteAppInitTx(block *agtypes.BlockCache, bs []byte, txIndex i
 	}
 
 	switch {
-	case bytes.HasPrefix(bs, types.TxTagAppInitToken):
+	case bytes.HasPrefix(bs, types.TxTagAngineInitToken):
 		err = app.executeTokenInitTx(agtypes.UnwrapTx(bs))
-	case bytes.HasPrefix(bs, types.TxTagAppInitShare):
+	case bytes.HasPrefix(bs, types.TxTagAngineInitShare):
 		err = app.executeShareInitTx(agtypes.UnwrapTx(bs))
 	}
 

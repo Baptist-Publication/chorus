@@ -6,9 +6,8 @@ import (
 
 	agtypes "github.com/Baptist-Publication/angine/types"
 	"github.com/Baptist-Publication/chorus/src/eth/common"
-	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
 	"github.com/Baptist-Publication/chorus/src/eth/crypto"
-	"github.com/Baptist-Publication/chorus/src/eth/rlp"
+	"github.com/Baptist-Publication/chorus/src/tools"
 	"github.com/Baptist-Publication/chorus/src/types"
 	"gopkg.in/urfave/cli.v1"
 
@@ -39,8 +38,11 @@ var (
 )
 
 func sendTx(ctx *cli.Context) error {
-
-	privkey := ctx.String("privkey")
+	skbs := ctx.String("privkey")
+	privkey, err := crypto.HexToECDSA(skbs)
+	if err != nil {
+		panic(err)
+	}
 
 	var chainID string
 	if !ctx.GlobalIsSet("target") {
@@ -55,30 +57,36 @@ func sendTx(ctx *cli.Context) error {
 	payload := ctx.String("payload")
 	data := common.Hex2Bytes(payload)
 
-	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(value), big.NewInt(90000), big.NewInt(2), data)
-
-	if privkey != "" {
-		key, err := crypto.HexToECDSA(privkey)
-		if err != nil {
-			panic(err)
-		}
-		sig, _ := crypto.Sign(tx.SigHash(ethSigner).Bytes(), key)
-		sigTx, _ := tx.WithSignature(ethSigner, sig)
-
-		b, err := rlp.EncodeToBytes(sigTx)
-		if err != nil {
-			panic(err)
-		}
-
-		tmResult := new(agtypes.RPCResult)
-		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
-		if err != nil {
-			panic(err)
-		}
-		//res := (*tmResult).(*types.ResultBroadcastTxCommit)
-
-		fmt.Println("tx result:", sigTx.Hash().Hex())
+	bodyTx := types.TxEvmCommon{
+		To:     to[:],
+		Amount: big.NewInt(value),
 	}
+	bodyBs, err := tools.TxToBytes(bodyTx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	from := crypto.PubkeyToAddress(privkey.PublicKey)
+	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], data)
+
+	if err := tx.Sign(privkey); err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	b, err := tools.TxToBytes(tx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	tmResult := new(agtypes.RPCResult)
+	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
+	if err != nil {
+		panic(err)
+	}
+	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
+
+	fmt.Println("tx result:", sigTx.Hash().Hex())
+
 	return nil
 }

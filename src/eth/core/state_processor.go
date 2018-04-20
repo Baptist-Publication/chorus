@@ -44,7 +44,8 @@ func (bc BlockChain) GetHeader(common.Hash, uint64) *types.Header {
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *big.Int, error) {
+func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, gp *GasPool, statedb *state.StateDB, header *types.Header,
+	tx *types.Transaction, txHash []byte, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *big.Int, error) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
 		return nil, nil, err
@@ -67,7 +68,8 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, gp *GasPool, s
 	// Edit by Kyli
 	// receipt := types.NewReceipt(statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes(), usedGas)
 	receipt := types.NewReceipt([]byte{}, usedGas)
-	receipt.TxHash = tx.Hash()
+	// receipt.TxHash = tx.Hash()
+	receipt.TxHash = common.BytesToHash(txHash)
 	receipt.GasUsed = new(big.Int).Set(gas)
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
@@ -75,7 +77,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, gp *GasPool, s
 	}
 
 	// Set the receipt logs and create a bloom for filtering
-	receipt.Logs = statedb.GetLogs(tx.Hash())
+	receipt.Logs = statedb.GetLogs(common.BytesToHash(txHash))
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
 	glog.V(logger.Debug).Infoln(receipt)
