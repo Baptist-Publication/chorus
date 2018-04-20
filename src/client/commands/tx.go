@@ -12,6 +12,7 @@ import (
 
 	"github.com/Baptist-Publication/angine/types"
 	cl "github.com/Baptist-Publication/chorus-module/lib/go-rpc/client"
+	"github.com/Baptist-Publication/chorus/src/chain/app"
 	"github.com/Baptist-Publication/chorus/src/client/commons"
 )
 
@@ -41,13 +42,20 @@ func sendTx(ctx *cli.Context) error {
 
 	privkey := ctx.String("privkey")
 
+	var chainID string
+	if !ctx.GlobalIsSet("target") {
+		chainID = "chorus"
+	} else {
+		chainID = ctx.GlobalString("target")
+	}
+
 	nonce := ctx.Uint64("nonce")
 	to := common.HexToAddress(ctx.String("to"))
 	value := ctx.Int64("value")
 	payload := ctx.String("payload")
 	data := common.Hex2Bytes(payload)
 
-	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(value), big.NewInt(90000), big.NewInt(0), data)
+	tx := ethtypes.NewTransaction(nonce, to, big.NewInt(value), big.NewInt(90000), big.NewInt(2), data)
 
 	if privkey != "" {
 		key, err := crypto.HexToECDSA(privkey)
@@ -64,7 +72,7 @@ func sendTx(ctx *cli.Context) error {
 
 		tmResult := new(types.RPCResult)
 		clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{b}, tmResult)
+		_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, types.WrapTx(app.EVMTxTag, b)}, tmResult)
 		if err != nil {
 			panic(err)
 		}
