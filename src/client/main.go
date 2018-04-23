@@ -19,6 +19,7 @@ func main() {
 		commands.TxCommands,
 		commands.InfoCommand,
 		commands.EVMCommands,
+		commands.ShareCommands,
 	}
 
 	app.Flags = []cli.Flag{

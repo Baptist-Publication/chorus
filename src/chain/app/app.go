@@ -211,7 +211,7 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 			case bytes.HasPrefix(raw, types.TxTagAngineInit):
 				_, _, err = app.ExecuteAppInitTx(block, raw, index)
 			case bytes.HasPrefix(raw, types.TxTagAppEco):
-				_, _, err = app.ExecuteAppEcoTx(block, tx, index)
+				_, _, err = app.ExecuteAppEcoTx(block, raw, tx)
 			default:
 				return
 			}

@@ -121,7 +121,7 @@ func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int, hei
 	if itfc, ok := ps.ShareCache.Get(keystring); ok {
 		pwr := itfc.(*Share)
 		pwr.ShareBalance = new(big.Int).Add(pwr.ShareBalance, amount)
-		pwr.MHeight = height
+		// pwr.MHeight = height
 		return nil
 	}
 
@@ -133,7 +133,7 @@ func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int, hei
 			return err
 		}
 		pwr.ShareBalance = new(big.Int).Add(pwr.ShareBalance, amount)
-		pwr.MHeight = height
+		// pwr.MHeight = height
 		ps.ShareCache.Set(keystring, pwr)
 		return nil
 	}
@@ -150,7 +150,7 @@ func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int, hei
 	return nil
 }
 
-func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int, height def.INT) error {
+func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int) error {
 	keystring := pubkey.KeyString()
 
 	// from cache

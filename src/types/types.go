@@ -11,7 +11,10 @@ var (
 	TxTagAppEvm       = append(TxTagApp, 0x01)
 	TxTagAppEvmCommon = append(TxTagAppEvm, 0x01)
 
-	TxTagAppEco = append(TxTagApp, 0x03)
+	TxTagAppEco              = append(TxTagApp, 0x02)
+	TxTagAppEcoShareTransfer = append(TxTagAppEco, 0x01)
+	TxTagAppEcoGuarantee     = append(TxTagAppEco, 0x02)
+	TxTagAppEcoRedeem        = append(TxTagAppEco, 0x03)
 )
 
 var (

@@ -3,8 +3,11 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding/json"
 	"math/big"
 
+	"github.com/Baptist-Publication/chorus-module/lib/ed25519"
+	gcrypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/src/eth/crypto"
 	"github.com/Baptist-Publication/chorus/src/eth/rlp"
 )
@@ -51,6 +54,35 @@ type TxShareTransfer struct {
 	ShareSig []byte
 	ShareDst []byte
 	Amount   *big.Int
+}
+
+func (tx *TxShareTransfer) TxtoBytes() ([]byte, error) {
+	return json.Marshal(tx)
+}
+
+func (tx *TxShareTransfer) Sign(privkey *gcrypto.PrivKeyEd25519) error {
+	txbs, err := tx.TxtoBytes()
+	if err != nil {
+		return err
+	}
+	sig := privkey.Sign(txbs).(*gcrypto.SignatureEd25519)
+	tx.ShareSig = sig[:]
+	return nil
+}
+
+func (tx *TxShareTransfer) VerifySig() (bool, error) {
+	pubkey := gcrypto.PubKeyEd25519{}
+	copy(pubkey[:], tx.ShareSrc)
+	signatrue := gcrypto.SignatureEd25519{}
+	copy(signatrue[:], tx.ShareSig)
+	tx.ShareSig = nil
+	txbs, err := tx.TxtoBytes()
+	if err != nil {
+		return false, err
+	}
+	sig64 := [64]byte(signatrue)
+	pub32 := [32]byte(pubkey)
+	return ed25519.Verify(&pub32, txbs, &sig64), nil
 }
 
 func sigHash(tx *BlockTx) ([]byte, error) {

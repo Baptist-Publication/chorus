@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -12,6 +13,10 @@ import (
 	crypto "github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
 	ethcmn "github.com/Baptist-Publication/chorus/src/eth/common"
+	"github.com/Baptist-Publication/chorus/src/eth/core"
+	ethtypes "github.com/Baptist-Publication/chorus/src/eth/core/types"
+	"github.com/Baptist-Publication/chorus/src/eth/params"
+	"github.com/Baptist-Publication/chorus/src/tools"
 	"github.com/Baptist-Publication/chorus/src/types"
 	ctypes "github.com/Baptist-Publication/chorus/src/types"
 )
@@ -164,6 +169,7 @@ func (app *App) CheckEcoTx(bs []byte) error {
 	return nil
 }
 
+//doCoinbaseTx send block rewards to block maker
 func (app *App) doCoinbaseTx(block *agtypes.BlockCache) error {
 	var addr ethcmn.Address
 	copy(addr[:], block.Header.CoinBase)
@@ -188,11 +194,16 @@ func calculateRewards(height uint64) *big.Int {
 	return new(big.Int).SetUint64(rewards)
 }
 
-func (app *App) ExecuteAppEcoTx(block *agtypes.BlockCache, bs *types.BlockTx, txIndex int) (hash []byte, usedGas *big.Int, err error) {
-	// TODO
-	// transfer ? guaranty ? ...
-
-	return
+func (app *App) ExecuteAppEcoTx(block *agtypes.BlockCache, bs []byte, tx *ctypes.BlockTx) (hash []byte, usedGas *big.Int, err error) {
+	switch {
+	case bytes.HasPrefix(bs, types.TxTagAppEcoShareTransfer):
+		err = app.executeShareTransfer(block, tx)
+	case bytes.HasPrefix(bs, types.TxTagAppEcoGuarantee):
+		err = app.executeShareGuarantee(bs)
+	case bytes.HasPrefix(bs, types.TxTagAppEcoRedeem):
+		err = app.executeShareRedeem(bs)
+	}
+	return nil, big0, err
 }
 
 func (app *App) ExecuteAppInitTx(block *agtypes.BlockCache, bs []byte, txIndex int) (hash []byte, usedGas *big.Int, err error) {
@@ -234,4 +245,77 @@ func (app *App) executeShareInitTx(bs []byte) error {
 	app.currentShareState.CreateShareAccount(tx.To, tx.Amount, 1)
 
 	return nil
+}
+
+func (app *App) executeShareTransfer(block *agtypes.BlockCache, tx *ctypes.BlockTx) error {
+	bodytx := ctypes.TxShareTransfer{}
+	if err := tools.TxFromBytes(tx.Payload, &bodytx); err != nil {
+		return err
+	}
+	//VerifySignature
+	if right, err := bodytx.VerifySig(); err != nil || !right {
+		return errors.New("verify signatrue failed")
+	}
+	if err := app.chargeFee(block, tx); err != nil {
+		return err
+	}
+	//transfer
+	if !app.canTransfer(bodytx.ShareSrc, bodytx.Amount) {
+		return errors.New("insufficent share balance")
+	}
+	frompub, topub := crypto.PubKeyEd25519{}, crypto.PubKeyEd25519{}
+	copy(frompub[:], bodytx.ShareSrc)
+	copy(topub[:], bodytx.ShareDst)
+	app.currentShareState.SubShareBalance(&frompub, bodytx.Amount)
+	app.currentShareState.AddShareBalance(&topub, bodytx.Amount, block.Header.Height)
+	//save receipts
+	app.addReceipt(tx)
+	return nil
+}
+
+func (app *App) executeShareGuarantee(bs []byte) error {
+	return nil
+}
+
+func (app *App) executeShareRedeem(bs []byte) error {
+	return nil
+}
+
+func (app *App) chargeFee(block *agtypes.BlockCache, tx *ctypes.BlockTx) error {
+	sender := ethcmn.BytesToAddress(tx.Sender)
+	//check nonce
+	if n := app.currentEvmState.GetNonce(sender); n != tx.Nonce {
+		return core.NonceError(tx.Nonce, n)
+	}
+	//check balance
+	mval := new(big.Int).Mul(tx.GasLimit, tx.GasPrice)
+	balance := app.currentEvmState.GetBalance(sender)
+	if balance.Cmp(mval) < 0 {
+		return fmt.Errorf("insufficient balance for gas (%x). Req %v, has %v", sender.Bytes()[:4], mval, balance)
+	}
+	if tx.GasLimit.Cmp(params.TxGas) < 0 {
+		return errors.New("out of gas")
+	}
+	//do charge
+	realfee := new(big.Int).Mul(params.TxGas, tx.GasPrice)
+	app.currentEvmState.SubBalance(sender, realfee)
+	app.currentEvmState.AddBalance(ethcmn.BytesToAddress(block.Header.CoinBase), realfee)
+	return nil
+}
+
+func (app *App) addReceipt(tx *ctypes.BlockTx) {
+	receipt := ethtypes.NewReceipt([]byte{}, params.TxGas)
+	receipt.TxHash = ethcmn.BytesToHash(tx.Hash())
+	receipt.GasUsed = params.TxGas
+	receipt.Logs = app.currentEvmState.GetLogs(ethcmn.BytesToHash(tx.Hash()))
+	receipt.Bloom = ethtypes.CreateBloom(ethtypes.Receipts{receipt})
+	app.receipts = append(app.receipts, receipt)
+}
+
+func (app *App) canTransfer(from []byte, amount *big.Int) bool {
+	accshare := app.currentShareState.GetShareAccount(from)
+	if accshare.ShareBalance.Cmp(amount) < 0 {
+		return false
+	}
+	return true
 }
