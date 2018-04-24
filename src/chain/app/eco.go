@@ -199,9 +199,9 @@ func (app *App) ExecuteAppEcoTx(block *agtypes.BlockCache, bs []byte, tx *ctypes
 	case bytes.HasPrefix(bs, types.TxTagAppEcoShareTransfer):
 		err = app.executeShareTransfer(block, tx)
 	case bytes.HasPrefix(bs, types.TxTagAppEcoGuarantee):
-		err = app.executeShareGuarantee(bs)
+		err = app.executeShareGuarantee(block, tx)
 	case bytes.HasPrefix(bs, types.TxTagAppEcoRedeem):
-		err = app.executeShareRedeem(bs)
+		err = app.executeShareRedeem(block, tx)
 	}
 	return nil, big0, err
 }
@@ -260,24 +260,66 @@ func (app *App) executeShareTransfer(block *agtypes.BlockCache, tx *ctypes.Block
 		return err
 	}
 	//transfer
-	if !app.canTransfer(bodytx.ShareSrc, bodytx.Amount) {
-		return errors.New("insufficent share balance")
-	}
 	frompub, topub := crypto.PubKeyEd25519{}, crypto.PubKeyEd25519{}
 	copy(frompub[:], bodytx.ShareSrc)
 	copy(topub[:], bodytx.ShareDst)
-	app.currentShareState.SubShareBalance(&frompub, bodytx.Amount)
+	err := app.currentShareState.SubShareBalance(&frompub, bodytx.Amount)
+	if err != nil {
+		return err
+	}
 	app.currentShareState.AddShareBalance(&topub, bodytx.Amount, block.Header.Height)
 	//save receipts
 	app.addReceipt(tx)
 	return nil
 }
 
-func (app *App) executeShareGuarantee(bs []byte) error {
+func (app *App) executeShareGuarantee(block *agtypes.BlockCache, tx *ctypes.BlockTx) error {
+	bodytx := ctypes.TxShareEco{}
+	if err := tools.TxFromBytes(tx.Payload, &bodytx); err != nil {
+		return err
+	}
+	//VerifySignature
+	if right, err := bodytx.VerifySig(); err != nil || !right {
+		return errors.New("verify signatrue failed")
+	}
+	if err := app.chargeFee(block, tx); err != nil {
+		return err
+	}
+	//transfer
+	frompub := crypto.PubKeyEd25519{}
+	copy(frompub[:], bodytx.Source)
+	err := app.currentShareState.SubShareBalance(&frompub, bodytx.Amount)
+	if err != nil {
+		return err
+	}
+	app.currentShareState.AddGuaranty(&frompub, bodytx.Amount, block.Header.Height)
+	//save receipts
+	app.addReceipt(tx)
 	return nil
 }
 
-func (app *App) executeShareRedeem(bs []byte) error {
+func (app *App) executeShareRedeem(block *agtypes.BlockCache, tx *ctypes.BlockTx) error {
+	bodytx := ctypes.TxShareEco{}
+	if err := tools.TxFromBytes(tx.Payload, &bodytx); err != nil {
+		return err
+	}
+	//VerifySignature
+	if right, err := bodytx.VerifySig(); err != nil || !right {
+		return errors.New("verify signatrue failed")
+	}
+	if err := app.chargeFee(block, tx); err != nil {
+		return err
+	}
+
+	frompub := crypto.PubKeyEd25519{}
+	copy(frompub[:], bodytx.Source)
+	err := app.currentShareState.SubGuaranty(&frompub, bodytx.Amount)
+	if err != nil {
+		return err
+	}
+	app.currentShareState.AddShareBalance(&frompub, bodytx.Amount, block.Header.Height)
+	//save receipts
+	app.addReceipt(tx)
 	return nil
 }
 
@@ -300,6 +342,8 @@ func (app *App) chargeFee(block *agtypes.BlockCache, tx *ctypes.BlockTx) error {
 	realfee := new(big.Int).Mul(params.TxGas, tx.GasPrice)
 	app.currentEvmState.SubBalance(sender, realfee)
 	app.currentEvmState.AddBalance(ethcmn.BytesToAddress(block.Header.CoinBase), realfee)
+	//set nonce
+	app.currentEvmState.SetNonce(sender, app.currentEvmState.GetNonce(sender)+1)
 	return nil
 }
 
@@ -310,12 +354,4 @@ func (app *App) addReceipt(tx *ctypes.BlockTx) {
 	receipt.Logs = app.currentEvmState.GetLogs(ethcmn.BytesToHash(tx.Hash()))
 	receipt.Bloom = ethtypes.CreateBloom(ethtypes.Receipts{receipt})
 	app.receipts = append(app.receipts, receipt)
-}
-
-func (app *App) canTransfer(from []byte, amount *big.Int) bool {
-	accshare := app.currentShareState.GetShareAccount(from)
-	if accshare.ShareBalance.Cmp(amount) < 0 {
-		return false
-	}
-	return true
 }

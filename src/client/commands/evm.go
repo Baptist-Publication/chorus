@@ -66,8 +66,6 @@ var (
 				Usage:  "read a contract",
 				Action: readContract,
 				Flags: []cli.Flag{
-					anntoolFlags.addr,
-					anntoolFlags.pwd,
 					anntoolFlags.payload,
 					anntoolFlags.privkey,
 					anntoolFlags.nonce,
@@ -117,16 +115,14 @@ func readContract(ctx *cli.Context) error {
 	}
 
 	privkey := ctx.String("privkey")
-	address := ac.SanitizeHex(ctx.String("address"))
-	passwd := ctx.String("passwd")
 	nonce := ctx.Uint64("nonce")
 	to := common.HexToAddress(contractAddress)
 
 	if privkey == "" {
 		privkey = json.Get("privkey").MustString()
 	}
-	if privkey == "" && (address == "" || passwd == "") {
-		panic("should provide privkey or address-passwd pair.")
+	if privkey == "" {
+		panic("should provide privkey.")
 	}
 	key, err := crypto.HexToECDSA(privkey)
 	if err != nil {

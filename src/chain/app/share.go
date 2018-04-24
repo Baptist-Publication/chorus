@@ -184,6 +184,72 @@ func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int) err
 	return fmt.Errorf("Share not exist: %s", keystring)
 }
 
+func (ps *ShareState) AddGuaranty(pubkey crypto.PubKey, amount *big.Int, height def.INT) error {
+	keystring := pubkey.KeyString()
+
+	// from cache
+	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+		pwr := itfc.(*Share)
+		pwr.ShareGuaranty = new(big.Int).Add(pwr.ShareGuaranty, amount)
+		return nil
+	}
+
+	// from db
+	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+		pwr := new(Share)
+		err := pwr.FromBytes(value)
+		if err != nil {
+			return err
+		}
+		pwr.ShareGuaranty = new(big.Int).Add(pwr.ShareGuaranty, amount)
+		ps.ShareCache.Set(keystring, pwr)
+		return nil
+	}
+
+	// new account
+	pk := pubkey.(*crypto.PubKeyEd25519)
+	pwr := &Share{
+		Pubkey:        pk[:],
+		ShareBalance:  big0,
+		ShareGuaranty: amount,
+		MHeight:       height,
+	}
+	ps.ShareCache.Set(pk.KeyString(), pwr)
+	return nil
+}
+
+func (ps *ShareState) SubGuaranty(pubkey crypto.PubKey, amount *big.Int) error {
+	keystring := pubkey.KeyString()
+
+	// from cache
+	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+		pwr := itfc.(*Share)
+		if pwr.ShareGuaranty.Cmp(amount) >= 0 {
+			pwr.ShareGuaranty = new(big.Int).Sub(pwr.ShareGuaranty, amount)
+			return nil
+		}
+		return errors.New("insufficent ShareGuarantee to sub")
+	}
+
+	// from db
+	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+		pwr := new(Share)
+		err := pwr.FromBytes(value)
+		if err != nil {
+			return err
+		}
+		if pwr.ShareGuaranty.Cmp(amount) >= 0 {
+			pwr.ShareGuaranty = new(big.Int).Sub(pwr.ShareGuaranty, amount)
+			ps.ShareCache.Set(keystring, pwr)
+			return nil
+		}
+		return errors.New("insufficent ShareGuarantee to sub")
+	}
+
+	// Not exist
+	return fmt.Errorf("Guarantee not exist: %s", keystring)
+}
+
 func (ps *ShareState) MarkShare(pubkey crypto.PubKey, mValue def.INT) error {
 	keystring := pubkey.KeyString()
 

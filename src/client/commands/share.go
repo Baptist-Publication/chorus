@@ -47,7 +47,6 @@ var (
 				Usage:  "use share guarantee to participate election",
 				Action: shareGuarantee,
 				Flags: []cli.Flag{
-					anntoolFlags.payload,
 					anntoolFlags.nonce,
 					anntoolFlags.value,
 					cli.StringFlag{
@@ -65,7 +64,6 @@ var (
 				Usage:  "redeem share to exit election",
 				Action: shareRedeem,
 				Flags: []cli.Flag{
-					anntoolFlags.payload,
 					anntoolFlags.nonce,
 					anntoolFlags.value,
 					cli.StringFlag{
@@ -158,56 +156,11 @@ func shareGuarantee(ctx *cli.Context) error {
 		chainID = ctx.GlobalString("target")
 	}
 
-	//get node privkey
-	nodepb, err := hex.DecodeString(gcommon.SanitizeHex(ctx.String("nodeprivkey")))
-	if err != nil {
-		return err
-	}
-	nodeprivkey := gcrypto.PrivKeyEd25519{}
-	copy(nodeprivkey[:], nodepb)
-	nodefrom := nodeprivkey.PubKey().(*gcrypto.PubKeyEd25519)
-
-	tobs, err := agtypes.StringTo32byte(gcommon.SanitizeHex(ctx.String("to")))
-	if err != nil {
-		return err
-	}
-	to := gcrypto.PubKeyEd25519{}
-	copy(to[:], tobs[:])
-
-	bodyTx := types.TxShareTransfer{
-		ShareSrc: nodefrom[:],
-		ShareDst: to[:],
-		Amount:   big.NewInt(ctx.Int64("value")),
-	}
-	bodyTx.Sign(&nodeprivkey)
-	bodybs, err := tools.TxToBytes(bodyTx)
-	if err != nil {
-		return err
-	}
-	//construct blockTx
-	skbs := ctx.String("evmprivkey")
-	evmprivkey, err := crypto.HexToECDSA(skbs)
-	if err != nil {
-		panic(err)
-	}
-	nonce := ctx.Uint64("nonce")
-
-	from := crypto.PubkeyToAddress(evmprivkey.PublicKey)
-	fmt.Printf("%x\n", from)
-	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], bodybs)
-
-	if err := tx.Sign(evmprivkey); err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	b, err := tools.TxToBytes(tx)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
+	tx, b, err := constructEcoTx(ctx)
 
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEcoShareTransfer, b)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEcoGuarantee, b)}, tmResult)
 	if err != nil {
 		panic(err)
 	}
@@ -225,31 +178,41 @@ func shareRedeem(ctx *cli.Context) error {
 		chainID = ctx.GlobalString("target")
 	}
 
+	tx, b, err := constructEcoTx(ctx)
+	if err != nil {
+		return err
+	}
+
+	tmResult := new(agtypes.RPCResult)
+	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEcoRedeem, b)}, tmResult)
+	if err != nil {
+		panic(err)
+	}
+	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
+
+	fmt.Printf("tx result: %x\n", tx.Hash())
+	return nil
+}
+
+func constructEcoTx(ctx *cli.Context) (*types.BlockTx, []byte, error) {
 	//get node privkey
 	nodepb, err := hex.DecodeString(gcommon.SanitizeHex(ctx.String("nodeprivkey")))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	nodeprivkey := gcrypto.PrivKeyEd25519{}
 	copy(nodeprivkey[:], nodepb)
 	nodefrom := nodeprivkey.PubKey().(*gcrypto.PubKeyEd25519)
 
-	tobs, err := agtypes.StringTo32byte(gcommon.SanitizeHex(ctx.String("to")))
-	if err != nil {
-		return err
-	}
-	to := gcrypto.PubKeyEd25519{}
-	copy(to[:], tobs[:])
-
-	bodyTx := types.TxShareTransfer{
-		ShareSrc: nodefrom[:],
-		ShareDst: to[:],
-		Amount:   big.NewInt(ctx.Int64("value")),
+	bodyTx := types.TxShareEco{
+		Source: nodefrom[:],
+		Amount: big.NewInt(ctx.Int64("value")),
 	}
 	bodyTx.Sign(&nodeprivkey)
 	bodybs, err := tools.TxToBytes(bodyTx)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	//construct blockTx
 	skbs := ctx.String("evmprivkey")
@@ -264,22 +227,12 @@ func shareRedeem(ctx *cli.Context) error {
 	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], bodybs)
 
 	if err := tx.Sign(evmprivkey); err != nil {
-		return cli.NewExitError(err.Error(), 127)
+		return nil, nil, cli.NewExitError(err.Error(), 127)
 	}
 
 	b, err := tools.TxToBytes(tx)
 	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
+		return nil, nil, cli.NewExitError(err.Error(), 127)
 	}
-
-	tmResult := new(agtypes.RPCResult)
-	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEcoShareTransfer, b)}, tmResult)
-	if err != nil {
-		panic(err)
-	}
-	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
-
-	fmt.Printf("tx result: %x\n", tx.Hash())
-	return nil
+	return tx, b, nil
 }

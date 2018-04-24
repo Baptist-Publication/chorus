@@ -49,12 +49,52 @@ type TxEvmCommon struct {
 	Load   []byte
 }
 
+type TxShareEco struct {
+	Source    []byte
+	Signature []byte
+	Amount    *big.Int
+}
+
+func (tx *TxShareEco) TxtoBytes() ([]byte, error) {
+	return json.Marshal(tx)
+}
+
+func (tx *TxShareEco) Sign(privkey *gcrypto.PrivKeyEd25519) error {
+	txbs, err := tx.TxtoBytes()
+	if err != nil {
+		return err
+	}
+	sig := privkey.Sign(txbs).(*gcrypto.SignatureEd25519)
+	tx.Signature = sig[:]
+	return nil
+}
+
+func (tx *TxShareEco) VerifySig() (bool, error) {
+	pubkey := gcrypto.PubKeyEd25519{}
+	copy(pubkey[:], tx.Source)
+	signatrue := gcrypto.SignatureEd25519{}
+	copy(signatrue[:], tx.Signature)
+	tx.Signature = nil
+	txbs, err := tx.TxtoBytes()
+	if err != nil {
+		return false, err
+	}
+	sig64 := [64]byte(signatrue)
+	pub32 := [32]byte(pubkey)
+	return ed25519.Verify(&pub32, txbs, &sig64), nil
+}
+
 type TxShareTransfer struct {
 	ShareSrc []byte
 	ShareSig []byte
 	ShareDst []byte
 	Amount   *big.Int
 }
+
+// func TxToBytes(tx TxEcoItf) ([]byte, error) {
+// 	//question : right?
+// 	return json.Marshal(tx)
+// }
 
 func (tx *TxShareTransfer) TxtoBytes() ([]byte, error) {
 	return json.Marshal(tx)
