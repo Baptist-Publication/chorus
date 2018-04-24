@@ -49,6 +49,12 @@ type TxEvmCommon struct {
 	Load   []byte
 }
 
+type TxShareItf interface {
+	Sign(*gcrypto.PrivKeyEd25519) error
+	TxtoBytes() ([]byte, error)
+	VerifySig() (bool, error)
+}
+
 type TxShareEco struct {
 	Source    []byte
 	Signature []byte
@@ -90,11 +96,6 @@ type TxShareTransfer struct {
 	ShareDst []byte
 	Amount   *big.Int
 }
-
-// func TxToBytes(tx TxEcoItf) ([]byte, error) {
-// 	//question : right?
-// 	return json.Marshal(tx)
-// }
 
 func (tx *TxShareTransfer) TxtoBytes() ([]byte, error) {
 	return json.Marshal(tx)
