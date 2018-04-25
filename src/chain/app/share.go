@@ -65,7 +65,13 @@ func (ps *ShareState) Unlock() {
 func (ps *ShareState) CreateShareAccount(pubkey []byte, balance *big.Int, height def.INT) {
 	pub := crypto.PubKeyEd25519{}
 	copy(pub[:], pubkey[:])
-
+	if pwr, ok := ps.ShareCache.Get(pub.KeyString()); ok {
+		value := pwr.(*Share)
+		value.ShareBalance = new(big.Int).Set(balance)
+		value.MHeight = height
+		ps.ShareCache.Set(pub.KeyString(), value)
+		return
+	}
 	pwr := &Share{
 		Pubkey:        pubkey,
 		ShareBalance:  new(big.Int).Set(balance),
