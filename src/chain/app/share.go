@@ -279,7 +279,7 @@ func (ps *ShareState) MarkShare(pubkey crypto.PubKey, mValue def.INT) error {
 func (ps *ShareState) Commit() ([]byte, error) {
 	ps.ShareCache.Exec(func(k string, v interface{}) {
 		pwr := v.(*Share)
-		if pwr.ShareBalance.Cmp(big0) == 0 {
+		if pwr.ShareBalance.Cmp(big0) == 0 && pwr.ShareGuaranty.Cmp(big0) == 0 {
 			ps.trie.Remove([]byte(k))
 		} else {
 			ps.trie.Set([]byte(k), pwr.ToBytes())
@@ -308,7 +308,9 @@ func (ps *ShareState) Iterate(fn func(*Share) bool) {
 	// Iterate cache first
 	ps.ShareCache.Exec(func(key string, value interface{}) {
 		pwr := value.(*Share)
-		if pwr.ShareBalance.Cmp(big0) != 0 {
+		pub := crypto.PubKeyEd25519{}
+		copy(pub[:], pwr.Pubkey[:])
+		if pwr.ShareGuaranty.Cmp(big0) != 0 {
 			fn(pwr)
 		}
 	})
@@ -328,7 +330,10 @@ func (ps *ShareState) Iterate(fn func(*Share) bool) {
 			return false
 		}
 
-		return fn(pwr)
+		if pwr.ShareGuaranty.Cmp(big0) != 0 {
+			return fn(pwr)
+		}
+		return false
 	})
 }
 

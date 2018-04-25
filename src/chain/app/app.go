@@ -269,7 +269,7 @@ func (app *App) OnCommit(height, round def.INT, block *agtypes.BlockCache) (inte
 
 	app.receipts = app.receipts[:0]
 
-	fmt.Println("height:", height, "power size:", app.ShareState.Size())
+	fmt.Println("height:", height, "share account size:", app.ShareState.Size())
 	fmt.Printf("appHash:%X\n", lb.AppHash())
 
 	return agtypes.CommitResult{

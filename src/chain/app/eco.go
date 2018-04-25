@@ -25,7 +25,7 @@ func (app *App) RegisterValidators(validatorset *agtypes.ValidatorSet) {
 	for _, validator := range validatorset.Validators {
 		if pub, ok := validator.GetPubKey().(*crypto.PubKeyEd25519); ok {
 			// app.accState.CreateAccount(pub[:], Big0)
-			app.currentShareState.CreateShareAccount(pub[:], new(big.Int).SetUint64(uint64(validator.VotingPower)), 1)
+			app.currentShareState.AddGuaranty(pub, new(big.Int).SetUint64(uint64(validator.VotingPower)), 1)
 		}
 	}
 }
