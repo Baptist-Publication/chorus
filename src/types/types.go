@@ -18,12 +18,7 @@ var (
 )
 
 var (
-	TxTagAngine = []byte{3} //suspect have used 0x02
-
-	//这个bug先不删掉，请研究下slice的结构，你就明白为什么下面这种写法这里会导致init错误！！！！！ß
-	// TxTagAngineInit      = append(TxTagAngine, 0x01)
-	// TxTagAngineInitShare = append(TxTagAngineInit, 0x02)
-	// TxTagAngineInitToken = append(TxTagAngineInit, 0x01)
+	TxTagAngine          = []byte{3} //suspect have used 0x02
 	TxTagAngineInit      = []byte{3, 1}
 	TxTagAngineInitToken = []byte{3, 1, 1}
 	TxTagAngineInitShare = []byte{3, 1, 2}

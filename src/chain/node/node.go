@@ -11,7 +11,7 @@ import (
 
 	"github.com/Baptist-Publication/angine"
 	ac "github.com/Baptist-Publication/angine/config"
-	"github.com/Baptist-Publication/angine/types"
+	agtypes "github.com/Baptist-Publication/angine/types"
 	cmn "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/lib/go-p2p"
@@ -30,14 +30,18 @@ const (
 var Apps = make(map[string]AppMaker)
 
 type Node struct {
-	MainChainID string
-	MainOrg     *OrgNode
-
 	config        *viper.Viper
-	privValidator *types.PrivValidator
+	privValidator *agtypes.PrivValidator
 	nodeInfo      *p2p.NodeInfo
 
 	logger *zap.Logger
+
+	running     int64
+	Superior    Superior
+	Angine      *angine.Angine
+	AngineTune  *angine.Tunes
+	Application agtypes.Application
+	GenesisDoc  *agtypes.GenesisDoc
 }
 
 func AppExists(name string) (yes bool) {
@@ -62,18 +66,14 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 	}
 	App.AngineRef = evmAngine
 
-	chainID := ""
-	if evmAngine.Genesis() != nil {
-		chainID = evmAngine.Genesis().ChainID
-	}
+	// if evmAngine.Genesis() != nil {
+	// 	chainID = evmAngine.Genesis().ChainID
+	// }
 	node := &Node{
-		MainChainID: chainID,
-		MainOrg: &OrgNode{
-			Application: App,
-			Angine:      evmAngine,
-			AngineTune:  tune,
-			GenesisDoc:  evmAngine.Genesis(),
-		},
+		Application: App,
+		Angine:      evmAngine,
+		AngineTune:  tune,
+		GenesisDoc:  evmAngine.Genesis(),
 
 		nodeInfo:      makeNodeInfo(aConf, evmAngine.PrivValidator().GetPubKey().(*crypto.PubKeyEd25519), evmAngine.P2PHost(), evmAngine.P2PPort()),
 		config:        aConf,
@@ -82,12 +82,6 @@ func NewNode(logger *zap.Logger, conf *viper.Viper) *Node {
 	}
 
 	evmAngine.RegisterNodeInfo(node.nodeInfo)
-
-	// TODO reorg before runing online
-	//register validator info to metro statedb
-	//if conf.GetBool("enable_incentive") {
-	//metropolis.RegisterValidators(metroAngine)
-	//}
 
 	return node
 }
@@ -108,7 +102,7 @@ func RunNode(logger *zap.Logger, config *viper.Viper) {
 		}()
 	}
 
-	fmt.Printf("node (%s) is running on %s:%d ......\n", node.MainChainID, node.NodeInfo().ListenHost(), node.NodeInfo().ListenPort())
+	fmt.Printf("node is running on %s:%d ......\n", node.NodeInfo().ListenHost(), node.NodeInfo().ListenPort())
 
 	cmn.TrapSignal(func() {
 		node.Stop()
@@ -117,19 +111,29 @@ func RunNode(logger *zap.Logger, config *viper.Viper) {
 
 // Call Start() after adding the listeners.
 func (n *Node) Start() error {
-	if err := n.MainOrg.Start(); err != nil {
-		return fmt.Errorf("fail to start, error: %v", err)
+	if err := n.Application.Start(); err != nil {
+		n.Angine.Stop()
+		return err
+	}
+	if err := n.Angine.Start(); err != nil {
+		n.Application.Stop()
+		n.Angine.Stop()
+		return err
+	}
+	for n.Angine.Genesis() == nil {
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	n.MainOrg.GenesisDoc = n.MainOrg.Angine.Genesis()
-	n.MainChainID = n.MainOrg.GenesisDoc.ChainID
+	n.GenesisDoc = n.Angine.Genesis()
 
 	return nil
 }
 
 func (n *Node) Stop() {
 	n.logger.Info("Stopping Node")
-	n.MainOrg.Stop()
+
+	n.Angine.Stop()
+	n.Application.Stop()
 }
 
 func makeNodeInfo(config *viper.Viper, pubkey *crypto.PubKeyEd25519, p2pHost string, p2pPort uint16) *p2p.NodeInfo {
@@ -181,7 +185,7 @@ func (n *Node) StartRPC() ([]net.Listener, error) {
 	return listeners, nil
 }
 
-func (n *Node) PrivValidator() *types.PrivValidator {
+func (n *Node) PrivValidator() *agtypes.PrivValidator {
 	return n.privValidator
 }
 
