@@ -41,7 +41,7 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx 
 		header,
 		evmTx,
 		txHash,
-		big0,
+		big.NewInt(0),
 		evmConfig)
 
 	if err != nil {

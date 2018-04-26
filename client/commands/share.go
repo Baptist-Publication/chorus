@@ -13,9 +13,9 @@ import (
 	"github.com/Baptist-Publication/chorus/types"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Baptist-Publication/chorus/client/commons"
 	gcrypto "github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
-	"github.com/Baptist-Publication/chorus/client/commons"
 )
 
 var (
@@ -86,6 +86,9 @@ func sendShare(ctx *cli.Context) error {
 		chainID = "chorus"
 	} else {
 		chainID = ctx.GlobalString("target")
+	}
+	if !ctx.IsSet("to") {
+		return cli.NewExitError("error: receiver account cannot be nil", 127)
 	}
 
 	//get node privkey
