@@ -10,14 +10,14 @@ import (
 	"strings"
 
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
-	ac "github.com/Baptist-Publication/chorus/module/lib/go-common"
-	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/client/commons"
 	"github.com/Baptist-Publication/chorus/eth/accounts/abi"
 	"github.com/Baptist-Publication/chorus/eth/common"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	"github.com/Baptist-Publication/chorus/eth/crypto"
 	"github.com/Baptist-Publication/chorus/eth/rlp"
+	ac "github.com/Baptist-Publication/chorus/module/lib/go-common"
+	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/tools"
 	"github.com/Baptist-Publication/chorus/types"
 	"github.com/bitly/go-simplejson"
@@ -89,7 +89,6 @@ var (
 )
 
 func readContract(ctx *cli.Context) error {
-	chainID := ctx.GlobalString("target")
 	json, err := getCallParamsJSON(ctx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
@@ -139,7 +138,7 @@ func readContract(ctx *cli.Context) error {
 	query := append([]byte{types.QueryTypeContract}, b...)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(agtypes.RPCResult)
-	_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
+	_, err = clientJSON.Call("query", []interface{}{query}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -212,10 +211,6 @@ func unpackResult(method string, abiDef abi.ABI, output string) (interface{}, er
 }
 
 func executeContract(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("target chain is required", 127)
-	}
-	chainID := ctx.GlobalString("target")
 	json, err := getCallParamsJSON(ctx)
 	if err != nil {
 		return err
@@ -273,7 +268,7 @@ func executeContract(ctx *cli.Context) error {
 
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
 	}
@@ -289,10 +284,6 @@ func executeContract(ctx *cli.Context) error {
 }
 
 func createContract(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("target chain is required", 127)
-	}
-	chainID := ctx.GlobalString("target")
 	json, err := getCallParamsJSON(ctx)
 	if err != nil {
 		cli.NewExitError(err.Error(), 127)
@@ -353,16 +344,16 @@ func createContract(ctx *cli.Context) error {
 	bytesLoad := agtypes.WrapTx(types.TxTagAppEvmCommon, b)
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, bytesLoad}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{bytesLoad}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 110)
 	}
 
-	res := (*tmResult).(*agtypes.ResultBroadcastTx)
+	res := (*tmResult).(*agtypes.ResultBroadcastTxCommit)
 	if res.Code != 0 {
 		fmt.Println("Error:", res.Log)
 	} else {
-		fmt.Printf("txHash: %x", tx.Hash())
+		fmt.Printf("txHash: %x\n", tx.Hash())
 	}
 
 	contractAddr := crypto.CreateAddress(from, nonce)
@@ -372,10 +363,6 @@ func createContract(ctx *cli.Context) error {
 }
 
 func existContract(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("target chain is required", 127)
-	}
-	chainID := ctx.GlobalString("target")
 	json, err := getCallParamsJSON(ctx)
 	if err != nil {
 		cli.NewExitError(err.Error(), 127)
@@ -399,7 +386,7 @@ func existContract(ctx *cli.Context) error {
 	query := append([]byte{types.QueryTypeContractExistance}, txBytes...)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(agtypes.RPCResult)
-	_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
+	_, err = clientJSON.Call("query", []interface{}{query}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}

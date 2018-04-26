@@ -6,11 +6,11 @@ import (
 	"math/big"
 
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
-	ac "github.com/Baptist-Publication/chorus/module/lib/go-common"
-	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/client/commons"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	"github.com/Baptist-Publication/chorus/eth/rlp"
+	ac "github.com/Baptist-Publication/chorus/module/lib/go-common"
+	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/types"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -66,13 +66,7 @@ var (
 )
 
 func queryNonce(ctx *cli.Context) error {
-	var chainID string
-	if !ctx.GlobalIsSet("target") {
-		chainID = "chorus"
-	} else {
-		chainID = ctx.GlobalString("target")
-	}
-	nonce, err := getNonce(chainID, ctx.String("address"))
+	nonce, err := getNonce(ctx.String("address"))
 	if err != nil {
 		return err
 	}
@@ -82,7 +76,7 @@ func queryNonce(ctx *cli.Context) error {
 	return nil
 }
 
-func getNonce(chainID, addr string) (nonce uint64, err error) {
+func getNonce(addr string) (nonce uint64, err error) {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(agtypes.RPCResult)
 
@@ -90,7 +84,7 @@ func getNonce(chainID, addr string) (nonce uint64, err error) {
 	adr, _ := hex.DecodeString(addrHex)
 	query := append([]byte{types.QueryTypeNonce}, adr...)
 
-	_, err = clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
+	_, err = clientJSON.Call("query", []interface{}{query}, tmResult)
 	if err != nil {
 		return 0, cli.NewExitError(err.Error(), 127)
 	}
@@ -102,12 +96,6 @@ func getNonce(chainID, addr string) (nonce uint64, err error) {
 }
 
 func queryBalance(ctx *cli.Context) error {
-	var chainID string
-	if !ctx.GlobalIsSet("target") {
-		chainID = "chorus"
-	} else {
-		chainID = ctx.GlobalString("target")
-	}
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(agtypes.RPCResult)
 
@@ -115,7 +103,7 @@ func queryBalance(ctx *cli.Context) error {
 	addr, _ := hex.DecodeString(addrHex)
 	query := append([]byte{types.QueryTypeBalance}, addr...)
 
-	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
+	_, err := clientJSON.Call("query", []interface{}{query}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -132,12 +120,6 @@ func queryBalance(ctx *cli.Context) error {
 }
 
 func queryShare(ctx *cli.Context) error {
-	var chainID string
-	if !ctx.GlobalIsSet("target") {
-		chainID = "chorus"
-	} else {
-		chainID = ctx.GlobalString("target")
-	}
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(agtypes.RPCResult)
 
@@ -145,7 +127,7 @@ func queryShare(ctx *cli.Context) error {
 	addr, _ := hex.DecodeString(addrHex)
 	query := append([]byte{types.QueryTypeShare}, addr...)
 
-	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
+	_, err := clientJSON.Call("query", []interface{}{query}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -163,16 +145,12 @@ func queryShare(ctx *cli.Context) error {
 }
 
 func queryReceipt(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("target chainid is missing", 127)
-	}
-	chainID := ctx.GlobalString("target")
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(agtypes.RPCResult)
 	hashHex := ac.SanitizeHex(ctx.String("hash"))
 	hash, _ := hex.DecodeString(hashHex)
 	query := append([]byte{types.QueryTypeReceipt}, hash...)
-	_, err := clientJSON.Call("query", []interface{}{chainID, query}, tmResult)
+	_, err := clientJSON.Call("query", []interface{}{query}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}

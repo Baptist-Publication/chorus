@@ -4,9 +4,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/Baptist-Publication/chorus/eth/crypto"
 	gcommon "github.com/Baptist-Publication/chorus/module/lib/go-common"
 	agcrypto "github.com/Baptist-Publication/chorus/module/lib/go-crypto"
-	"github.com/Baptist-Publication/chorus/eth/crypto"
 	"gopkg.in/urfave/cli.v1"
 )
 

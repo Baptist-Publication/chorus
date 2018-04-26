@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Baptist-Publication/chorus/angine/types"
-	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/client/commons"
+	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -32,13 +32,9 @@ var (
 )
 
 func lastBlockInfo(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("chainid is missing", 127)
-	}
-	chainID := ctx.GlobalString("target")
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
-	_, err := clientJSON.Call("info", []interface{}{chainID}, tmResult)
+	_, err := clientJSON.Call("info", []interface{}{}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -53,13 +49,9 @@ func lastBlockInfo(ctx *cli.Context) error {
 }
 
 func numUnconfirmedTxs(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("chainid is missing", 127)
-	}
-	chainID := ctx.GlobalString("target")
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
-	_, err := clientJSON.Call("num_unconfirmed_txs", []interface{}{chainID}, tmResult)
+	_, err := clientJSON.Call("num_unconfirmed_txs", []interface{}{}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -71,13 +63,9 @@ func numUnconfirmedTxs(ctx *cli.Context) error {
 }
 
 func netInfo(ctx *cli.Context) error {
-	if !ctx.GlobalIsSet("target") {
-		return cli.NewExitError("chainid is missing", 127)
-	}
-	chainID := ctx.GlobalString("target")
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	tmResult := new(types.RPCResult)
-	_, err := clientJSON.Call("net_info", []interface{}{chainID}, tmResult)
+	_, err := clientJSON.Call("net_info", []interface{}{}, tmResult)
 	if err != nil {
 		panic(err)
 	}

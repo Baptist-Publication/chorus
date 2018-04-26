@@ -11,8 +11,8 @@ import (
 	"github.com/Baptist-Publication/chorus/types"
 	"gopkg.in/urfave/cli.v1"
 
-	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/client/commons"
+	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 )
 
 var (
@@ -42,13 +42,6 @@ func sendTx(ctx *cli.Context) error {
 	privkey, err := crypto.HexToECDSA(skbs)
 	if err != nil {
 		panic(err)
-	}
-
-	var chainID string
-	if !ctx.GlobalIsSet("target") {
-		chainID = "chorus"
-	} else {
-		chainID = ctx.GlobalString("target")
 	}
 
 	nonce := ctx.Uint64("nonce")
@@ -82,7 +75,7 @@ func sendTx(ctx *cli.Context) error {
 
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
 	if err != nil {
 		panic(err)
 	}

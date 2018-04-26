@@ -81,12 +81,6 @@ var (
 )
 
 func sendShare(ctx *cli.Context) error {
-	var chainID string
-	if !ctx.GlobalIsSet("target") {
-		chainID = "chorus"
-	} else {
-		chainID = ctx.GlobalString("target")
-	}
 	if !ctx.IsSet("to") {
 		return cli.NewExitError("error: receiver account cannot be nil", 127)
 	}
@@ -140,7 +134,7 @@ func sendShare(ctx *cli.Context) error {
 
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEcoShareTransfer, b)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEcoShareTransfer, b)}, tmResult)
 	if err != nil {
 		panic(err)
 	}
@@ -152,18 +146,11 @@ func sendShare(ctx *cli.Context) error {
 }
 
 func shareGuarantee(ctx *cli.Context) error {
-	var chainID string
-	if !ctx.GlobalIsSet("target") {
-		chainID = "chorus"
-	} else {
-		chainID = ctx.GlobalString("target")
-	}
-
 	tx, b, err := constructEcoTx(ctx)
 
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEcoGuarantee, b)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEcoGuarantee, b)}, tmResult)
 	if err != nil {
 		panic(err)
 	}
@@ -174,13 +161,6 @@ func shareGuarantee(ctx *cli.Context) error {
 }
 
 func shareRedeem(ctx *cli.Context) error {
-	var chainID string
-	if !ctx.GlobalIsSet("target") {
-		chainID = "chorus"
-	} else {
-		chainID = ctx.GlobalString("target")
-	}
-
 	tx, b, err := constructEcoTx(ctx)
 	if err != nil {
 		return err
@@ -188,7 +168,7 @@ func shareRedeem(ctx *cli.Context) error {
 
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{chainID, agtypes.WrapTx(types.TxTagAppEcoRedeem, b)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEcoRedeem, b)}, tmResult)
 	if err != nil {
 		panic(err)
 	}
