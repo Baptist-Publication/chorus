@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package rpccmd;
+
+import "github.com/Baptist-Publication/chorus/angine/protos/types/types.proto";
+
+service RpcService{
+	rpc Orgs(CmdChainID) returns (types.OrgNode){}
+	rpc Status(CmdChainID)returns(types.ResultStatus){}
+	rpc NetInfo(CmdChainID) returns(types.ResultNetInfo){}
+	rpc Block(CmdBlock) returns(types.ResultBlock){}
+	rpc Validators(CmdChainID) returns(types.ResultValidators){}
+	rpc ZaSurveillance(CmdChainID) returns(types.ResultSurveillance){}
+	rpc BroadcastTxCommit(CmdBroadcastTx) returns (types.ResultBroadcastTxCommit){}
+	rpc BroadcastTx(CmdBroadcastTx)returns(types.ResultBroadcastTx){}
+	rpc Query(CmdQuery) returns(types.ResultQuery){}
+	rpc EventCode(CmdEventCode)returns(types.ResultQuery){}
+	rpc RequestSpecialOP(CmdRequestSpecialOP) returns (types.ResultRequestSpecialOP){}
+}
+
+message CmdChainID{
+	string ChainID = 1;
+}
+
+message CmdRequestSpecialOP{
+	string ChainID = 1;
+	bytes Tx = 2;
+}
+
+message CmdBlockchainInfo{
+	string ChainID = 1;
+	int64 MinHeight = 2;
+	int64 MaxHeight = 3;
+}
+
+message CmdBlock{
+	string ChainID = 1;
+	int64 Height = 2;
+}
+
+message CmdBroadcastTx{
+	string ChainID = 1;
+	bytes Tx = 2;
+}
+
+message CmdQuery{
+	string ChainID = 1;
+	bytes Query = 2;
+}
+
+message CmdEventCode{
+	string ChainID = 1;
+	bytes CodeHash = 2;
+}
