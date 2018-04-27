@@ -377,7 +377,7 @@ func existContract(ctx *cli.Context) error {
 	}
 	data := common.Hex2Bytes(bytecode)
 	contractAddr := common.HexToAddress(ac.SanitizeHex(contractAddress))
-	tx := ethtypes.NewTransaction(0, common.Address{}, contractAddr, big.NewInt(0), gasLimit, gasPrice, crypto.Keccak256(data))
+	tx := ethtypes.NewTransaction(0, common.Address{}, contractAddr, big.NewInt(0), gasLimit, big.NewInt(0), crypto.Keccak256(data))
 
 	txBytes, err := rlp.EncodeToBytes(tx)
 	if err != nil {

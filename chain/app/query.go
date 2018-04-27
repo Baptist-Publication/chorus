@@ -74,7 +74,7 @@ func (app *App) queryContract(load []byte) agtypes.Result {
 	fakeHeader := &ethtypes.Header{
 		ParentHash: ethcmn.HexToHash("0x00"),
 		Difficulty: big0,
-		GasLimit:   ethcmn.MaxBig,
+		GasLimit:   big.NewInt(app.Config.GetInt64("block_gaslimit")),
 		Number:     ethparams.MainNetSpuriousDragon,
 		Time:       big.NewInt(time.Now().Unix()),
 	}

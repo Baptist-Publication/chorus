@@ -27,9 +27,14 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx 
 
 	txHash := tx.Hash()
 	from := ethcmn.BytesToAddress(tx.Sender)
-	to := ethcmn.BytesToAddress(txBody.To)
-
-	evmTx := ethtypes.NewTransaction(tx.Nonce, from, to, txBody.Amount, tx.GasLimit, tx.GasPrice, txBody.Load)
+	var to ethcmn.Address
+	var evmTx *ethtypes.Transaction
+	if len(txBody.To) == 0 {
+		evmTx = ethtypes.NewContractCreation(tx.Nonce, from, txBody.Amount, tx.GasLimit, tx.GasPrice, txBody.Load)
+	} else {
+		to = ethcmn.BytesToAddress(txBody.To)
+		evmTx = ethtypes.NewTransaction(tx.Nonce, from, to, txBody.Amount, tx.GasLimit, tx.GasPrice, txBody.Load)
+	}
 	gp := new(ethcore.GasPool).AddGas(header.GasLimit)
 	fmt.Println("remaining gas of gaspool: ", gp)
 	app.currentEvmState.StartRecord(ethcmn.BytesToHash(txHash), blockHash, txIndex)
