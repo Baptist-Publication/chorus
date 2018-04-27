@@ -6,8 +6,11 @@ import (
 
 var (
 	big0 = big.NewInt(0)
+)
 
-	TxTagApp          = []byte{1}
+var (
+	TxTagApp = []byte{1}
+
 	TxTagAppEvm       = []byte{1, 1}
 	TxTagAppEvmCommon = []byte{1, 1, 1}
 
@@ -18,10 +21,17 @@ var (
 )
 
 var (
-	TxTagAngine          = []byte{3} //suspect have used 0x02
-	TxTagAngineInit      = []byte{3, 1}
-	TxTagAngineInitToken = []byte{3, 1, 1}
-	TxTagAngineInitShare = []byte{3, 1, 2}
+	TxTagAngine = []byte{2}
+
+	TxTagAngineEco        = []byte{2, 1}
+	TxTagAngineEcoSuspect = []byte{2, 1, 1}
+
+	TxTagAngineInit      = []byte{2, 2}
+	TxTagAngineInitToken = []byte{2, 2, 1}
+	TxTagAngineInitShare = []byte{2, 2, 2}
+
+	TxTagAngineWorld     = []byte{2, 3}
+	TxTagAngineWorldRand = []byte{2, 3, 1}
 )
 
 const (
@@ -46,4 +56,9 @@ type QueryShareResult struct {
 	ShareBalance  *big.Int
 	ShareGuaranty *big.Int
 	MHeight       uint64
+}
+
+type WorldRandVote struct {
+	Pubkey []byte
+	Sig    []byte
 }

@@ -3,12 +3,8 @@ package types
 import (
 	"bytes"
 	"encoding/json"
-)
 
-var (
-	TxTagAngine           = []byte{2}
-	TxTagAngineEco        = append(TxTagAngine, 1)
-	TxTagAngineEcoSuspect = append(TxTagAngineEco, 1)
+	"github.com/Baptist-Publication/chorus/types"
 )
 
 type SuspectTx struct {
@@ -18,7 +14,7 @@ type SuspectTx struct {
 }
 
 func IsSuspectTx(tx []byte) bool {
-	return bytes.Equal(TxTagAngineEcoSuspect, tx[:3])
+	return bytes.Equal(types.TxTagAngineEcoSuspect, tx[:3])
 }
 
 func (tx *SuspectTx) ToBytes() ([]byte, error) {

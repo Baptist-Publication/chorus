@@ -12,7 +12,7 @@ import (
 
 type Bytes []byte
 
-type ValSetLoaderFunc func(height, round def.INT, size int) *ValidatorSet
+type ValSetLoaderFunc func(height, round def.INT) *ValidatorSet
 
 func (b *Bytes) MarshalJSON() ([]byte, error) {
 	bys := strings.ToUpper(hex.EncodeToString(*b))

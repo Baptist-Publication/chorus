@@ -246,10 +246,6 @@ func (privVal *PrivValidator) GetAddress() []byte {
 	return privVal.address
 }
 
-func (privVal *PrivValidator) GetPrivateKey() crypto.PrivKey {
-	return privVal.PrivKey.PrivKey
-}
-
 func (privVal *PrivValidator) SignVote(chainID string, vote *pbtypes.Vote) error {
 	privVal.mtx.Lock()
 	defer privVal.mtx.Unlock()

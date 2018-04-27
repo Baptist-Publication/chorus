@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"github.com/Baptist-Publication/chorus/module/lib/ed25519"
-	gcrypto "github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/eth/crypto"
 	"github.com/Baptist-Publication/chorus/eth/rlp"
+	"github.com/Baptist-Publication/chorus/module/lib/ed25519"
+	gcrypto "github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 )
 
 type EcoInitTokenTx struct {
@@ -22,6 +22,12 @@ type EcoInitShareTx struct {
 	To     []byte   `json:"to"`
 	Amount *big.Int `json:"amount"`
 	Extra  []byte   `json:"extra"`
+}
+
+type WorldRandTx struct {
+	Height uint64
+	Pubkey []byte
+	Sig    []byte
 }
 
 type BlockTx struct {

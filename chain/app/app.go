@@ -178,6 +178,8 @@ func (app *App) GetAngineHooks() agtypes.Hooks {
 func (app *App) CompatibleWithAngine() {}
 
 func (app *App) OnNewRound(height, round def.INT, block *agtypes.BlockCache) (interface{}, error) {
+	go app.prepareGlobalRand(uint64(height), uint64(round))
+
 	return agtypes.NewRoundResult{}, nil
 }
 
@@ -205,10 +207,13 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 			switch {
 			case bytes.HasPrefix(raw, types.TxTagAppEvm):
 				_, _, err = app.ExecuteEVMTx(currentHeader, blockHash, tx, index)
-			case bytes.HasPrefix(raw, types.TxTagAngineInit):
-				_, _, err = app.ExecuteAppInitTx(block, raw, index)
 			case bytes.HasPrefix(raw, types.TxTagAppEco):
 				_, _, err = app.ExecuteAppEcoTx(block, raw, tx)
+
+			case bytes.HasPrefix(raw, types.TxTagAngineInit):
+				_, _, err = app.ExecuteInitTx(block, raw, index)
+			case bytes.HasPrefix(raw, types.TxTagAngineWorld):
+				_, _, err = app.ExecuteAngineWorldTx(block, raw, index)
 			default:
 				return
 			}
@@ -267,7 +272,7 @@ func (app *App) OnCommit(height, round def.INT, block *agtypes.BlockCache) (inte
 	app.receipts = app.receipts[:0]
 
 	fmt.Println("height:", height, "share account size:", app.ShareState.Size())
-	fmt.Printf("appHash:%X\n", lb.AppHash())
+	// fmt.Printf("appHash:%X\n", lb.AppHash())
 
 	return agtypes.CommitResult{
 		AppHash:      lb.AppHash(),

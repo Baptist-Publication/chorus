@@ -23,6 +23,7 @@ import (
 
 	"github.com/Baptist-Publication/chorus/angine/consensus"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
+	"github.com/Baptist-Publication/chorus/types"
 	// "github.com/Baptist-Publication/chorus/module/lib/ed25519"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	dbm "github.com/Baptist-Publication/chorus/module/lib/go-db"
@@ -199,7 +200,7 @@ func (sp *SuspectPlugin) BeginBlock(p *BeginBlockParams) (*BeginBlockReturns, er
 			sig := sp.privkey.Sign(toSignBytes).(*crypto.SignatureEd25519)
 			tx.Signature = sig[:]
 			txBytes, _ := tx.ToBytes()
-			sp.angine.BroadcastTx(agtypes.WrapTx(agtypes.TxTagAngineEcoSuspect, txBytes))
+			sp.angine.BroadcastTx(agtypes.WrapTx(types.TxTagAngineEcoSuspect, txBytes))
 		}
 		delete(sp.Hypocrites, k)
 	}

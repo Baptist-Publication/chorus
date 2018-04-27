@@ -68,11 +68,13 @@ func (s *State) getNextValSet(currnet *agtypes.ValidatorSet, height, round def.I
 	var valSet *agtypes.ValidatorSet
 
 	// we re-elect every 500 blocks
-	if s.valSetLoader != nil && height%20 == 0 {
-		valSet = s.valSetLoader(height, round, 21)
-		if len(valSet.Validators) == 0 {
-			panic("Election happened, but no validator is elected")
+	if s.valSetLoader != nil {
+		valSet = s.valSetLoader(height, round)
+		if valSet == nil || len(valSet.Validators) == 0 {
+			return currnet.Copy()
 		}
+
+		// Print
 		fmt.Println("Election happend in height ", height)
 		count := 0
 		for _, v := range valSet.Validators {

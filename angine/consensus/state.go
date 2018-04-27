@@ -36,6 +36,7 @@ import (
 	. "github.com/Baptist-Publication/chorus/module/lib/go-common"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
+	"github.com/Baptist-Publication/chorus/types"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -1052,17 +1053,6 @@ func (cs *ConsensusState) createProposalBlock() (block *agtypes.BlockCache, bloc
 }
 
 func (cs *ConsensusState) genInitAllocateTxs() (agtypes.Txs, error) {
-	type EcoInitTokenTx struct {
-		To     []byte   `json:"to"`
-		Amount *big.Int `json:"amount"`
-		Extra  []byte   `json:"extra"`
-	}
-	type EcoInitShareTx struct {
-		To     []byte   `json:"to"`
-		Amount *big.Int `json:"amount"`
-		Extra  []byte   `json:"extra"`
-	}
-
 	txs := make([]agtypes.Tx, 0, len(cs.state.GenesisDoc.InitToken)+len(cs.state.GenesisDoc.InitShare))
 	for _, v := range cs.state.GenesisDoc.InitToken {
 		amount, ok := new(big.Int).SetString(v.Amount, 10)
@@ -1073,7 +1063,7 @@ func (cs *ConsensusState) genInitAllocateTxs() (agtypes.Txs, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Invliad genisis file")
 		}
-		txByte, err := json.Marshal(EcoInitTokenTx{
+		txByte, err := json.Marshal(types.EcoInitTokenTx{
 			To:     addr,
 			Amount: amount,
 			Extra:  []byte(v.Extra),
@@ -1081,7 +1071,7 @@ func (cs *ConsensusState) genInitAllocateTxs() (agtypes.Txs, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Internal error when marshal tx, err:%v", err)
 		}
-		txs = append(txs, append([]byte{0x03, 0x01, 0x01}, txByte...))
+		txs = append(txs, agtypes.WrapTx(types.TxTagAngineInitToken, txByte))
 	}
 	for _, v := range cs.state.GenesisDoc.InitShare {
 		amount, ok := new(big.Int).SetString(v.Amount, 10)
@@ -1092,7 +1082,7 @@ func (cs *ConsensusState) genInitAllocateTxs() (agtypes.Txs, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Invliad genisis file")
 		}
-		txByte, err := json.Marshal(EcoInitShareTx{
+		txByte, err := json.Marshal(types.EcoInitShareTx{
 			To:     pubkey,
 			Amount: amount,
 			Extra:  []byte(v.Extra),
@@ -1100,7 +1090,7 @@ func (cs *ConsensusState) genInitAllocateTxs() (agtypes.Txs, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Internal error when marshal tx, err:%v", err)
 		}
-		txs = append(txs, append([]byte{0x03, 0x01, 0x02}, txByte...))
+		txs = append(txs, agtypes.WrapTx(types.TxTagAngineInitShare, txByte))
 	}
 
 	return txs, nil

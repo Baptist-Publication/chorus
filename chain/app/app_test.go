@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -11,43 +10,41 @@ import (
 
 func TestFoo(t *testing.T) {
 	s := "81e5c24b7f2de45e9a02f47110fce0c617e64ad1f3a05fed8d6acb07ba90f435"
-	// p := "d011759a1169e3c47ec5f21179145b26c180205aafdeb0f83de5984861130908"
+	p := "d011759a1169e3c47ec5f21179145b26c180205aafdeb0f83de5984861130908"
 	skbs, _ := hex.DecodeString(s)
 
 	var sk crypto.PrivKeyEd25519
 	copy(sk[:], skbs)
 
-	pk := sk.PubKey()
-	fmt.Println(pk.KeyString())
+	// pk := sk.PubKey()
+	// fmt.Println(pk.KeyString())
 
-	// sig := sk.Sign([]byte{1, 2, 3})
+	sig := sk.Sign([]byte{1, 2, 3})
 
-	// crypto.GenPrivKeyEd25519()
+	fmt.Println(sig)
 
-	// var pk crypto.PubKeyEd25519
-	// pkbs, _ := hex.DecodeString(p)
-	// copy(pk[:], pkbs)
+	crypto.GenPrivKeyEd25519()
 
-	// if !pk.VerifyBytes([]byte{1, 2, 3}, sig) {
-	// 	panic("123")
-	// }
-}
+	var pk crypto.PubKeyEd25519
+	pkbs, _ := hex.DecodeString(p)
+	copy(pk[:], pkbs)
 
-type base struct {
-	Base int
-}
-
-func (b *base) Bar(f interface{}) string {
-	s, _ := json.Marshal(b)
-	return string(s)
-}
-
-type Foo struct {
-	base
-	Foo int
+	if !pk.VerifyBytes([]byte{1, 2, 3}, sig) {
+		panic("123")
+	}
 }
 
 func TestBar(t *testing.T) {
-	var f Foo
-	fmt.Println(f.Bar(f))
+	// base := make([]byte, 3, 4)
+	// base[0] = 1
+	// base[1] = 2
+	// base[2] = 3
+	base := []byte{1, 2, 3}
+
+	d1 := append(base, 4)
+	d2 := append(base, 5)
+
+	fmt.Println(base)
+	fmt.Println(d1)
+	fmt.Println(d2)
 }

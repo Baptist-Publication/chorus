@@ -213,4 +213,6 @@ func setConsensusDefaults(conf *viper.Viper) {
 	conf.SetDefault("tracerouter_msg_ttl", 5) // seconds
 
 	conf.SetDefault("election", 20)
+	conf.SetDefault("worldrand_threshold", 0.6)
+	conf.SetDefault("worldrand_votes_amount", 11)
 }

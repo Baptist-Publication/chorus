@@ -588,14 +588,8 @@ func (ang *Angine) GetUnconfirmedTxs() []agtypes.Tx {
 }
 
 func (ang *Angine) IsNodeValidator(pub crypto.PubKey) bool {
-	edPub := pub.(*crypto.PubKeyEd25519)
-	_, vals := ang.consensus.GetValidators()
-	for _, v := range vals {
-		if edPub.KeyString() == v.PubKey.KeyString() {
-			return true
-		}
-	}
-	return false
+	vals := ang.stateMachine.Validators
+	return vals.HasAddress(pub.Address())
 }
 
 func (ang *Angine) GetBlacklist() []string {
