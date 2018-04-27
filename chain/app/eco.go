@@ -65,7 +65,7 @@ func (app *App) ValSetLoader() agtypes.ValSetLoaderFunc {
 		}
 		fmt.Printf("======= Finally we got world rand : %x\n", worldRand)
 
-		vals := app.fakeRandomVals(height, round)
+		vals := app.fakeRandomVals(new(big.Int).SetBytes(worldRand), height, round)
 		return agtypes.NewValidatorSet(vals)
 	}
 }
@@ -94,7 +94,7 @@ func (app *App) getWorldRand(height uint64) ([]byte, error) {
 	return worldRand, nil
 }
 
-func (app *App) fakeRandomVals(height, round def.INT) []*agtypes.Validator {
+func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtypes.Validator {
 	pwrs := make([]*Share, 0, 21)
 
 	// Iterate power list of world state
@@ -154,7 +154,7 @@ func (app *App) fakeRandomVals(height, round def.INT) []*agtypes.Validator {
 	// Pick lucky-guys 'randomly' from the rest of power account
 	// we use a map(means exists) to identify the elected guys
 	retry := 1
-	bigbang := new(big.Int).SetBytes(app.evmState.IntermediateRoot(true).Bytes())
+	// bigbang := new(big.Int).SetBytes(app.evmState.IntermediateRoot(true).Bytes())
 	luckyguys := make([]*Share, 0, numLuckyGuys)
 	for len(luckyguys) < numLuckyGuys {
 		guy, err := fakeRandomAccount(accList, exists, height, round, bigbang, &retry)
