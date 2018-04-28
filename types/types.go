@@ -55,7 +55,7 @@ const (
 type QueryShareResult struct {
 	ShareBalance  *big.Int
 	ShareGuaranty *big.Int
-	MHeight       uint64
+	GHeight       uint64
 }
 
 type WorldRandVote struct {

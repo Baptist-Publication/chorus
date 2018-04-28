@@ -102,7 +102,7 @@ func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtyp
 	accList := make([]*Share, 0, app.ShareState.Size())
 	vsetHeap := cmn.NewHeap() // max heap of length 15
 	app.ShareState.Iterate(func(pwr *Share) bool {
-		if pwr.MHeight == -1 { // indicate he is not in
+		if pwr.GHeight == -1 { // indicate he is not in
 			return false
 		}
 
@@ -425,7 +425,7 @@ func (app *App) executeShareInitTx(bs []byte) error {
 		return fmt.Errorf("Unmarshal tx failed:%s", err.Error())
 	}
 
-	app.currentShareState.CreateShareAccount(tx.To, tx.Amount, 1)
+	app.currentShareState.CreateShareAccount(tx.To, tx.Amount)
 
 	return nil
 }
@@ -450,7 +450,7 @@ func (app *App) executeShareTransfer(block *agtypes.BlockCache, tx *types.BlockT
 	if err != nil {
 		return err
 	}
-	app.currentShareState.AddShareBalance(&topub, bodytx.Amount, block.Header.Height)
+	app.currentShareState.AddShareBalance(&topub, bodytx.Amount)
 	//save receipts
 	app.addReceipt(tx)
 	return nil
@@ -496,11 +496,18 @@ func (app *App) executeShareRedeem(block *agtypes.BlockCache, tx *types.BlockTx)
 
 	frompub := crypto.PubKeyEd25519{}
 	copy(frompub[:], bodytx.Source)
-	err := app.currentShareState.SubGuaranty(&frompub, bodytx.Amount)
-	if err != nil {
-		return err
+	// if node is validator right now
+	if app.AngineRef.IsNodeValidator(&frompub) {
+		app.currentShareState.MarkShare(&frompub, -1)
+	} else {
+		if err := app.currentShareState.SubGuaranty(&frompub, bodytx.Amount); err != nil {
+			return err
+		}
+		if err := app.currentShareState.AddShareBalance(&frompub, bodytx.Amount); err != nil {
+			return err
+		}
 	}
-	app.currentShareState.AddShareBalance(&frompub, bodytx.Amount, block.Header.Height)
+
 	//save receipts
 	app.addReceipt(tx)
 	return nil

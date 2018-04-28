@@ -140,7 +140,7 @@ func queryShare(ctx *cli.Context) error {
 	share := types.QueryShareResult{}
 	rlp.DecodeBytes(res.Result.Data, &share)
 
-	fmt.Println("balance:", share.ShareBalance.String(), "guaranty:", share.ShareGuaranty.String(), "mheight:", share.MHeight)
+	fmt.Println("balance:", share.ShareBalance.String(), "guaranty:", share.ShareGuaranty.String(), "guaranty_height:", share.GHeight)
 	return nil
 }
 

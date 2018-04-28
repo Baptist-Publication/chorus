@@ -152,11 +152,11 @@ func (app *App) queryShare(pubkeyBytes []byte) agtypes.Result {
 	if share == nil {
 		res.ShareBalance = big0
 		res.ShareGuaranty = big0
-		res.MHeight = 0
+		res.GHeight = 0
 	} else {
 		res.ShareBalance = share.ShareBalance
 		res.ShareGuaranty = share.ShareGuaranty
-		res.MHeight = uint64(share.MHeight)
+		res.GHeight = uint64(share.GHeight)
 	}
 
 	data, err := rlp.EncodeToBytes(res)
