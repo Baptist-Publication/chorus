@@ -37,12 +37,6 @@ func (app *App) RegisterValidators(validatorset *agtypes.ValidatorSet) {
 	}
 }
 
-type comparableShare Share
-
-func (ca *comparableShare) Less(o interface{}) bool {
-	return ca.ShareBalance.Cmp(o.(*comparableShare).ShareBalance) < 0
-}
-
 func CalcVP(base int, position int) uint64 {
 	for level := 1; ; level++ {
 		if position <= level*(level+1)/2 {
@@ -95,83 +89,61 @@ func (app *App) getWorldRand(height uint64) ([]byte, error) {
 }
 
 func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtypes.Validator {
-	pwrs := make([]*Share, 0, 21)
+	shrs := make([]*Share, 0, 21)
 
-	// Iterate power list of world state
-	// to get all power account than joining current election
+	// Iterate share list of world state
+	// to get all share accounts that taking part in current election
+	exists := make(map[*Share]struct{})
 	accList := make([]*Share, 0, app.ShareState.Size())
-	vsetHeap := cmn.NewHeap() // max heap of length 15
-	app.ShareState.Iterate(func(pwr *Share) bool {
-		if pwr.GHeight == -1 { // indicate he is not in
+	accHeap := cmn.NewHeap() // max-heap
+	app.ShareState.Iterate(func(shr *Share) bool {
+		if shr.GHeight == 0 || shr.ShareGuaranty.Cmp(big0) == 0 { // indicate he is not in
 			return false
 		}
 
-		accList = append(accList, pwr)
-		vsetHeap.Push(pwr, (*comparableShare)(pwr))
-		if vsetHeap.Len() > 15 {
-			vsetHeap.Pop()
+		newShr := shr.Copy()
+		accList = append(accList, newShr)
+		accHeap.Push(newShr, newShr)
+		if accHeap.Len() > 32 {
+			accHeap.Pop()
 		}
 		return false
 	})
 
-	// Pick all and share the same power
-	// if the length of partners is less than 6
-	if len(accList) <= 6 {
-		vals := make([]*agtypes.Validator, len(accList))
-		for i, v := range accList {
-			var pk crypto.PubKeyEd25519
-			copy(pk[:], v.Pubkey)
-			vals[i] = &agtypes.Validator{PubKey: crypto.StPubKey{PubKey: &pk}, Address: pk.Address(), VotingPower: 100}
-		}
-		return vals
+	// Pick the rich-guys
+	richGuys := make([]*Share, 0, accHeap.Len())
+	for accHeap.Len() > 0 {
+		shr := accHeap.Pop().(*Share)
+		richGuys = append(richGuys, shr)
 	}
+	pickedRichGuys, err := pickAccounts(richGuys, exists, 11, height, round, bigbang)
+	if err != nil {
+		fmt.Println("error in pickAccounts:", err.Error())
+		return nil
+	}
+	shrs = append(shrs, pickedRichGuys...)
 
-	// Calculate the number of power account that need to select 'randomly' from the rest account
-	// n = len(accList)
-	//  if      n <= 15 	then 0
-	//  if 15 < n <= 21 	then 15 - n
-	//  if 21 < n			then 6
-	numLuckyGuys := int(len(accList)) - 15
+	// Pick lucky-guys
+	//  if      n <= 11 	then 0
+	//  if 11 < n <= 15 	then n - 11
+	//  if 15 < n			then 4
+	numLuckyGuys := len(accList) - 11
 	if numLuckyGuys < 0 {
 		numLuckyGuys = 0
-	} else if numLuckyGuys > 6 {
-		numLuckyGuys = 6
+	} else if numLuckyGuys > 4 {
+		numLuckyGuys = 4
 	}
-
-	// Pick the rich-guys
-	// max(rich-guys) = 15
-	// min(rich-guys) = 7
-	exists := make(map[*Share]struct{})
-	i := int(vsetHeap.Len())
-	for vsetHeap.Len() > 0 {
-		pwr := vsetHeap.Pop().(*Share)
-		pwr.ShareBalance = new(big.Int).SetUint64(CalcVP(6, i)) // re-calculate power
-		pwrs = append(pwrs, pwr)
-		exists[pwr] = struct{}{}
-		i--
-	}
-
-	// Pick lucky-guys 'randomly' from the rest of power account
-	// we use a map(means exists) to identify the elected guys
-	retry := 1
-	// bigbang := new(big.Int).SetBytes(app.evmState.IntermediateRoot(true).Bytes())
-	luckyguys := make([]*Share, 0, numLuckyGuys)
-	for len(luckyguys) < numLuckyGuys {
-		guy, err := fakeRandomAccount(accList, exists, height, round, bigbang, &retry)
-		if err != nil {
-			fmt.Println("error in fakeRandomAccount:", err.Error())
-			return nil
-		}
-		guy.ShareBalance = new(big.Int).SetUint64(1)
-		luckyguys = append(luckyguys, guy)
+	luckyguys, err := pickAccounts(accList, exists, numLuckyGuys, height, round, bigbang)
+	if err != nil {
+		fmt.Println("error in pickAccounts:", err.Error())
+		return nil
 	}
 
 	// combine ...
-	pwrs = append(pwrs, luckyguys...)
-
+	shrs = append(shrs, luckyguys...)
 	// make validators according to the power accounts elected above
-	vals := make([]*agtypes.Validator, len(pwrs))
-	for i, v := range pwrs {
+	vals := make([]*agtypes.Validator, len(shrs))
+	for i, v := range shrs {
 		var pk crypto.PubKeyEd25519
 		copy(pk[:], v.Pubkey)
 		vals[i] = &agtypes.Validator{
@@ -184,26 +156,62 @@ func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtyp
 	return vals
 }
 
+func pickAccounts(froms []*Share, exists map[*Share]struct{}, maxPick int, height, round def.INT, bigbang *big.Int) ([]*Share, error) {
+	if maxPick == 0 {
+		return make([]*Share, 0), nil
+	}
+
+	if len(froms) <= maxPick {
+		return froms, nil
+	}
+
+	retry := 1
+	guys := make([]*Share, 0, maxPick)
+	for len(guys) < maxPick {
+		guy, err := fakeRandomAccount(froms, exists, height, round, bigbang, &retry)
+		if err != nil {
+			fmt.Println("error in fakeRandomAccount:", err.Error())
+			return nil, nil
+		}
+		guys = append(guys, guy)
+	}
+
+	return guys, nil
+}
+
 func fakeRandomAccount(accs []*Share, exists map[*Share]struct{}, height, round def.INT, bigbang *big.Int, retry *int) (*Share, error) {
 	if len(accs) == len(exists) {
 		return nil, fmt.Errorf("No account can be picked any more")
 	}
 
-	base := new(big.Int).Add(bigbang, new(big.Int).SetUint64(uint64(height+1)*uint64(*retry+1)))
-	index := new(big.Int).Mod(base, new(big.Int).SetUint64(uint64(len(accs)))).Int64()
-	for {
-		(*retry)++
-		tryPick := accs[index]
-		if _, yes := exists[tryPick]; !yes {
-			exists[tryPick] = struct{}{}
-			return tryPick, nil
-		}
-		if index == int64(len(accs))-1 {
-			index = 0
-		} else {
-			index++
+	type shareVotes struct {
+		ref        *Share
+		votesBegin *big.Int
+		votesEnd   *big.Int
+	}
+
+	totalShare := new(big.Int)
+	votes := make([]shareVotes, 0, len(accs))
+	for i := 0; i < len(accs); i++ {
+		if _, yes := exists[accs[i]]; !yes {
+			totalShare.Add(totalShare, accs[i].ShareGuaranty)
+			votes = append(votes, shareVotes{
+				ref:        accs[i],
+				votesBegin: new(big.Int).Set(totalShare),
+				votesEnd:   new(big.Int).Add(totalShare, accs[i].ShareGuaranty),
+			})
 		}
 	}
+
+	lottery := new(big.Int).Mod(bigbang, totalShare)
+	for i := 0; i < len(votes); i++ {
+		if lottery.Cmp(votes[i].votesEnd) < 0 {
+			return votes[i].ref, nil
+		}
+	}
+
+	fmt.Println("Should never happen")
+	return nil, nil
 }
 
 func (app *App) calElectionTerm(height uint64) (begin, end, mid uint64) {
@@ -482,7 +490,7 @@ func (app *App) executeShareGuarantee(block *agtypes.BlockCache, tx *types.Block
 	if err != nil {
 		return err
 	}
-	app.currentShareState.AddGuaranty(&frompub, bodytx.Amount, block.Header.Height)
+	app.currentShareState.AddGuaranty(&frompub, bodytx.Amount, uint64(block.Header.Height))
 	//save receipts
 	app.addReceipt(tx)
 	return nil
@@ -512,7 +520,7 @@ func (app *App) executeShareRedeem(block *agtypes.BlockCache, tx *types.BlockTx)
 	copy(frompub[:], bodytx.Source)
 	// if node is validator right now
 	if app.AngineRef.IsNodeValidator(&frompub) {
-		app.currentShareState.MarkShare(&frompub, -1)
+		app.currentShareState.MarkShare(&frompub, 0)
 	} else {
 		if err := app.currentShareState.SubGuaranty(&frompub, bodytx.Amount); err != nil {
 			return err

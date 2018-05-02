@@ -1,19 +1,56 @@
 package app
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math/big"
 	"sync"
 
+	"github.com/Baptist-Publication/chorus/eth/rlp"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-db"
 	"github.com/Baptist-Publication/chorus/module/lib/go-merkle"
-	"github.com/Baptist-Publication/chorus/module/xlib/def"
 	"github.com/Baptist-Publication/chorus/module/xlib/mlist"
 )
+
+type Share struct {
+	Pubkey        []byte
+	ShareBalance  *big.Int
+	ShareGuaranty *big.Int
+	GHeight       uint64
+}
+
+func (shr *Share) Copy() *Share {
+	return &Share{
+		Pubkey:        shr.Pubkey,
+		ShareBalance:  shr.ShareBalance,
+		ShareGuaranty: shr.ShareGuaranty,
+		GHeight:       shr.GHeight,
+	}
+}
+
+func (shr *Share) Less(o interface{}) bool {
+	return shr.ShareGuaranty.Cmp(o.(*Share).ShareGuaranty) < 0
+}
+
+func (shr *Share) FromBytes(bs []byte) error {
+	err := rlp.DecodeBytes(bs, shr)
+	// err := json.Unmarshal(bs, shr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (shr *Share) ToBytes() []byte {
+	bs, err := rlp.EncodeToBytes(shr)
+	// bs, err := json.Marshal(shr)
+	if err != nil {
+		return nil
+	}
+	return bs
+}
 
 type ShareState struct {
 	root     []byte
@@ -22,15 +59,7 @@ type ShareState struct {
 	rootHash []byte
 	trie     *merkle.IAVLTree
 
-	//key is ed25519 pubkey
 	ShareCache *mlist.MapList
-}
-
-type Share struct {
-	Pubkey        []byte
-	ShareBalance  *big.Int
-	ShareGuaranty *big.Int
-	GHeight       def.INT
 }
 
 func NewShareState(database db.DB) *ShareState {
@@ -42,33 +71,33 @@ func NewShareState(database db.DB) *ShareState {
 	}
 }
 
-func (ps *ShareState) Copy() *ShareState {
-	nps := &ShareState{
+func (ss *ShareState) Copy() *ShareState {
+	nss := &ShareState{
 		//dirty:        make(map[string]struct{}),
-		root:       ps.root,
-		database:   ps.database,
-		trie:       merkle.NewIAVLTree(1024, ps.database),
+		root:       ss.root,
+		database:   ss.database,
+		trie:       merkle.NewIAVLTree(1024, ss.database),
 		ShareCache: mlist.NewMapList(),
 	}
-	nps.trie.Load(ps.root)
-	return nps
+	nss.trie.Load(ss.root)
+	return nss
 }
 
-func (ps *ShareState) Lock() {
-	ps.mtx.Lock()
+func (ss *ShareState) Lock() {
+	ss.mtx.Lock()
 }
 
-func (ps *ShareState) Unlock() {
-	ps.mtx.Unlock()
+func (ss *ShareState) Unlock() {
+	ss.mtx.Unlock()
 }
 
-func (ps *ShareState) CreateShareAccount(pubkey []byte, balance *big.Int) {
+func (ss *ShareState) CreateShareAccount(pubkey []byte, balance *big.Int) {
 	pub := crypto.PubKeyEd25519{}
 	copy(pub[:], pubkey[:])
-	if shr, ok := ps.ShareCache.Get(pub.KeyString()); ok {
+	if shr, ok := ss.ShareCache.Get(pub.KeyString()); ok {
 		value := shr.(*Share)
 		value.ShareBalance = new(big.Int).Set(balance)
-		ps.ShareCache.Set(pub.KeyString(), value)
+		ss.ShareCache.Set(pub.KeyString(), value)
 		return
 	}
 	shr := &Share{
@@ -77,17 +106,17 @@ func (ps *ShareState) CreateShareAccount(pubkey []byte, balance *big.Int) {
 		ShareGuaranty: big0,
 	}
 
-	ps.ShareCache.Set(pub.KeyString(), shr)
+	ss.ShareCache.Set(pub.KeyString(), shr)
 }
 
-func (ps *ShareState) GetShareAccount(pubkey []byte) *Share {
+func (ss *ShareState) GetShareAccount(pubkey []byte) *Share {
 	pub := crypto.PubKeyEd25519{}
 	copy(pub[:], pubkey)
 
-	if shr, ok := ps.ShareCache.Get(pub.KeyString()); ok {
+	if shr, ok := ss.ShareCache.Get(pub.KeyString()); ok {
 		return shr.(*Share)
 	}
-	if _, Sharebytes, exist := ps.trie.Get([]byte(pub.KeyString())); exist {
+	if _, Sharebytes, exist := ss.trie.Get([]byte(pub.KeyString())); exist {
 		shr := new(Share)
 		shr.FromBytes(Sharebytes)
 		return shr
@@ -95,17 +124,17 @@ func (ps *ShareState) GetShareAccount(pubkey []byte) *Share {
 	return nil
 }
 
-func (ps *ShareState) QueryShare(pubkey crypto.PubKey) (*big.Int, def.INT) {
+func (ss *ShareState) QueryShare(pubkey crypto.PubKey) (*big.Int, uint64) {
 	keystring := pubkey.KeyString()
 
 	// from cache
-	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+	if itfc, ok := ss.ShareCache.Get(keystring); ok {
 		shr := itfc.(*Share)
 		return shr.ShareBalance, shr.GHeight
 	}
 
 	// from db
-	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+	if _, value, exist := ss.trie.Get([]byte(keystring)); exist {
 		shr := new(Share)
 		err := shr.FromBytes(value)
 		if err != nil {
@@ -118,25 +147,25 @@ func (ps *ShareState) QueryShare(pubkey crypto.PubKey) (*big.Int, def.INT) {
 	return big0, 0
 }
 
-func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int) error {
+func (ss *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int) error {
 	keystring := pubkey.KeyString()
 
 	// from cache
-	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+	if itfc, ok := ss.ShareCache.Get(keystring); ok {
 		shr := itfc.(*Share)
 		shr.ShareBalance = new(big.Int).Add(shr.ShareBalance, amount)
 		return nil
 	}
 
 	// from db
-	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+	if _, value, exist := ss.trie.Get([]byte(keystring)); exist {
 		shr := new(Share)
 		err := shr.FromBytes(value)
 		if err != nil {
 			return err
 		}
 		shr.ShareBalance = new(big.Int).Add(shr.ShareBalance, amount)
-		ps.ShareCache.Set(keystring, shr)
+		ss.ShareCache.Set(keystring, shr)
 		return nil
 	}
 
@@ -147,15 +176,15 @@ func (ps *ShareState) AddShareBalance(pubkey crypto.PubKey, amount *big.Int) err
 		ShareBalance:  amount,
 		ShareGuaranty: big0,
 	}
-	ps.ShareCache.Set(pk.KeyString(), shr)
+	ss.ShareCache.Set(pk.KeyString(), shr)
 	return nil
 }
 
-func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int) error {
+func (ss *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int) error {
 	keystring := pubkey.KeyString()
 
 	// from cache
-	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+	if itfc, ok := ss.ShareCache.Get(keystring); ok {
 		shr := itfc.(*Share)
 		if shr.ShareBalance.Cmp(amount) >= 0 {
 			shr.ShareBalance = new(big.Int).Sub(shr.ShareBalance, amount)
@@ -165,7 +194,7 @@ func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int) err
 	}
 
 	// from db
-	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+	if _, value, exist := ss.trie.Get([]byte(keystring)); exist {
 		shr := new(Share)
 		err := shr.FromBytes(value)
 		if err != nil {
@@ -173,7 +202,7 @@ func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int) err
 		}
 		if shr.ShareBalance.Cmp(amount) >= 0 {
 			shr.ShareBalance = new(big.Int).Sub(shr.ShareBalance, amount)
-			ps.ShareCache.Set(keystring, shr)
+			ss.ShareCache.Set(keystring, shr)
 			return nil
 		}
 		return errors.New("insufficent ShareBalance to sub")
@@ -183,11 +212,11 @@ func (ps *ShareState) SubShareBalance(pubkey crypto.PubKey, amount *big.Int) err
 	return fmt.Errorf("Share not exist: %s", keystring)
 }
 
-func (ps *ShareState) AddGuaranty(pubkey crypto.PubKey, amount *big.Int, height def.INT) error {
+func (ss *ShareState) AddGuaranty(pubkey crypto.PubKey, amount *big.Int, height uint64) error {
 	keystring := pubkey.KeyString()
 
 	// from cache
-	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+	if itfc, ok := ss.ShareCache.Get(keystring); ok {
 		shr := itfc.(*Share)
 		shr.ShareGuaranty = new(big.Int).Add(shr.ShareGuaranty, amount)
 		shr.GHeight = height
@@ -195,7 +224,7 @@ func (ps *ShareState) AddGuaranty(pubkey crypto.PubKey, amount *big.Int, height 
 	}
 
 	// from db
-	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+	if _, value, exist := ss.trie.Get([]byte(keystring)); exist {
 		shr := new(Share)
 		err := shr.FromBytes(value)
 		if err != nil {
@@ -203,7 +232,7 @@ func (ps *ShareState) AddGuaranty(pubkey crypto.PubKey, amount *big.Int, height 
 		}
 		shr.ShareGuaranty = new(big.Int).Add(shr.ShareGuaranty, amount)
 		shr.GHeight = height
-		ps.ShareCache.Set(keystring, shr)
+		ss.ShareCache.Set(keystring, shr)
 		return nil
 	}
 
@@ -215,15 +244,15 @@ func (ps *ShareState) AddGuaranty(pubkey crypto.PubKey, amount *big.Int, height 
 		ShareGuaranty: amount,
 		GHeight:       height,
 	}
-	ps.ShareCache.Set(pk.KeyString(), shr)
+	ss.ShareCache.Set(pk.KeyString(), shr)
 	return nil
 }
 
-func (ps *ShareState) SubGuaranty(pubkey crypto.PubKey, amount *big.Int) error {
+func (ss *ShareState) SubGuaranty(pubkey crypto.PubKey, amount *big.Int) error {
 	keystring := pubkey.KeyString()
 
 	// from cache
-	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+	if itfc, ok := ss.ShareCache.Get(keystring); ok {
 		shr := itfc.(*Share)
 		if shr.ShareGuaranty.Cmp(amount) >= 0 {
 			shr.ShareGuaranty = new(big.Int).Sub(shr.ShareGuaranty, amount)
@@ -233,7 +262,7 @@ func (ps *ShareState) SubGuaranty(pubkey crypto.PubKey, amount *big.Int) error {
 	}
 
 	// from db
-	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+	if _, value, exist := ss.trie.Get([]byte(keystring)); exist {
 		shr := new(Share)
 		err := shr.FromBytes(value)
 		if err != nil {
@@ -241,7 +270,7 @@ func (ps *ShareState) SubGuaranty(pubkey crypto.PubKey, amount *big.Int) error {
 		}
 		if shr.ShareGuaranty.Cmp(amount) >= 0 {
 			shr.ShareGuaranty = new(big.Int).Sub(shr.ShareGuaranty, amount)
-			ps.ShareCache.Set(keystring, shr)
+			ss.ShareCache.Set(keystring, shr)
 			return nil
 		}
 		return errors.New("insufficent ShareGuarantee to sub")
@@ -251,25 +280,25 @@ func (ps *ShareState) SubGuaranty(pubkey crypto.PubKey, amount *big.Int) error {
 	return fmt.Errorf("Guarantee not exist: %s", keystring)
 }
 
-func (ps *ShareState) MarkShare(pubkey crypto.PubKey, gValue def.INT) error {
+func (ss *ShareState) MarkShare(pubkey crypto.PubKey, gValue uint64) error {
 	keystring := pubkey.KeyString()
 
 	// from cache
-	if itfc, ok := ps.ShareCache.Get(keystring); ok {
+	if itfc, ok := ss.ShareCache.Get(keystring); ok {
 		shr := itfc.(*Share)
 		shr.GHeight = gValue
 		return nil
 	}
 
 	// from db
-	if _, value, exist := ps.trie.Get([]byte(keystring)); exist {
+	if _, value, exist := ss.trie.Get([]byte(keystring)); exist {
 		shr := new(Share)
 		err := shr.FromBytes(value)
 		if err != nil {
 			return err
 		}
 		shr.GHeight = gValue
-		ps.ShareCache.Set(keystring, shr)
+		ss.ShareCache.Set(keystring, shr)
 		return nil
 	}
 
@@ -277,37 +306,37 @@ func (ps *ShareState) MarkShare(pubkey crypto.PubKey, gValue def.INT) error {
 }
 
 // Commit returns the new root bytes
-func (ps *ShareState) Commit() ([]byte, error) {
-	ps.ShareCache.Exec(func(k string, v interface{}) {
+func (ss *ShareState) Commit() ([]byte, error) {
+	ss.ShareCache.Exec(func(k string, v interface{}) {
 		shr := v.(*Share)
 		if shr.ShareBalance.Cmp(big0) == 0 && shr.ShareGuaranty.Cmp(big0) == 0 {
-			ps.trie.Remove([]byte(k))
+			ss.trie.Remove([]byte(k))
 		} else {
-			ps.trie.Set([]byte(k), shr.ToBytes())
+			ss.trie.Set([]byte(k), shr.ToBytes())
 		}
 	})
 
-	ps.rootHash = ps.trie.Save()
-	return ps.rootHash, nil
+	ss.rootHash = ss.trie.Save()
+	return ss.rootHash, nil
 }
 
-// Load dumps all the buffer, start every thing from a clean state
-func (ps *ShareState) Load(root []byte) {
-	ps.ShareCache = mlist.NewMapList()
-	ps.trie.Load(root)
-	ps.root = root
+// Load dumss all the buffer, start every thing from a clean state
+func (ss *ShareState) Load(root []byte) {
+	ss.ShareCache = mlist.NewMapList()
+	ss.trie.Load(root)
+	ss.root = root
 }
 
 // Reload works the same as Load, just for semantic purpose
-func (ps *ShareState) Reload(root []byte) {
-	ps.ShareCache = mlist.NewMapList()
-	ps.trie.Load(root)
-	ps.root = root
+func (ss *ShareState) Reload(root []byte) {
+	ss.ShareCache = mlist.NewMapList()
+	ss.trie.Load(root)
+	ss.root = root
 }
 
-func (ps *ShareState) Iterate(fn func(*Share) bool) {
+func (ss *ShareState) Iterate(fn func(*Share) bool) {
 	// Iterate cache first
-	ps.ShareCache.Exec(func(key string, value interface{}) {
+	ss.ShareCache.Exec(func(key string, value interface{}) {
 		shr := value.(*Share)
 		pub := crypto.PubKeyEd25519{}
 		copy(pub[:], shr.Pubkey[:])
@@ -317,17 +346,17 @@ func (ps *ShareState) Iterate(fn func(*Share) bool) {
 	})
 
 	// Iterate tree
-	ps.trie.Iterate(func(key, value []byte) bool {
+	ss.trie.Iterate(func(key, value []byte) bool {
 		shr := new(Share)
 		if err := shr.FromBytes(value); err != nil {
-			fmt.Println("Iterate power state faild:", err.Error())
+			fmt.Println("Iterate share state faild:", err.Error())
 			return true
 		}
 
 		// escape cache
 		var pubkey crypto.PubKeyEd25519
 		copy(pubkey[:], shr.Pubkey)
-		if _, exist := ps.ShareCache.Get(pubkey.KeyString()); exist {
+		if _, exist := ss.ShareCache.Get(pubkey.KeyString()); exist {
 			return false
 		}
 
@@ -338,25 +367,10 @@ func (ps *ShareState) Iterate(fn func(*Share) bool) {
 	})
 }
 
-func (ps *ShareState) Hash() []byte {
-	return ps.trie.Hash()
+func (ss *ShareState) Hash() []byte {
+	return ss.trie.Hash()
 }
 
-func (ps *ShareState) Size() int {
-	return ps.trie.Size()
-}
-
-func (oa *Share) FromBytes(bytes []byte) error {
-	if err := json.Unmarshal(bytes, oa); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (oa *Share) ToBytes() []byte {
-	bys, err := json.Marshal(oa)
-	if err != nil {
-		return nil
-	}
-	return bys
+func (ss *ShareState) Size() int {
+	return ss.trie.Size()
 }
