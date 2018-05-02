@@ -468,7 +468,14 @@ func (app *App) executeShareGuarantee(block *agtypes.BlockCache, tx *types.Block
 	if err := app.chargeFee(block, tx); err != nil {
 		return err
 	}
-	//transfer
+	//check ElectionTerm
+	height := uint64(app.AngineRef.Height())
+	begin, _, mid := app.calElectionTerm(height)
+	if height < begin || height >= mid {
+		return fmt.Errorf("Guarantee tx happenes in invalid height(%d). current term:[%d,%d]", height, begin, mid-1)
+	}
+
+	//do guarantee
 	frompub := crypto.PubKeyEd25519{}
 	copy(frompub[:], bodytx.Source)
 	err := app.currentShareState.SubShareBalance(&frompub, bodytx.Amount)
@@ -493,7 +500,14 @@ func (app *App) executeShareRedeem(block *agtypes.BlockCache, tx *types.BlockTx)
 	if err := app.chargeFee(block, tx); err != nil {
 		return err
 	}
+	//check ElectionTerm
+	height := uint64(app.AngineRef.Height())
+	begin, _, mid := app.calElectionTerm(height)
+	if height < begin || height >= mid {
+		return fmt.Errorf("Redeem tx happenes in invalid height(%d). current term:[%d,%d]", height, begin, mid-1)
+	}
 
+	//do redeem
 	frompub := crypto.PubKeyEd25519{}
 	copy(frompub[:], bodytx.Source)
 	// if node is validator right now
