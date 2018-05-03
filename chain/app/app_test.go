@@ -3,9 +3,12 @@ package app
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
+	"math/rand"
 	"testing"
 
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
+	db "github.com/Baptist-Publication/chorus/module/lib/go-db"
 )
 
 func TestFoo(t *testing.T) {
@@ -47,4 +50,55 @@ func TestBar(t *testing.T) {
 	fmt.Println(base)
 	fmt.Println(d1)
 	fmt.Println(d2)
+}
+
+func randomPubkey() *crypto.PubKeyEd25519 {
+	sk1 := crypto.GenPrivKeyEd25519()
+	pk2 := sk1.PubKey()
+	pk2bs := pk2.(*crypto.PubKeyEd25519)
+
+	return pk2bs
+}
+
+func randomBig(max uint64) *big.Int {
+	return new(big.Int).SetUint64(rand.Uint64() % max)
+}
+
+func getShareState() *ShareState {
+	shrDB, err := db.NewGoLevelDB(fmt.Sprintf("sharestate%d", rand.Int()), "/tmp/")
+	if err != nil {
+		panic(err)
+	}
+
+	return NewShareState(shrDB)
+}
+
+func TestElection(t *testing.T) {
+	app := &App{}
+	ss := getShareState()
+	app.ShareState = ss
+
+	for i := 0; i < 50; i++ {
+		k := randomPubkey()
+		p := new(big.Int).SetUint64(uint64(10 + i*10))
+		ss.CreateShareAccount(k[:], p)
+		ss.AddGuaranty(k, p, 20)
+		// fmt.Printf("%X-%s\n", k[:2], p.String())
+	}
+
+	root, _ := ss.Commit()
+	ss.Reload(root)
+
+	bigbang := new(big.Int).SetBytes(root)
+
+	for i := 0; i < 10; i++ {
+		bigbang.Add(bigbang, new(big.Int).SetUint64(rand.Uint64()))
+		vals := app.doElect(bigbang, 20, 2)
+		// fmt.Println(len(vals))
+		for _, v := range vals {
+			// fmt.Printf("%s-%d ", v.PubKey.KeyString()[:4], v.VotingPower)
+			fmt.Printf("%d ", v.VotingPower)
+		}
+		fmt.Println()
+	}
 }

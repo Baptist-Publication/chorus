@@ -37,14 +37,6 @@ func (app *App) RegisterValidators(validatorset *agtypes.ValidatorSet) {
 	}
 }
 
-func CalcVP(base int, position int) uint64 {
-	for level := 1; ; level++ {
-		if position <= level*(level+1)/2 {
-			return uint64((base - level + 1) * (base - level + 1))
-		}
-	}
-}
-
 func (app *App) ValSetLoader() agtypes.ValSetLoaderFunc {
 	election := app.Config.GetInt64("election")
 
@@ -59,7 +51,7 @@ func (app *App) ValSetLoader() agtypes.ValSetLoaderFunc {
 		}
 		fmt.Printf("======= Finally we got world rand : %x\n", worldRand)
 
-		vals := app.fakeRandomVals(new(big.Int).SetBytes(worldRand), height, round)
+		vals := app.doElect(new(big.Int).SetBytes(worldRand), height, round)
 		return agtypes.NewValidatorSet(vals)
 	}
 }
@@ -88,7 +80,7 @@ func (app *App) getWorldRand(height uint64) ([]byte, error) {
 	return worldRand, nil
 }
 
-func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtypes.Validator {
+func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Validator {
 	shrs := make([]*Share, 0, 21)
 
 	// Iterate share list of world state
@@ -116,7 +108,7 @@ func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtyp
 		shr := accHeap.Pop().(*Share)
 		richGuys = append(richGuys, shr)
 	}
-	pickedRichGuys, err := pickAccounts(richGuys, exists, 11, height, round, bigbang)
+	pickedRichGuys, err := pickAccounts(richGuys, exists, 11, bigbang)
 	if err != nil {
 		fmt.Println("error in pickAccounts:", err.Error())
 		return nil
@@ -133,7 +125,7 @@ func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtyp
 	} else if numLuckyGuys > 4 {
 		numLuckyGuys = 4
 	}
-	luckyguys, err := pickAccounts(accList, exists, numLuckyGuys, height, round, bigbang)
+	luckyguys, err := pickAccounts(accList, exists, numLuckyGuys, bigbang)
 	if err != nil {
 		fmt.Println("error in pickAccounts:", err.Error())
 		return nil
@@ -156,7 +148,7 @@ func (app *App) fakeRandomVals(bigbang *big.Int, height, round def.INT) []*agtyp
 	return vals
 }
 
-func pickAccounts(froms []*Share, exists map[*Share]struct{}, maxPick int, height, round def.INT, bigbang *big.Int) ([]*Share, error) {
+func pickAccounts(froms []*Share, exists map[*Share]struct{}, maxPick int, bigbang *big.Int) ([]*Share, error) {
 	if maxPick == 0 {
 		return make([]*Share, 0), nil
 	}
@@ -165,12 +157,11 @@ func pickAccounts(froms []*Share, exists map[*Share]struct{}, maxPick int, heigh
 		return froms, nil
 	}
 
-	retry := 1
 	guys := make([]*Share, 0, maxPick)
 	for len(guys) < maxPick {
-		guy, err := fakeRandomAccount(froms, exists, height, round, bigbang, &retry)
+		guy, err := randomSelect(froms, exists, bigbang)
 		if err != nil {
-			fmt.Println("error in fakeRandomAccount:", err.Error())
+			fmt.Println("error in randomSelect:", err.Error())
 			return nil, nil
 		}
 		guys = append(guys, guy)
@@ -179,7 +170,7 @@ func pickAccounts(froms []*Share, exists map[*Share]struct{}, maxPick int, heigh
 	return guys, nil
 }
 
-func fakeRandomAccount(accs []*Share, exists map[*Share]struct{}, height, round def.INT, bigbang *big.Int, retry *int) (*Share, error) {
+func randomSelect(accs []*Share, exists map[*Share]struct{}, bigbang *big.Int) (*Share, error) {
 	if len(accs) == len(exists) {
 		return nil, fmt.Errorf("No account can be picked any more")
 	}
@@ -194,18 +185,19 @@ func fakeRandomAccount(accs []*Share, exists map[*Share]struct{}, height, round 
 	votes := make([]shareVotes, 0, len(accs))
 	for i := 0; i < len(accs); i++ {
 		if _, yes := exists[accs[i]]; !yes {
-			totalShare.Add(totalShare, accs[i].ShareGuaranty)
 			votes = append(votes, shareVotes{
 				ref:        accs[i],
 				votesBegin: new(big.Int).Set(totalShare),
 				votesEnd:   new(big.Int).Add(totalShare, accs[i].ShareGuaranty),
 			})
+			totalShare.Add(totalShare, accs[i].ShareGuaranty)
 		}
 	}
 
 	lottery := new(big.Int).Mod(bigbang, totalShare)
 	for i := 0; i < len(votes); i++ {
 		if lottery.Cmp(votes[i].votesEnd) < 0 {
+			exists[votes[i].ref] = struct{}{}
 			return votes[i].ref, nil
 		}
 	}

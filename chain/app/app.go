@@ -126,7 +126,7 @@ func NewApp(logger *zap.Logger, config *viper.Viper) (*App, error) {
 		app.logger.Error("OpenDatabase error", zap.Error(err))
 		return nil, errors.Wrap(err, "app error")
 	}
-	if app.ShareStateDB, err = db.NewGoLevelDB("powerstate", app.datadir); err != nil {
+	if app.ShareStateDB, err = db.NewGoLevelDB("sharestate", app.datadir); err != nil {
 		cmn.PanicCrisis(err)
 	}
 
