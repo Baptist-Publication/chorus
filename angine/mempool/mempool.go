@@ -70,15 +70,19 @@ func NewMempool(logger *zap.Logger, config *viper.Viper) *Mempool {
 		logger:  logger,
 	}
 	mempool.initWAL()
-	go func(){
-		t := time.Tick(time.Millisecond * 100)
-		for{
-			select{
-			case <-t:
-				mempool.sortTxs()
+	//mempool_block_sort_interval: unit millisecond , 0 means disable
+	blockSortInterval := config.GetInt("mempool_block_sort_interval")
+	if blockSortInterval > 0 {
+		go func(){
+			t := time.Tick(time.Millisecond * time.Duration(blockSortInterval))
+			for{
+				select{
+				case <-t:
+					mempool.sortTxs()
+				}
 			}
-		}
-	}()
+		}()
+	}
 	return mempool
 }
 
