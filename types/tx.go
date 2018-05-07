@@ -234,7 +234,8 @@ func makeSenderGases(m map[string][]BlockTx) []senderGas {
 		}
 		totalGas := big.NewInt(0)
 		for _, tx := range txs {
-			totalGas.Add(totalGas, tx.GasPrice.Mul(tx.GasPrice, tx.GasLimit))
+			gas := big.Int{}
+			totalGas.Add(totalGas, gas.Mul(tx.GasPrice, tx.GasLimit))
 		}
 		averageGas := totalGas.Div(totalGas, big.NewInt(int64(txLen)))
 		sg := senderGas{sender, averageGas}
