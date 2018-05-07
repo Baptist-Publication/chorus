@@ -45,6 +45,7 @@ type Receipt struct {
 	TxHash          common.Hash
 	ContractAddress common.Address
 	GasUsed         *big.Int
+	Height          *big.Int
 }
 
 type jsonReceipt struct {
@@ -55,11 +56,12 @@ type jsonReceipt struct {
 	TxHash            *common.Hash    `json:"transactionHash"`
 	ContractAddress   *common.Address `json:"contractAddress"`
 	GasUsed           *hexutil.Big    `json:"gasUsed"`
+	Height            *hexutil.Big    `json:"height"`
 }
 
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
-func NewReceipt(root []byte, cumulativeGasUsed *big.Int) *Receipt {
-	return &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: new(big.Int).Set(cumulativeGasUsed)}
+func NewReceipt(root []byte, cumulativeGasUsed *big.Int, height *big.Int) *Receipt {
+	return &Receipt{PostState: common.CopyBytes(root), CumulativeGasUsed: new(big.Int).Set(cumulativeGasUsed), Height: height}
 }
 
 // EncodeRLP implements rlp.Encoder, and flattens the consensus fields of a receipt
@@ -96,6 +98,7 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 		TxHash:            &r.TxHash,
 		ContractAddress:   &r.ContractAddress,
 		GasUsed:           (*hexutil.Big)(r.GasUsed),
+		Height:            (*hexutil.Big)(r.Height),
 	})
 }
 
@@ -122,6 +125,7 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		Logs:              dec.Logs,
 		TxHash:            *dec.TxHash,
 		GasUsed:           (*big.Int)(dec.GasUsed),
+		Height:            (*big.Int)(dec.Height),
 	}
 	if dec.ContractAddress != nil {
 		r.ContractAddress = *dec.ContractAddress
@@ -145,7 +149,7 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	for i, log := range r.Logs {
 		logs[i] = (*LogForStorage)(log)
 	}
-	return rlp.Encode(w, []interface{}{r.PostState, r.CumulativeGasUsed, r.Bloom, r.TxHash, r.ContractAddress, logs, r.GasUsed})
+	return rlp.Encode(w, []interface{}{r.PostState, r.CumulativeGasUsed, r.Bloom, r.TxHash, r.ContractAddress, logs, r.GasUsed, r.Height})
 }
 
 // DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
@@ -159,6 +163,7 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 		ContractAddress   common.Address
 		Logs              []*LogForStorage
 		GasUsed           *big.Int
+		Height            *big.Int
 	}
 	if err := s.Decode(&receipt); err != nil {
 		return err
@@ -170,7 +175,7 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 		r.Logs[i] = (*Log)(log)
 	}
 	// Assign the implementation fields
-	r.TxHash, r.ContractAddress, r.GasUsed = receipt.TxHash, receipt.ContractAddress, receipt.GasUsed
+	r.TxHash, r.ContractAddress, r.GasUsed, r.Height = receipt.TxHash, receipt.ContractAddress, receipt.GasUsed, receipt.Height
 
 	return nil
 }
