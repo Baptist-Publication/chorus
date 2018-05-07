@@ -7,49 +7,49 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/Baptist-Publication/chorus/eth/rlp"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	db "github.com/Baptist-Publication/chorus/module/lib/go-db"
 )
 
 func TestFoo(t *testing.T) {
-	s := "81e5c24b7f2de45e9a02f47110fce0c617e64ad1f3a05fed8d6acb07ba90f435"
-	p := "d011759a1169e3c47ec5f21179145b26c180205aafdeb0f83de5984861130908"
-	skbs, _ := hex.DecodeString(s)
+	content := []byte{1, 2, 3}
+	skstr := "ED30BE21F0C6F97C4656EA17680C51F9867B30D40FEEDC81C70C54DF11C9C435A18EB771ACFCA6706A40C7FD419D0081011811403EAA0B75DB5D9B3D1A73F288"
+	pkstr := "A18EB771ACFCA6706A40C7FD419D0081011811403EAA0B75DB5D9B3D1A73F288"
+	skbs, _ := hex.DecodeString(skstr)
+	pkbs, _ := hex.DecodeString(pkstr)
 
 	var sk crypto.PrivKeyEd25519
+	var pk crypto.PubKeyEd25519
 	copy(sk[:], skbs)
+	copy(pk[:], pkbs)
+
+	fmt.Printf("Calculated pubkey: %x\n", sk.PubKey().Bytes())
+	fmt.Printf("%x\n", sk.Bytes())
 
 	// pk := sk.PubKey()
 	// fmt.Println(pk.KeyString())
 
-	sig := sk.Sign([]byte{1, 2, 3})
+	sig := sk.Sign(content)
 
-	fmt.Println(sig)
-
-	crypto.GenPrivKeyEd25519()
-
-	var pk crypto.PubKeyEd25519
-	pkbs, _ := hex.DecodeString(p)
-	copy(pk[:], pkbs)
-
-	if !pk.VerifyBytes([]byte{1, 2, 3}, sig) {
-		panic("123")
+	if !pk.VerifyBytes(content, sig) {
+		t.Fail()
 	}
 }
 
 func TestBar(t *testing.T) {
-	// base := make([]byte, 3, 4)
-	// base[0] = 1
-	// base[1] = 2
-	// base[2] = 3
-	base := []byte{1, 2, 3}
+	type xx struct {
+		Name string
+		Age  *big.Int
+	}
 
-	d1 := append(base, 4)
-	d2 := append(base, 5)
+	x := xx{
+		Name: "lilei",
+		Age:  big.NewInt(18),
+	}
 
-	fmt.Println(base)
-	fmt.Println(d1)
-	fmt.Println(d2)
+	b, _ := rlp.EncodeToBytes(x)
+	fmt.Printf("%x\n", b)
 }
 
 func randomPubkey() *crypto.PubKeyEd25519 {

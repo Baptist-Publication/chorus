@@ -141,7 +141,7 @@ func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Vali
 		vals[i] = &agtypes.Validator{
 			PubKey:      crypto.StPubKey{PubKey: &pk},
 			Address:     pk.Address(),
-			VotingPower: v.ShareBalance.Int64(),
+			VotingPower: v.ShareGuaranty.Int64(),
 		}
 	}
 
