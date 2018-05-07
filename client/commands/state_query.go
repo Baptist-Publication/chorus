@@ -166,6 +166,7 @@ func queryReceipt(ctx *cli.Context) error {
 		"cumulativeGasUsed": receiptdata.CumulativeGasUsed,
 		"GasUsed":           receiptdata.GasUsed,
 		"logs":              receiptdata.Logs,
+		"height":            receiptdata.Height,
 	}
 	fmt.Println("query result:", resultMap)
 

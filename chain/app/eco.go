@@ -552,7 +552,7 @@ func (app *App) chargeFee(block *agtypes.BlockCache, tx *types.BlockTx) error {
 }
 
 func (app *App) addReceipt(tx *types.BlockTx) {
-	receipt := ethtypes.NewReceipt([]byte{}, params.TxGas)
+	receipt := ethtypes.NewReceipt([]byte{}, params.TxGas, app.currentHeader.Number)
 	receipt.TxHash = ethcmn.BytesToHash(tx.Hash())
 	receipt.GasUsed = params.TxGas
 	receipt.Logs = app.currentEvmState.GetLogs(ethcmn.BytesToHash(tx.Hash()))

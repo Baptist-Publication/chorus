@@ -90,9 +90,10 @@ func makeCurrentHeader(block *agtypes.BlockCache, conf *viper.Viper) *ethtypes.H
 		ParentHash: ethcmn.HexToHash("0x00"),
 		Difficulty: big0,
 		GasLimit:   big.NewInt(conf.GetInt64("block_gaslimit")),
-		Number:     ethparams.MainNetSpuriousDragon,
-		Time:       big.NewInt(block.Header.Time),
-		Coinbase:   ethcmn.BytesToAddress(block.Header.CoinBase),
+		// Number:     ethparams.MainNetSpuriousDragon,
+		Time:     big.NewInt(block.Header.Time),
+		Coinbase: ethcmn.BytesToAddress(block.Header.CoinBase),
+		Number:   big.NewInt(block.Header.Height),
 	}
 }
 

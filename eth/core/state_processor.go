@@ -67,7 +67,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, gp *GasPool, s
 	// based on the eip phase, we're passing wether the root touch-delete accounts.
 	// Edit by Kyli
 	// receipt := types.NewReceipt(statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes(), usedGas)
-	receipt := types.NewReceipt([]byte{}, usedGas)
+	receipt := types.NewReceipt([]byte{}, usedGas, header.Number)
 	// receipt.TxHash = tx.Hash()
 	receipt.TxHash = common.BytesToHash(txHash)
 	receipt.GasUsed = new(big.Int).Set(gas)
