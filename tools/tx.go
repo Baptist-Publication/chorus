@@ -31,7 +31,12 @@ type CanSign interface {
 }
 
 func SigHash(sigObj CanSign) ([]byte, error) {
-	return ToBytes(sigObj.SigObject())
+	bs, err := ToBytes(sigObj.SigObject())
+	if err != nil {
+		return nil, err
+	}
+
+	return ethcrypto.Sha256(bs), nil
 }
 
 func SignSecp256k1(tx CanSign, privkey []byte) ([]byte, error) {
