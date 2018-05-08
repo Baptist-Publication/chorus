@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -10,6 +9,7 @@ import (
 
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	"github.com/Baptist-Publication/chorus/eth/rlp"
+	"github.com/Baptist-Publication/chorus/tools"
 	"github.com/Baptist-Publication/chorus/types"
 )
 
@@ -151,15 +151,10 @@ func tryValidate(tx *appTx) {
 		return
 	}
 
-	valid, err := tx.tx.VerifySignature()
+	err := tools.VerifySecp256k1(tx.tx, tx.tx.Sender, tx.tx.Signature)
 	if err != nil {
 		atomic.StoreInt32(&tx.status, appTxStatusFailed)
 		tx.err = err
-		return
-	}
-	if !valid {
-		atomic.StoreInt32(&tx.status, appTxStatusFailed)
-		tx.err = fmt.Errorf("tx verify failed")
 		return
 	}
 
@@ -177,13 +172,10 @@ func exeWithCPUSerialVeirfy(txs [][]byte, quit chan struct{},
 				continue
 			}
 
-			valid, err := tx.VerifySignature()
+			err := tools.VerifySecp256k1(tx, tx.Sender, tx.Signature)
 			if err != nil {
 				whenError(raw, err)
 				continue
-			}
-			if !valid {
-				whenError(raw, fmt.Errorf("tx verify failed"))
 			}
 		}
 

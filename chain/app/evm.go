@@ -21,11 +21,11 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx 
 	stateSnapshot := app.currentEvmState.Snapshot()
 
 	txBody := &types.TxEvmCommon{}
-	if err = tools.TxFromBytes(tx.Payload, txBody); err != nil {
+	if err = tools.FromBytes(tx.Payload, txBody); err != nil {
 		return
 	}
 
-	txHash := tx.Hash()
+	txHash := tools.Hash(tx)
 	from := ethcmn.BytesToAddress(tx.Sender)
 	var to ethcmn.Address
 	var evmTx *ethtypes.Transaction
@@ -67,13 +67,11 @@ func (app *App) CheckEVMTx(bs []byte) error {
 	if err != nil {
 		return err
 	}
-	valid, err := tx.VerifySignature()
+	err = tools.VerifySecp256k1(tx, tx.Sender, tx.Signature)
 	if err != nil {
 		return err
 	}
-	if !valid {
-		return fmt.Errorf("invalid signature")
-	}
+
 	from := ethcmn.BytesToAddress(tx.Sender)
 	app.evmStateMtx.Lock()
 	defer app.evmStateMtx.Unlock()

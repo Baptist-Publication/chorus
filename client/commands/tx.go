@@ -55,7 +55,7 @@ func sendTx(ctx *cli.Context) error {
 		Amount: big.NewInt(value),
 		Load:   data,
 	}
-	bodyBs, err := tools.TxToBytes(bodyTx)
+	bodyBs, err := tools.ToBytes(bodyTx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -64,11 +64,11 @@ func sendTx(ctx *cli.Context) error {
 	fmt.Printf("%x\n", from)
 	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], bodyBs)
 
-	if err := tx.Sign(privkey); err != nil {
+	if tx.Signature, err = tools.SignSecp256k1(tx, crypto.FromECDSA(privkey)); err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	b, err := tools.TxToBytes(tx)
+	b, err := tools.ToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -81,7 +81,7 @@ func sendTx(ctx *cli.Context) error {
 	}
 	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
 
-	fmt.Printf("tx result: %x\n", tx.Hash())
+	fmt.Printf("tx result: %x\n", tools.Hash(tx))
 
 	return nil
 }

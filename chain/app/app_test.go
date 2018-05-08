@@ -7,9 +7,11 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/Baptist-Publication/chorus/eth/rlp"
+	ethcrypto "github.com/Baptist-Publication/chorus/eth/crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	db "github.com/Baptist-Publication/chorus/module/lib/go-db"
+	"github.com/Baptist-Publication/chorus/tools"
+	"github.com/Baptist-Publication/chorus/types"
 )
 
 func TestFoo(t *testing.T) {
@@ -37,19 +39,45 @@ func TestFoo(t *testing.T) {
 	}
 }
 
+func toBytes(s string) []byte {
+	b, _ := hex.DecodeString(s)
+	return b
+}
+
 func TestBar(t *testing.T) {
-	type xx struct {
-		Name string
-		Age  *big.Int
+	evmTx := &types.TxEvmCommon{
+		To:     toBytes("00000000000000000000000000000000000000c1"),
+		Amount: big.NewInt(1000),
+		// Load:   []byte(""),
+	}
+	evmBs, err := tools.TxToBytes(evmTx)
+	if err != nil {
+		panic(err)
 	}
 
-	x := xx{
-		Name: "lilei",
-		Age:  big.NewInt(18),
+	fmt.Printf("evm: %x\n", evmBs)
+
+	tx := types.NewBlockTx(big.NewInt(1000000), big.NewInt(1), 1, toBytes("7a96091f2abb51ba304ad6be6043e696ada5210b"), evmBs)
+	fmt.Println(tx)
+	privKey, err := ethcrypto.HexToECDSA("760b490afd1341f1aaacd8b1bcc97d5cc84d21f085c3d4935c38816cee637ab7")
+	if err != nil {
+		panic(err)
 	}
 
-	b, _ := rlp.EncodeToBytes(x)
-	fmt.Printf("%x\n", b)
+	err = tx.Sign(privKey)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("sig %x\n", tx.Signature)
+	tx.Signature = tx.Signature[:64]
+
+	bs, err := tools.TxToBytes(tx)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%x\n", bs)
 }
 
 func randomPubkey() *crypto.PubKeyEd25519 {
