@@ -199,6 +199,7 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 	}
 
 	currentHeader := makeCurrentHeader(block, app.Config)
+	app.currentHeader = currentHeader
 	blockHash := ethcmn.BytesToHash(block.Hash())
 
 	var err error
