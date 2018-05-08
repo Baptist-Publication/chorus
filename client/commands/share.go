@@ -101,13 +101,16 @@ func sendShare(ctx *cli.Context) error {
 	to := gcrypto.PubKeyEd25519{}
 	copy(to[:], tobs[:])
 
-	bodyTx := types.TxShareTransfer{
+	bodyTx := &types.TxShareTransfer{
 		ShareSrc: nodefrom[:],
 		ShareDst: to[:],
 		Amount:   big.NewInt(ctx.Int64("value")),
 	}
-	bodyTx.Sign(&nodeprivkey)
-	bodybs, err := tools.TxToBytes(bodyTx)
+
+	if bodyTx.ShareSig, err = tools.SignED25519(bodyTx, nodeprivkey[:]); err != nil {
+		return err
+	}
+	bodybs, err := tools.ToBytes(bodyTx)
 	if err != nil {
 		return err
 	}
@@ -123,11 +126,11 @@ func sendShare(ctx *cli.Context) error {
 	fmt.Printf("%x\n", from)
 	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], bodybs)
 
-	if err := tx.Sign(evmprivkey); err != nil {
+	if tx.Signature, err = tools.SignSecp256k1(tx, crypto.FromECDSA(evmprivkey)); err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	b, err := tools.TxToBytes(tx)
+	b, err := tools.ToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
@@ -140,7 +143,7 @@ func sendShare(ctx *cli.Context) error {
 	}
 	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
 
-	fmt.Printf("tx result: %x\n", tx.Hash())
+	fmt.Printf("tx result: %x\n", tools.Hash(tx))
 
 	return nil
 }
@@ -156,7 +159,7 @@ func shareGuarantee(ctx *cli.Context) error {
 	}
 	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
 
-	fmt.Printf("tx result: %x\n", tx.Hash())
+	fmt.Printf("tx result: %x\n", tools.Hash(tx))
 	return nil
 }
 
@@ -174,7 +177,7 @@ func shareRedeem(ctx *cli.Context) error {
 	}
 	//res := (*tmResult).(*types.ResultBroadcastTxCommit)
 
-	fmt.Printf("tx result: %x\n", tx.Hash())
+	fmt.Printf("tx result: %x\n", tools.Hash(tx))
 	return nil
 }
 
@@ -188,12 +191,14 @@ func constructEcoTx(ctx *cli.Context) (*types.BlockTx, []byte, error) {
 	copy(nodeprivkey[:], nodepb)
 	nodefrom := nodeprivkey.PubKey().(*gcrypto.PubKeyEd25519)
 
-	bodyTx := types.TxShareEco{
+	bodyTx := &types.TxShareEco{
 		Source: nodefrom[:],
 		Amount: big.NewInt(ctx.Int64("value")),
 	}
-	bodyTx.Sign(&nodeprivkey)
-	bodybs, err := tools.TxToBytes(bodyTx)
+	if bodyTx.Signature, err = tools.SignED25519(bodyTx, nodeprivkey[:]); err != nil {
+		return nil, nil, err
+	}
+	bodybs, err := tools.ToBytes(bodyTx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -209,11 +214,11 @@ func constructEcoTx(ctx *cli.Context) (*types.BlockTx, []byte, error) {
 	fmt.Printf("%x\n", from)
 	tx := types.NewBlockTx(big.NewInt(90000), big.NewInt(2), nonce, from[:], bodybs)
 
-	if err := tx.Sign(evmprivkey); err != nil {
+	if tx.Signature, err = tools.SignSecp256k1(tx, crypto.FromECDSA(evmprivkey)); err != nil {
 		return nil, nil, cli.NewExitError(err.Error(), 127)
 	}
 
-	b, err := tools.TxToBytes(tx)
+	b, err := tools.ToBytes(tx)
 	if err != nil {
 		return nil, nil, cli.NewExitError(err.Error(), 127)
 	}

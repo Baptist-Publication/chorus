@@ -251,17 +251,17 @@ func executeContract(ctx *cli.Context) error {
 		To:   to[:],
 		Load: data,
 	}
-	bodyBs, err := tools.TxToBytes(bodyTx)
+	bodyBs, err := tools.ToBytes(bodyTx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
 	}
 
 	tx := types.NewBlockTx(gasLimit, gasPrice, nonce, from[:], bodyBs)
-	err = tx.Sign(key)
+	tx.Signature, err = tools.SignSecp256k1(tx, crypto.FromECDSA(key))
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
 	}
-	b, err := rlp.EncodeToBytes(tx)
+	b, err := tools.ToBytes(tx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
 	}
@@ -277,7 +277,7 @@ func executeContract(ctx *cli.Context) error {
 	if res.Code != 0 {
 		fmt.Println("Error:", res.Log)
 	} else {
-		fmt.Printf("txHash: %x", tx.Hash())
+		fmt.Printf("txHash: %x", tools.Hash(tx))
 	}
 
 	return nil
@@ -326,13 +326,13 @@ func createContract(ctx *cli.Context) error {
 	bodyTx := &types.TxEvmCommon{
 		Load: bytecode,
 	}
-	bodyBs, err := tools.TxToBytes(bodyTx)
+	bodyBs, err := tools.ToBytes(bodyTx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
 	}
 
 	tx := types.NewBlockTx(gasLimit, gasPrice, nonce, from[:], bodyBs)
-	err = tx.Sign(key)
+	tx.Signature, err = tools.SignSecp256k1(tx, crypto.FromECDSA(key))
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
 	}
@@ -353,7 +353,7 @@ func createContract(ctx *cli.Context) error {
 	if res.Code != 0 {
 		fmt.Println("Error:", res.Log)
 	} else {
-		fmt.Printf("txHash: %x\n", tx.Hash())
+		fmt.Printf("txHash: %x\n", tools.Hash(tx))
 	}
 
 	contractAddr := crypto.CreateAddress(from, nonce)

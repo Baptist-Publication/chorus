@@ -257,9 +257,9 @@ func (app *App) prepareGlobalRand(height, round uint64) {
 		Pubkey: pubkey.Bytes(),
 		Sig:    sig.Bytes(),
 	}
-	txBytes, err := tools.TxToBytes(tx)
+	txBytes, err := tools.ToBytes(tx)
 	if err != nil {
-		app.logger.Error("TxToBytes failed:", zap.Error(err))
+		app.logger.Error("ToBytes failed:", zap.Error(err))
 		return
 	}
 	b := agtypes.WrapTx(types.TxTagAngineWorldRand, txBytes)
@@ -347,9 +347,9 @@ func (app *App) executeWorldRandTx(bs []byte) error {
 
 	// decode
 	var tx types.WorldRandTx
-	err := tools.TxFromBytes(bs, &tx)
+	err := tools.FromBytes(bs, &tx)
 	if err != nil {
-		return fmt.Errorf("TxFromBytes failed:%s", err.Error())
+		return fmt.Errorf("FromBytes failed:%s", err.Error())
 	}
 
 	// check tx
@@ -431,12 +431,12 @@ func (app *App) executeShareInitTx(bs []byte) error {
 }
 
 func (app *App) executeShareTransfer(block *agtypes.BlockCache, tx *types.BlockTx) error {
-	bodytx := types.TxShareTransfer{}
-	if err := tools.TxFromBytes(tx.Payload, &bodytx); err != nil {
+	bodytx := &types.TxShareTransfer{}
+	if err := tools.FromBytes(tx.Payload, bodytx); err != nil {
 		return err
 	}
 	//VerifySignature
-	if right, err := bodytx.VerifySig(); err != nil || !right {
+	if err := tools.VeirfyED25519(bodytx, bodytx.ShareSrc, bodytx.ShareSig); err != nil {
 		return errors.New("verify signatrue failed")
 	}
 	if err := app.chargeFee(block, tx); err != nil {
@@ -457,12 +457,12 @@ func (app *App) executeShareTransfer(block *agtypes.BlockCache, tx *types.BlockT
 }
 
 func (app *App) executeShareGuarantee(block *agtypes.BlockCache, tx *types.BlockTx) error {
-	bodytx := types.TxShareEco{}
-	if err := tools.TxFromBytes(tx.Payload, &bodytx); err != nil {
+	bodytx := &types.TxShareEco{}
+	if err := tools.FromBytes(tx.Payload, bodytx); err != nil {
 		return err
 	}
 	//VerifySignature
-	if right, err := bodytx.VerifySig(); err != nil || !right {
+	if err := tools.VeirfyED25519(bodytx, bodytx.Source, bodytx.Signature); err != nil {
 		return errors.New("verify signatrue failed")
 	}
 	if err := app.chargeFee(block, tx); err != nil {
@@ -489,12 +489,12 @@ func (app *App) executeShareGuarantee(block *agtypes.BlockCache, tx *types.Block
 }
 
 func (app *App) executeShareRedeem(block *agtypes.BlockCache, tx *types.BlockTx) error {
-	bodytx := types.TxShareEco{}
-	if err := tools.TxFromBytes(tx.Payload, &bodytx); err != nil {
+	bodytx := &types.TxShareEco{}
+	if err := tools.FromBytes(tx.Payload, bodytx); err != nil {
 		return err
 	}
 	//VerifySignature
-	if right, err := bodytx.VerifySig(); err != nil || !right {
+	if err := tools.VeirfyED25519(bodytx, bodytx.Source, bodytx.Signature); err != nil {
 		return errors.New("verify signatrue failed")
 	}
 	if err := app.chargeFee(block, tx); err != nil {
@@ -553,9 +553,9 @@ func (app *App) chargeFee(block *agtypes.BlockCache, tx *types.BlockTx) error {
 
 func (app *App) addReceipt(tx *types.BlockTx) {
 	receipt := ethtypes.NewReceipt([]byte{}, params.TxGas, app.currentHeader.Number)
-	receipt.TxHash = ethcmn.BytesToHash(tx.Hash())
+	receipt.TxHash = ethcmn.BytesToHash(tools.Hash(tx))
 	receipt.GasUsed = params.TxGas
-	receipt.Logs = app.currentEvmState.GetLogs(ethcmn.BytesToHash(tx.Hash()))
+	receipt.Logs = app.currentEvmState.GetLogs(ethcmn.BytesToHash(tools.Hash(tx)))
 	receipt.Bloom = ethtypes.CreateBloom(ethtypes.Receipts{receipt})
 	app.receipts = append(app.receipts, receipt)
 }
