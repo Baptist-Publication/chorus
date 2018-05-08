@@ -28,6 +28,9 @@ import (
 	"github.com/Baptist-Publication/chorus/module/lib/go-clist"
 	cmn "github.com/Baptist-Publication/chorus/module/lib/go-common"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
+	"github.com/Baptist-Publication/chorus/types"
+	"github.com/Baptist-Publication/chorus/eth/rlp"
+	"time"
 )
 
 const cacheSize = 100000
@@ -67,6 +70,19 @@ func NewMempool(logger *zap.Logger, config *viper.Viper) *Mempool {
 		logger:  logger,
 	}
 	mempool.initWAL()
+	//mempool_block_sort_interval: unit millisecond , 0 means disable
+	blockSortInterval := config.GetInt("mempool_block_sort_interval")
+	if blockSortInterval > 0 {
+		go func(){
+			t := time.Tick(time.Millisecond * time.Duration(blockSortInterval))
+			for{
+				select{
+				case <-t:
+					mempool.sortTxs()
+				}
+			}
+		}()
+	}
 	return mempool
 }
 
@@ -243,6 +259,54 @@ func (mem *Mempool) initWAL() {
 			cmn.PanicSanity(err)
 		}
 		mem.wal = af
+	}
+}
+
+// extractTxs extracts BlockTxs from Mempool
+func (mem *Mempool) extractTxs() []types.BlockTx {
+	if mem.txs == nil {
+		return nil
+	}
+	var ret []types.BlockTx
+	for e := mem.txs.Front(); e != nil; e = e.Next() {
+		tx := e.Value.(*mempoolTx).tx
+		var blockTx types.BlockTx
+		err := rlp.DecodeBytes([]byte(tx), &blockTx)
+		if err != nil {
+			continue
+		}
+		ret = append(ret, blockTx)
+	}
+	return ret
+}
+
+// sortTxs sort the txs of Mempool
+func (mem *Mempool) sortTxs() {
+	mem.Lock()
+	defer mem.Unlock()
+	// return a sorted txs slice
+	blockTxs := mem.extractTxs()
+	if blockTxs == nil || len(blockTxs) == 0 {
+		return
+	}
+
+	sortedTxs := types.SortTxs(blockTxs)
+	if sortedTxs == nil || len(sortedTxs) == 0 {
+		return
+	}
+
+	var txs []agtypes.Tx
+	for _, blockTx := range sortedTxs {
+		b, err := rlp.EncodeToBytes(blockTx)
+		if err != nil {
+			continue
+		}
+		txs = append(txs, b)
+	}
+	// update the txs of Mempool to sortedTxs
+	for e, i := mem.txs.Front(), 0; e != nil && i < len(txs); e = e.Next() {
+		e.Value.(*mempoolTx).tx = txs[i]
+		i++
 	}
 }
 
