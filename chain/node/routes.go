@@ -99,6 +99,9 @@ func (h *rpcHandler) Block(height def.INT) (agtypes.RPCResult, error) {
 	res := agtypes.ResultBlock{}
 	var blockc *agtypes.BlockCache
 	blockc, res.BlockMeta, err = h.node.Angine.GetBlock(height)
+	if err != nil{
+		return nil, err
+	}
 	res.Block = blockc.Block
 	return &res, err
 }
