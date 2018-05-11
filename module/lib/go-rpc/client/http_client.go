@@ -167,12 +167,7 @@ func unmarshalResponseBytes(responseBytes []byte, result interface{}) (interface
 	if errorStr != "" {
 		return nil, errors.New(Fmt("Response error: %v", errorStr))
 	}
-	// unmarshal the RawMessage into the result
-	result = wire.ReadJSONPtr(result, *response.Result, &err)
-	if err != nil {
-		return nil, errors.New(Fmt("Error unmarshalling rpc response result: %v", err))
-	}
-	return result, nil
+	return response.Result, nil
 }
 
 func argsToURLValues(args map[string]interface{}) (url.Values, error) {

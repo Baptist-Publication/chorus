@@ -63,6 +63,17 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 
 		// query API
 		"query": rpc.NewRPCFunc(h.Query, "query"),
+		"query_nonce": rpc.NewRPCFunc(h.QueryNonce, "address"),
+		"query_balance": rpc.NewRPCFunc(h.QueryBalance, "address"),
+		"query_share": rpc.NewRPCFunc(h.QueryShare, "pubkey"),
+
+		"query_receipt": rpc.NewRPCFunc(h.QueryReceipt, "hash"),
+
+		//"query_contract": rpc.NewRPCFunc(h.QueryContract, "address"),
+
+		//"query_contract_existance": rpc.NewRPCFunc(h.QueryContractExistance, "address"),
+
+
 	}
 }
 
@@ -220,3 +231,23 @@ func (h *rpcHandler) NetInfo() (agtypes.RPCResult, error) {
 	res.Listening, res.Listeners, res.Peers = h.node.Angine.GetP2PNetInfo()
 	return &res, nil
 }
+
+func (h *rpcHandler) QueryNonce(addrBytes []byte) (agtypes.ResultQueryNonce, error) {
+	return h.node.Application.QueryNonce(addrBytes), nil
+}
+
+
+func (h *rpcHandler) QueryBalance(addrBytes []byte) (agtypes.ResultQueryBalance, error){
+	return h.node.Application.QueryBalance(addrBytes), nil
+}
+
+func (h *rpcHandler) QueryShare(pubkeyBytes []byte) (agtypes.ResultQueryShare, error) {
+	return h.node.Application.QueryShare(pubkeyBytes), nil
+}
+
+func (h *rpcHandler) QueryReceipt(txHash []byte) (agtypes.ResultQueryReceipt, error){
+	return h.node.Application.QueryReceipt(txHash), nil
+}
+
+//func (h *rpcHandler) QueryContract(addrBytes []byte) (agtypes.ResultQueryContract, error){}
+//func (h *rpcHandler) QueryContractExistance(addrBytes []byte) (agtypes.ResultQueryContractExistance, error){}

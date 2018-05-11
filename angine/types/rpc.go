@@ -18,11 +18,13 @@ import (
 	"time"
 
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
+	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p"
 	"github.com/Baptist-Publication/chorus/module/lib/go-rpc/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
+	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
 )
 
 type ResultBlockchainInfo struct {
@@ -62,7 +64,7 @@ type ResultDialSeeds struct {
 }
 
 type Peer struct {
-	p2p.NodeInfo     `json:"node_info"`
+	p2p.NodeInfo                          `json:"node_info"`
 	IsOutbound       bool                 `json:"is_outbound"`
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
 }
@@ -107,8 +109,35 @@ type ResultInfo struct {
 	LastBlockAppHash []byte  `json:"last_block_app_hash"`
 }
 
+// ResultQuery is the result for all the raw query interface
 type ResultQuery struct {
 	Result Result `json:"result"`
+}
+
+type ResultQueryNonce struct {
+	Code  pbtypes.CodeType `json:"code"`
+	Log   string           `json:"log"`
+	Nonce uint64           `json:"nonce"`
+}
+
+type ResultQueryBalance struct {
+	Code    pbtypes.CodeType `json:"code"`
+	Log     string           `json:"log"`
+	Balance *hexutil.Big     `json:"balance"`
+}
+
+type ResultQueryShare struct {
+	Code          pbtypes.CodeType `json:"code"`
+	Log           string           `json:"log"`
+	ShareBalance  *hexutil.Big     `json:"share_balance"`
+	ShareGuaranty *hexutil.Big     `json:"share_guaranty"`
+	GHeight       *hexutil.Big      `json:"gheight"`
+}
+
+type ResultQueryReceipt struct {
+	Code    pbtypes.CodeType  `json:"code"`
+	Log     string            `json:"log"`
+	Receipt *ethtypes.Receipt `json:"receipt"`
 }
 
 type ResultRefuseList struct {
@@ -184,8 +213,12 @@ const (
 	ResultTypeRequestSpecialOP  = byte(0x63)
 
 	// 0x7 bytes are for querying the application
-	ResultTypeQuery = byte(0x70)
-	ResultTypeInfo  = byte(0x71)
+	ResultTypeQuery        = byte(0x70)
+	ResultTypeInfo         = byte(0x71)
+	ResultTypeQueryNonce   = byte(0x72)
+	ResultTypeQueryBalance = byte(0x73)
+	ResultTypeQueryShare   = byte(0x74)
+	ResultTypeQueryReceipt = byte(0x75)
 
 	// 0x8 bytes are for events
 	ResultTypeSubscribe   = byte(0x80)
@@ -233,6 +266,11 @@ var _ = wire.RegisterInterface(
 	wire.ConcreteType{&ResultUnsafeProfile{}, ResultTypeUnsafeWriteHeapProfile},
 	wire.ConcreteType{&ResultUnsafeFlushMempool{}, ResultTypeUnsafeFlushMempool},
 	wire.ConcreteType{&ResultQuery{}, ResultTypeQuery},
+	wire.ConcreteType{&ResultQueryNonce{}, ResultTypeQueryNonce},
+	wire.ConcreteType{&ResultQueryBalance{}, ResultTypeQueryBalance},
+	wire.ConcreteType{&ResultQueryShare{}, ResultTypeQueryShare},
+	wire.ConcreteType{&ResultQueryReceipt{}, ResultTypeQueryReceipt},
+
 	wire.ConcreteType{&ResultInfo{}, ResultTypeInfo},
 	wire.ConcreteType{&ResultSurveillance{}, ResultTypeSurveillance},
 	wire.ConcreteType{&ResultRefuseList{}, ResultTypeRefuseList},

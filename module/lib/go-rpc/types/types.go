@@ -15,11 +15,9 @@
 package rpctypes
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/Baptist-Publication/chorus/module/lib/go-events"
-	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 )
 
 type RPCRequest struct {
@@ -57,22 +55,17 @@ type Result interface {
 //----------------------------------------
 
 type RPCResponse struct {
-	JSONRPC string           `json:"jsonrpc"`
-	ID      string           `json:"id"`
-	Result  *json.RawMessage `json:"result"`
-	Error   string           `json:"error"`
+	JSONRPC string      `json:"jsonrpc"`
+	ID      string      `json:"id"`
+	Result  interface{} `json:"result"`
+	Error   string      `json:"error"`
 }
 
 func NewRPCResponse(id string, res interface{}, err string) RPCResponse {
-	var raw *json.RawMessage
-	if res != nil {
-		rawMsg := json.RawMessage(wire.JSONBytes(res))
-		raw = &rawMsg
-	}
 	return RPCResponse{
 		JSONRPC: "2.0",
 		ID:      id,
-		Result:  raw,
+		Result:  res,
 		Error:   err,
 	}
 }

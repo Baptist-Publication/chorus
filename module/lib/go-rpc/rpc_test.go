@@ -129,7 +129,7 @@ func testWS(t *testing.T, cl *rpcclient.WSClient) {
 
 	msg := <-cl.ResultsCh
 	result := new(Result)
-	wire.ReadJSONPtr(result, msg, &err)
+	//wire.ReadJSONPtr(result, msg, &err)
 	if err != nil {
 		t.Fatal(err)
 	}
