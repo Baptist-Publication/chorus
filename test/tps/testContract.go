@@ -95,7 +95,7 @@ func testContract(w *sync.WaitGroup, id int, privkey string) {
 
 		// fmt.Printf("%d: %d\n", id, sendPerThread-i)
 		resq <- res{id, sendPerThread - i}
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * time.Duration(sleep))
 
 		nonce++
 	}

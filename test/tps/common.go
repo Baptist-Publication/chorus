@@ -12,7 +12,7 @@ import (
 	"github.com/Baptist-Publication/chorus/eth/rlp"
 	ac "github.com/Baptist-Publication/chorus/module/lib/go-common"
 	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
-	"gitlab.zhonganonline.com/ann/civilization/src/types"
+	"github.com/Baptist-Publication/chorus/types"
 )
 
 func panicErr(err error) {
@@ -26,7 +26,7 @@ func getNonce(client *cl.ClientJSONRPC, address string) (uint64, error) {
 
 	addrHex := ac.SanitizeHex(address)
 	addr := common.Hex2Bytes(addrHex)
-	query := append([]byte{types.QueryType_Nonce}, addr...)
+	query := append([]byte{types.QueryTypeNonce}, addr...)
 
 	if client == nil {
 		client = cl.NewClientJSONRPC(logger, rpcTarget)
@@ -53,7 +53,7 @@ func getBalance(client *cl.ClientJSONRPC, address string) (uint64, error) {
 
 	addrHex := ac.SanitizeHex(address)
 	addr := common.Hex2Bytes(addrHex)
-	query := append([]byte{types.QueryType_Balance}, addr...)
+	query := append([]byte{types.QueryTypeBalance}, addr...)
 
 	if client == nil {
 		client = cl.NewClientJSONRPC(logger, rpcTarget)

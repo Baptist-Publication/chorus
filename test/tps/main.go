@@ -14,6 +14,8 @@ var (
 	gasLimit = big.NewInt(1000000)
 
 	logger *zap.Logger
+
+	sleep = 5
 )
 
 var (
@@ -100,5 +102,11 @@ func prepare() {
 	if a != "" {
 		ai, _ := strconv.Atoi(a)
 		txAmount = int64(ai)
+	}
+
+	s := os.Getenv("sleep")
+	if s != "" {
+		si, _ := strconv.Atoi(s)
+		sleep = si
 	}
 }
