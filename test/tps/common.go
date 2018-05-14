@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
@@ -45,6 +46,33 @@ func getNonce(client *cl.ClientJSONRPC, address string) (uint64, error) {
 	panicErr(err)
 
 	return *nonce, nil
+}
+
+func getBalance(client *cl.ClientJSONRPC, address string) (uint64, error) {
+	tmResult := new(agtypes.RPCResult)
+
+	addrHex := ac.SanitizeHex(address)
+	addr := common.Hex2Bytes(addrHex)
+	query := append([]byte{types.QueryType_Balance}, addr...)
+
+	if client == nil {
+		client = cl.NewClientJSONRPC(logger, rpcTarget)
+	}
+	_, err := client.Call("query", []interface{}{query}, tmResult)
+	if err != nil {
+		return 0, err
+	}
+
+	res := (*tmResult).(*agtypes.ResultQuery)
+	if res.Result.IsErr() {
+		fmt.Println(res.Result.Code, res.Result.Log)
+		return 0, errors.New(res.Result.Error())
+	}
+	balance := new(big.Int)
+	err = rlp.DecodeBytes(res.Result.Data, balance)
+	panicErr(err)
+
+	return balance.Uint64(), nil
 }
 
 func unpackResult(method string, abiDef abi.ABI, output string) (interface{}, error) {

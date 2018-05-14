@@ -192,7 +192,7 @@ func setMempoolDefaults(conf *viper.Viper) {
 	conf.SetDefault("mempool_recheck", false)
 	conf.SetDefault("mempool_recheck_empty", false)
 	conf.SetDefault("mempool_enable_txs_limits", false)
-	conf.SetDefault("mempool_block_sort_interval",1000)
+	conf.SetDefault("mempool_block_sort_interval", 1000)
 }
 
 func setConsensusDefaults(conf *viper.Viper) {

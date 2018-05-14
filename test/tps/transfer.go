@@ -1,10 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
-
-	"time"
 
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	"github.com/Baptist-Publication/chorus/eth/common"
@@ -15,11 +14,9 @@ import (
 	"github.com/Baptist-Publication/chorus/types"
 )
 
-func sendTx(privkey, toAddr string, value int64) error {
+func send(client *cl.ClientJSONRPC, privkey, toAddr string, value int64, nonce uint64) error {
 	sk, err := crypto.HexToECDSA(ac.SanitizeHex(privkey))
 	panicErr(err)
-
-	nonce := uint64(time.Now().UnixNano())
 
 	btxbs, err := tools.ToBytes(&types.TxEvmCommon{
 		To:     common.HexToAddress(toAddr).Bytes(),
@@ -34,12 +31,17 @@ func sendTx(privkey, toAddr string, value int64) error {
 	panicErr(err)
 
 	tmResult := new(agtypes.RPCResult)
-	clientJSON := cl.NewClientJSONRPC(logger, rpcTarget)
-	_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{append(types.TxTagAppEvmCommon, b...)}, tmResult)
+	if client == nil {
+		client = cl.NewClientJSONRPC(logger, rpcTarget)
+	}
+	_, err = client.Call("broadcast_tx_sync", []interface{}{append(types.TxTagAppEvmCommon, b...)}, tmResult)
 	panicErr(err)
 
-	res := (*tmResult).(*agtypes.ResultBroadcastTxCommit)
-	fmt.Println("******************result", res)
+	res := (*tmResult).(*agtypes.ResultBroadcastTx)
+	if res.Code != 0 {
+		fmt.Println(res.Code, string(res.Data), res.Log)
+		return errors.New(string(res.Data))
+	}
 
 	return nil
 }

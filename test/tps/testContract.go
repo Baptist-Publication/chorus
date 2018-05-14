@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -47,14 +48,16 @@ func testContractCallOnce() {
 func testPushContract() {
 	assertContractExist(nil)
 
-	fmt.Println("ThreadCount:", threadCount, "SendPerThread:", sendPerThread)
+	fmt.Println("ThreadCount:", threadCount)
+	fmt.Println("SendPerThread:", sendPerThread)
+	time.Sleep(time.Second * 2)
 
 	var wg sync.WaitGroup
 
 	go resPrintRoutine()
 
 	for i := 0; i < threadCount-1; i++ {
-		go testContract(&wg, i, fmt.Sprintf("7d73c3dafd3c0215b8526b26f8dbdb93242fc7dcfbdfa1000d93436d577c30%02d", i))
+		go testContract(&wg, i, fmt.Sprintf("7d73c3dafd3c0215b8526b26f8dbdb93242fc7dcfbdfa1000d93436d577c%04d", rand.Uint64()%10000))
 		// go testContract(&wg,i, "")
 	}
 
