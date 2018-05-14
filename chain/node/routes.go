@@ -105,15 +105,28 @@ func (h *rpcHandler) Status() (agtypes.RPCResult, error) {
 		LatestBlockTime:   latestBlockTime}, nil
 }
 
+// Block will return the information of the block at the given height
+// If the height is 0, returns the latest block. (Height starts from 1)
+// This is a workaround since http parameters can only be provided as "text" (with quotes) OR pure number.
+// under the current rpc framework. Find some time to get rid of it.
 func (h *rpcHandler) Block(height def.INT) (agtypes.RPCResult, error) {
 	var err error
-	res := agtypes.ResultBlock{}
+	res := agtypes.ResultBlockInfo{}
 	var blockc *agtypes.BlockCache
-	blockc, res.BlockMeta, err = h.node.Angine.GetBlock(height)
+
+	var blockMeta *pbtypes.BlockMeta
+
+	if height == 0{
+		blockc, blockMeta, err = h.node.Angine.GetLatestBlock()
+	}else{
+		blockc, blockMeta, err = h.node.Angine.GetBlock(height)
+	}
+	res.BlockMeta = (&agtypes.ResultBlockMeta{}).Adapt(blockMeta)
+
 	if err != nil{
 		return nil, err
 	}
-	res.Block = blockc.Block
+	res.Block = (&agtypes.ResultBlock{}).Adapt(blockc.Block)
 	return &res, err
 }
 
