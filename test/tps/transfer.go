@@ -35,7 +35,7 @@ func sendTx(privkey, toAddr string, value int64) error {
 
 	tmResult := new(agtypes.RPCResult)
 	clientJSON := cl.NewClientJSONRPC(logger, rpcTarget)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{append(types.TxTagAppEvmCommon, b...)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{append(types.TxTagAppEvmCommon, b...)}, tmResult)
 	panicErr(err)
 
 	res := (*tmResult).(*agtypes.ResultBroadcastTxCommit)

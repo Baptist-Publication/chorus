@@ -204,7 +204,7 @@ func (app *App) OnExecute(height, round def.INT, block *agtypes.BlockCache) (int
 
 	var err error
 	var res agtypes.ExecuteResult
-	exeWithCPUSerialVeirfy(block.Data.Txs, nil,
+	exeWithCPUParallelVeirfy(block.Data.Txs, nil,
 		func(index int, raw []byte, tx *types.BlockTx) {
 			switch {
 			case bytes.HasPrefix(raw, types.TxTagAppEvm):
