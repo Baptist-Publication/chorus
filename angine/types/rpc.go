@@ -33,7 +33,8 @@ import (
 // Meanwhile changed json key names to lowercase for better naming convention
 type ResultBlockMeta struct {
 	Hash        hexutil.Bytes        `json:"hash,omitempty"`
-	Header      *ResultHeader        `json:"header,omitempty"`
+	// removed for duplication
+	//Header      *ResultHeader        `json:"header,omitempty"`
 	PartsHeader *ResultPartSetHeader `json:"parts_header,omitempty"`
 }
 
@@ -42,7 +43,7 @@ func (r *ResultBlockMeta) Adapt(m *pbtypes.BlockMeta) *ResultBlockMeta {
 		return nil
 	}
 	r.Hash = m.Hash
-	r.Header = (&ResultHeader{}).Adapt(m.Header)
+	//r.Header = (&ResultHeader{}).Adapt(m.Header)
 	r.PartsHeader = (&ResultPartSetHeader{}).Adapt(m.PartsHeader)
 	return r
 }
@@ -55,11 +56,11 @@ type ResultBlock struct {
 }
 
 type ResultValidator struct {
-	Address     hexutil.Bytes   `json:"address"`
+	Address     hexutil.Bytes `json:"address"`
 	PubKey      hexutil.Bytes `json:"pub_key"`
-	VotingPower def.INT         `json:"voting_power"`
-	Accum       def.INT         `json:"accum"`
-	IsCA        bool            `json:"is_ca"`
+	VotingPower def.INT       `json:"voting_power"`
+	Accum       def.INT       `json:"accum"`
+	IsCA        bool          `json:"is_ca"`
 }
 
 func (r *ResultValidator) Adapt(m *Validator) *ResultValidator {
@@ -77,7 +78,7 @@ func (r *ResultValidator) Adapt(m *Validator) *ResultValidator {
 type ResultValidatorSet struct {
 	Validators       []*ResultValidator `json:"validators"`
 	Proposer         *ResultValidator   `json:"proposer"`
-	TotalVotingPower def.INT      `json:"total_voting_power"`
+	TotalVotingPower def.INT            `json:"total_voting_power"`
 }
 
 func (r *ResultValidatorSet) Adapt(m *pbtypes.ValidatorSet) *ResultValidatorSet {
@@ -89,7 +90,7 @@ func (r *ResultValidatorSet) Adapt(m *pbtypes.ValidatorSet) *ResultValidatorSet 
 	if rv.Validators != nil {
 		r.Validators = make([]*ResultValidator, len(rv.Validators))
 
-		for i, validator := range rv.Validators{
+		for i, validator := range rv.Validators {
 			r.Validators[i] = new(ResultValidator).Adapt(validator)
 		}
 	}
@@ -151,16 +152,25 @@ func (r *ResultHeader) Adapt(m *pbtypes.Header) *ResultHeader {
 type ResultData struct {
 	//Txs   []hexutil.Bytes `json:"txs,omitempty"`
 	//ExTxs []hexutil.Bytes `json:"ex_txs,omitempty"`
-	Txs   [][]byte `json:"txs,omitempty"`
-	ExTxs [][]byte `json:"ex_txs,omitempty"`
+	// Return the hash of the transactions
+	// Use another call to get the details
+	Txs   []hexutil.Bytes `json:"txs,omitempty"`
+	ExTxs []hexutil.Bytes `json:"ex_txs,omitempty"`
 }
 
 func (r *ResultData) Adapt(m *pbtypes.Data) *ResultData {
 	if m == nil {
 		return nil
 	}
-	r.ExTxs = m.ExTxs
-	r.Txs = m.Txs
+	r.Txs = make([]hexutil.Bytes, len(m.Txs))
+	for i, rawBytes := range m.Txs{
+		r.Txs[i] = hexutil.Bytes(Tx(rawBytes).Hash())
+	}
+
+	r.ExTxs = make([]hexutil.Bytes, len(m.ExTxs))
+	for i, rawBytes := range m.ExTxs{
+		r.ExTxs[i] = hexutil.Bytes(Tx(rawBytes).Hash())
+	}
 	return r
 }
 
