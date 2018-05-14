@@ -159,6 +159,7 @@ func unmarshalResponseBytes(responseBytes []byte, result interface{}) (interface
 	// log.Notice("response", "response", string(responseBytes))
 	var err error
 	response := &rpctypes.RPCResponse{}
+	response.Result = result
 	err = json.Unmarshal(responseBytes, response)
 	if err != nil {
 		return nil, errors.New(Fmt("Error unmarshalling rpc response: %v", err))

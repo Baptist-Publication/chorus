@@ -50,26 +50,23 @@ func lastBlockInfo(ctx *cli.Context) error {
 
 func numUnconfirmedTxs(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
+	tmResult := new(types.ResultUnconfirmedTxs)
 	_, err := clientJSON.Call("num_unconfirmed_txs", []interface{}{}, tmResult)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*types.ResultUnconfirmedTxs)
-
-	fmt.Println("num of unconfirmed txs: ", res.N)
+	fmt.Println("num of unconfirmed txs: ", tmResult.N)
 	return nil
 }
 
 func netInfo(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(types.RPCResult)
-	_, err := clientJSON.Call("net_info", []interface{}{}, tmResult)
+	res := new(types.ResultNetInfo)
+	_, err := clientJSON.Call("net_info", []interface{}{}, res)
 	if err != nil {
 		panic(err)
 	}
-	res := (*tmResult).(*types.ResultNetInfo)
 	fmt.Println("listening :", res.Listening)
 	for _, l := range res.Listeners {
 		fmt.Println("listener :", l)

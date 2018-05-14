@@ -137,13 +137,12 @@ func readContract(ctx *cli.Context) error {
 	}
 	query := append([]byte{types.QueryTypeContract}, b...)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
-	_, err = clientJSON.Call("query", []interface{}{query}, tmResult)
+	res := new(agtypes.ResultQuery)
+	_, err = clientJSON.Call("query", []interface{}{query}, res)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
 	hex := common.Bytes2Hex(res.Result.Data)
 	fmt.Println("query result:", hex)
 	parseResult, _ := unpackResult(function, *aabbii, string(res.Result.Data))
@@ -266,14 +265,13 @@ func executeContract(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 123)
 	}
 
-	tmResult := new(agtypes.RPCResult)
+	res := new(agtypes.ResultBroadcastTx)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_sync", []interface{}{agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, res)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
 	}
 
-	res := (*tmResult).(*agtypes.ResultBroadcastTx)
 	if res.Code != 0 {
 		fmt.Println("Error:", res.Log)
 	} else {
@@ -342,14 +340,13 @@ func createContract(ctx *cli.Context) error {
 	}
 
 	bytesLoad := agtypes.WrapTx(types.TxTagAppEvmCommon, b)
-	tmResult := new(agtypes.RPCResult)
+	res := new(agtypes.ResultBroadcastTxCommit)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{bytesLoad}, tmResult)
+	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{bytesLoad}, res)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 110)
 	}
 
-	res := (*tmResult).(*agtypes.ResultBroadcastTxCommit)
 	if res.Code != 0 {
 		fmt.Println("Error:", res.Log)
 	} else {
@@ -385,13 +382,12 @@ func existContract(ctx *cli.Context) error {
 	}
 	query := append([]byte{types.QueryTypeContractExistance}, txBytes...)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
-	_, err = clientJSON.Call("query", []interface{}{query}, tmResult)
+	res := new(agtypes.ResultQuery)
+	_, err = clientJSON.Call("query", []interface{}{query}, res)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
 	hex := common.Bytes2Hex(res.Result.Data)
 	if hex == "01" {
 		fmt.Println("Yes!!!")

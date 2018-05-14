@@ -103,12 +103,12 @@ func testURI(t *testing.T, cl *rpcclient.ClientURI) {
 func testJSONRPC(t *testing.T, cl *rpcclient.ClientJSONRPC) {
 	val := "acbd"
 	params := []interface{}{val}
-	var result Result
-	_, err := cl.Call("status", params, &result)
+	result := new(ResultStatus)
+	_, err := cl.Call("status", params, result)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := result.(*ResultStatus).Value
+	got := result.Value
 	if got != val {
 		t.Fatalf("Got: %v   ....   Expected: %v \n", got, val)
 	}
