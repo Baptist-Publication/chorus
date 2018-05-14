@@ -78,7 +78,7 @@ func queryNonce(ctx *cli.Context) error {
 
 func getNonce(addr string) (nonce uint64, err error) {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultQuery)
 
 	addrHex := ac.SanitizeHex(addr)
 	adr, _ := hex.DecodeString(addrHex)
@@ -89,9 +89,8 @@ func getNonce(addr string) (nonce uint64, err error) {
 		return 0, cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
 	//nonce = binary.LittleEndian.Uint64(res.Result.Data)
-	rlp.DecodeBytes(res.Result.Data, &nonce)
+	rlp.DecodeBytes(tmResult.Result.Data, &nonce)
 	return nonce, nil
 }
 

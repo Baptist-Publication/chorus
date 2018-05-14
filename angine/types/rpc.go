@@ -25,6 +25,8 @@ import (
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
 	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
+	"github.com/Baptist-Publication/chorus/tools"
+	"github.com/Baptist-Publication/chorus/types"
 )
 
 // ResultBlockMeta simply duplicates pbtypes.BlockMeta but change the way to marshal []byte.
@@ -32,10 +34,10 @@ import (
 // By default, go json encodes []byte as base64. In our response it will be a plain HEX string prefixed by 0x.
 // Meanwhile changed json key names to lowercase for better naming convention
 type ResultBlockMeta struct {
-	Hash        hexutil.Bytes        `json:"hash,omitempty"`
+	Hash        hexutil.Bytes        `json:"hash"`
 	// removed for duplication
-	//Header      *ResultHeader        `json:"header,omitempty"`
-	PartsHeader *ResultPartSetHeader `json:"parts_header,omitempty"`
+	//Header      *ResultHeader        `json:"header,"
+	PartsHeader *ResultPartSetHeader `json:"parts_header"`
 }
 
 func (r *ResultBlockMeta) Adapt(m *pbtypes.BlockMeta) *ResultBlockMeta {
@@ -49,10 +51,10 @@ func (r *ResultBlockMeta) Adapt(m *pbtypes.BlockMeta) *ResultBlockMeta {
 }
 
 type ResultBlock struct {
-	Header     *ResultHeader       `json:"header,omitempty"`
-	Data       *ResultData         `json:"data,omitempty"`
-	LastCommit *ResultCommit       `json:"last_commit,omitempty"`
-	VSet       *ResultValidatorSet `json:"validator_set,omitempty"`
+	Header     *ResultHeader       `json:"header"`
+	Data       *ResultData         `json:"data"`
+	LastCommit *ResultCommit       `json:"last_commit"`
+	VSet       *ResultValidatorSet `json:"validator_set"`
 }
 
 type ResultValidator struct {
@@ -114,19 +116,19 @@ func (r *ResultBlock) Adapt(m *pbtypes.Block) *ResultBlock {
 
 // ResultHeader duplicates pbtypes.Header
 type ResultHeader struct {
-	ChainID            string         `json:"chain_id,omitempty"`
-	Height             int64          `json:"height,omitempty"`
-	Time               int64          `json:"time,omitempty"`
-	NumTxs             int64          `json:"num_txs,omitempty"`
-	Maker              hexutil.Bytes  `json:"maker,omitempty"`
-	LastBlockID        *ResultBlockID `json:"last_block_id,omitempty"`
-	LastCommitHash     hexutil.Bytes  `json:"last_commit_hash,omitempty"`
-	DataHash           hexutil.Bytes  `json:"data_hash,omitempty"`
-	ValidatorsHash     hexutil.Bytes  `json:"validators_hash,omitempty"`
-	AppHash            hexutil.Bytes  `json:"app_hash,omitempty"`
-	ReceiptsHash       hexutil.Bytes  `json:"receipts_hash,omitempty"`
-	LastNonEmptyHeight int64          `json:"last_non_empty_height,omitempty"`
-	CoinBase           hexutil.Bytes  `json:"coin_base,omitempty"`
+	ChainID            string         `json:"chain_id"`
+	Height             int64          `json:"height"`
+	Time               int64          `json:"time"`
+	NumTxs             int64          `json:"num_txs"`
+	Maker              hexutil.Bytes  `json:"maker"`
+	LastBlockID        *ResultBlockID `json:"last_block_id"`
+	LastCommitHash     hexutil.Bytes  `json:"last_commit_hash"`
+	DataHash           hexutil.Bytes  `json:"data_hash"`
+	ValidatorsHash     hexutil.Bytes  `json:"validators_hash"`
+	AppHash            hexutil.Bytes  `json:"app_hash"`
+	ReceiptsHash       hexutil.Bytes  `json:"receipts_hash"`
+	LastNonEmptyHeight int64          `json:"last_non_empty_height"`
+	CoinBase           hexutil.Bytes  `json:"coin_base"`
 }
 
 func (r *ResultHeader) Adapt(m *pbtypes.Header) *ResultHeader {
@@ -150,26 +152,33 @@ func (r *ResultHeader) Adapt(m *pbtypes.Header) *ResultHeader {
 }
 
 type ResultData struct {
-	//Txs   []hexutil.Bytes `json:"txs,omitempty"`
-	//ExTxs []hexutil.Bytes `json:"ex_txs,omitempty"`
+	//Txs   []hexutil.Bytes `json:"txs"`
+	//ExTxs []hexutil.Bytes `json:"ex_txs"`
 	// Return the hash of the transactions
 	// Use another call to get the details
-	Txs   []hexutil.Bytes `json:"txs,omitempty"`
-	ExTxs []hexutil.Bytes `json:"ex_txs,omitempty"`
+	Txs   []hexutil.Bytes `json:"txs"`
+	ExTxs []hexutil.Bytes `json:"ex_txs"`
 }
 
 func (r *ResultData) Adapt(m *pbtypes.Data) *ResultData {
 	if m == nil {
 		return nil
 	}
-	r.Txs = make([]hexutil.Bytes, len(m.Txs))
-	for i, rawBytes := range m.Txs{
-		r.Txs[i] = hexutil.Bytes(Tx(rawBytes).Hash())
+
+	txs := BytesToTxSlc(m.Txs)
+	r.Txs = make([]hexutil.Bytes, len(txs))
+	for i, tx := range txs{
+		blockTx := new(types.BlockTx)
+		tools.FromBytes(UnwrapTx(tx), blockTx)
+		r.Txs[i] = hexutil.Bytes(tools.Hash(blockTx))
 	}
 
-	r.ExTxs = make([]hexutil.Bytes, len(m.ExTxs))
-	for i, rawBytes := range m.ExTxs{
-		r.ExTxs[i] = hexutil.Bytes(Tx(rawBytes).Hash())
+	extxs := BytesToTxSlc(m.ExTxs)
+	r.ExTxs = make([]hexutil.Bytes, len(extxs))
+	for i, tx := range extxs{
+		blockTx := new(types.BlockTx)
+		tools.FromBytes(UnwrapTx(tx), blockTx)
+		r.ExTxs[i] = hexutil.Bytes(tools.Hash(blockTx))
 	}
 	return r
 }
