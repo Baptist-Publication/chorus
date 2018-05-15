@@ -28,6 +28,10 @@ import (
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
 )
 
+var (
+	tpsc = NewTPSCalculator(10)
+)
+
 //--------------------------------------------------
 // Execute the block
 
@@ -129,13 +133,17 @@ func (s *State) execBlock(eventSwitch agtypes.EventSwitch, block *agtypes.BlockC
 		return nil, res.Error
 	}
 
+	tpsc.AddRecord(uint32(len(res.ValidTxs)))
+	tps := tpsc.TPS()
+
 	if s.logger != nil {
 		s.logger.Info("Executed block",
 			zap.Int64("height", bheader.Height),
 			zap.Int64("txs", bheader.NumTxs),
 			zap.Int("valid", len(res.ValidTxs)),
 			zap.Int("invalid", len(res.InvalidTxs)),
-			zap.Int("extended", len(block.Data.ExTxs)))
+			zap.Int("extended", len(block.Data.ExTxs)),
+			zap.Int("tps", tps))
 	}
 
 	return nil, nil

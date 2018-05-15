@@ -2,12 +2,12 @@ package app
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
 
-	ethcrypto "github.com/Baptist-Publication/chorus/eth/crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	db "github.com/Baptist-Publication/chorus/module/lib/go-db"
 	"github.com/Baptist-Publication/chorus/tools"
@@ -50,34 +50,70 @@ func TestBar(t *testing.T) {
 		Amount: big.NewInt(1000),
 		// Load:   []byte(""),
 	}
-	evmBs, err := tools.TxToBytes(evmTx)
+	evmBs, err := tools.ToBytes(evmTx)
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Printf("evm: %x\n", evmBs)
 
 	tx := types.NewBlockTx(big.NewInt(1000000), big.NewInt(1), 1, toBytes("7a96091f2abb51ba304ad6be6043e696ada5210b"), evmBs)
-	fmt.Println(tx)
-	privKey, err := ethcrypto.HexToECDSA("760b490afd1341f1aaacd8b1bcc97d5cc84d21f085c3d4935c38816cee637ab7")
+	pkbs, _ := hex.DecodeString("760b490afd1341f1aaacd8b1bcc97d5cc84d21f085c3d4935c38816cee637ab7")
+
+	tx.Signature, err = tools.SignSecp256k1(tx, pkbs)
 	if err != nil {
 		panic(err)
 	}
 
-	err = tx.Sign(privKey)
+	if err = tools.VerifySecp256k1(tx, tx.Sender, tx.Signature); err != nil {
+		panic(err)
+	}
+
+	// bs, err := tools.ToBytes(tx)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// fmt.Printf("%x\n", bs)
+}
+
+func ToJSON(o interface{}) string {
+	bs, _ := json.Marshal(o)
+	return string(bs)
+}
+
+func TestNothing(t *testing.T) {
+	s := "f877830186a001809471ac67bef29722c49b01b7b23c88663a1bbe575c98d79400a3553efce903931811ebc25871a626cf89e7086480b841459320b3897863131af6fe8ec9343f89abf751fe64d3a4070f256ad50848ce961a0638a19c3a42de9725b182d6e910aaaabe3e2bfc7fb3f6605cfcca86dc913e00"
+	bs, err := hex.DecodeString(s)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("sig %x\n", tx.Signature)
-	tx.Signature = tx.Signature[:64]
-
-	bs, err := tools.TxToBytes(tx)
-	if err != nil {
+	tx := &types.BlockTx{}
+	if err = tools.FromBytes(bs, tx); err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("%x\n", bs)
+	fmt.Println(ToJSON(tx))
+
+	fmt.Println(len(tx.Signature))
+
+	fmt.Printf("%x\n", tx.Signature)
+	tx.Signature[64] = 1
+
+	if err = tools.VerifySecp256k1(tx, tx.Sender, tx.Signature); err != nil {
+		panic(err)
+	}
+
+	bodyTx := &types.TxShareTransfer{}
+	if err = tools.FromBytes(tx.Payload, bodyTx); err != nil {
+		panic(err)
+	}
+
+	fmt.Println(ToJSON(bodyTx))
+
+	if err = tools.VeirfyED25519(bodyTx, bodyTx.ShareSrc, bodyTx.ShareSig); err != nil {
+		panic(err)
+	}
+
 }
 
 func randomPubkey() *crypto.PubKeyEd25519 {

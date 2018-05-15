@@ -36,7 +36,6 @@ func (app *App) ExecuteEVMTx(header *ethtypes.Header, blockHash ethcmn.Hash, tx 
 		evmTx = ethtypes.NewTransaction(tx.Nonce, from, to, txBody.Amount, tx.GasLimit, tx.GasPrice, txBody.Load)
 	}
 	gp := new(ethcore.GasPool).AddGas(header.GasLimit)
-	fmt.Println("remaining gas of gaspool: ", gp)
 	app.currentEvmState.StartRecord(ethcmn.BytesToHash(txHash), blockHash, txIndex)
 	receipt, usedGas, err := ethcore.ApplyTransaction(
 		app.chainConfig,
