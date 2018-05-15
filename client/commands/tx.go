@@ -55,10 +55,12 @@ func sendTx(ctx *cli.Context) error {
 		Amount: big.NewInt(value),
 		Load:   data,
 	}
+	fmt.Printf("%+v\n", bodyTx)
 	bodyBs, err := tools.ToBytes(bodyTx)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
+	fmt.Printf("bodyBs: %#x\n", bodyBs)
 
 	from := crypto.PubkeyToAddress(privkey.PublicKey)
 	fmt.Printf("%x\n", from)
@@ -73,7 +75,7 @@ func sendTx(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultBroadcastTxCommit)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEvmCommon, b)}, tmResult)
 	if err != nil {
