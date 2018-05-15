@@ -504,6 +504,10 @@ func (ang *Angine) GetBlock(height def.INT) (block *agtypes.BlockCache, meta *pb
 	return
 }
 
+func (ang *Angine) GetLatestBlock() (block *agtypes.BlockCache, meta *pbtypes.BlockMeta, err error) {
+	return ang.GetBlock(ang.blockstore.Height())
+}
+
 func (ang *Angine) GetNonEmptyBlockIterator() *blockchain.NonEmptyBlockIterator {
 	return blockchain.NewNonEmptyBlockIterator(ang.blockstore)
 }

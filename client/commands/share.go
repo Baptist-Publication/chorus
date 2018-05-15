@@ -135,7 +135,7 @@ func sendShare(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultBroadcastTxCommit)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEcoShareTransfer, b)}, tmResult)
 	if err != nil {
@@ -151,7 +151,7 @@ func sendShare(ctx *cli.Context) error {
 func shareGuarantee(ctx *cli.Context) error {
 	tx, b, err := constructEcoTx(ctx)
 
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultBroadcastTxCommit)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEcoGuarantee, b)}, tmResult)
 	if err != nil {
@@ -169,7 +169,7 @@ func shareRedeem(ctx *cli.Context) error {
 		return err
 	}
 
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultBroadcastTxCommit)
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
 	_, err = clientJSON.Call("broadcast_tx_commit", []interface{}{agtypes.WrapTx(types.TxTagAppEcoRedeem, b)}, tmResult)
 	if err != nil {

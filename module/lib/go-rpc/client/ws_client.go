@@ -40,7 +40,7 @@ type WSClient struct {
 	Endpoint string // /websocket/url/endpoint
 	Dialer   func(string, string) (net.Conn, error)
 	*websocket.Conn
-	ResultsCh chan json.RawMessage // closes upon WSClient.Stop()
+	ResultsCh chan interface{} // closes upon WSClient.Stop()
 	ErrorsCh  chan error           // closes upon WSClient.Stop()
 }
 
@@ -52,7 +52,7 @@ func NewWSClient(logger *zap.Logger, remoteAddr, endpoint string) *WSClient {
 		Dialer:    dialer,
 		Endpoint:  endpoint,
 		Conn:      nil,
-		ResultsCh: make(chan json.RawMessage, wsResultsChannelCapacity),
+		ResultsCh: make(chan interface{}, wsResultsChannelCapacity),
 		ErrorsCh:  make(chan error, wsErrorsChannelCapacity),
 	}
 	wsClient.BaseService = *NewBaseService(logger, "WSClient", wsClient)
@@ -123,7 +123,7 @@ func (wsc *WSClient) receiveEventsRoutine() {
 				wsc.ErrorsCh <- fmt.Errorf(response.Error)
 				continue
 			}
-			wsc.ResultsCh <- *response.Result
+			wsc.ResultsCh <- response.Result
 		}
 	}
 
