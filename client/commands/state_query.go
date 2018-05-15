@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	"github.com/Baptist-Publication/chorus/client/commons"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
@@ -13,6 +14,7 @@ import (
 	cl "github.com/Baptist-Publication/chorus/module/lib/go-rpc/client"
 	"github.com/Baptist-Publication/chorus/types"
 	"gopkg.in/urfave/cli.v1"
+	"errors"
 )
 
 var (
@@ -78,7 +80,7 @@ func queryNonce(ctx *cli.Context) error {
 
 func getNonce(addr string) (nonce uint64, err error) {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultQuery)
 
 	addrHex := ac.SanitizeHex(addr)
 	adr, _ := hex.DecodeString(addrHex)
@@ -89,15 +91,14 @@ func getNonce(addr string) (nonce uint64, err error) {
 		return 0, cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
 	//nonce = binary.LittleEndian.Uint64(res.Result.Data)
-	rlp.DecodeBytes(res.Result.Data, &nonce)
+	rlp.DecodeBytes(tmResult.Result.Data, &nonce)
 	return nonce, nil
 }
 
 func queryBalance(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultQuery)
 
 	addrHex := ac.SanitizeHex(ctx.String("address"))
 	addr, _ := hex.DecodeString(addrHex)
@@ -108,20 +109,20 @@ func queryBalance(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
-
 	balance := new(big.Int)
-	rlp.DecodeBytes(res.Result.Data, balance)
-	//balance := string(res.Result.Data)
+	rlp.DecodeBytes(tmResult.Result.Data, balance)
+	if tmResult.Result.Code != pbtypes.CodeType_OK{
+		fmt.Println("Error: ", tmResult.Result.Log)
+		return errors.New(tmResult.Result.Log)
+	}
 
 	fmt.Println("query result:", balance)
-
 	return nil
 }
 
 func queryShare(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultQuery)
 
 	addrHex := ac.SanitizeHex(ctx.String("account_pubkey"))
 	addr, _ := hex.DecodeString(addrHex)
@@ -132,13 +133,12 @@ func queryShare(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
-	if res.Result.IsErr() {
-		return cli.NewExitError(res.Result.Log, 127)
+	if tmResult.Result.IsErr() {
+		return cli.NewExitError(tmResult.Result.Log, 127)
 	}
 
 	share := types.QueryShareResult{}
-	rlp.DecodeBytes(res.Result.Data, &share)
+	rlp.DecodeBytes(tmResult.Result.Data, &share)
 
 	fmt.Println("balance:", share.ShareBalance.String(), "guaranty:", share.ShareGuaranty.String(), "guaranty_height:", share.GHeight)
 	return nil
@@ -146,7 +146,7 @@ func queryShare(ctx *cli.Context) error {
 
 func queryReceipt(ctx *cli.Context) error {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
+	tmResult := new(agtypes.ResultQuery)
 	hashHex := ac.SanitizeHex(ctx.String("hash"))
 	hash, _ := hex.DecodeString(hashHex)
 	query := append([]byte{types.QueryTypeReceipt}, hash...)
@@ -155,12 +155,10 @@ func queryReceipt(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
-
 	receiptdata := ethtypes.ReceiptForStorage{}
-	rlp.DecodeBytes(res.Result.Data, &receiptdata)
+	rlp.DecodeBytes(tmResult.Result.Data, &receiptdata)
 	resultMap := map[string]interface{}{
-		"code":              res.Result.Code,
+		"code":              tmResult.Result.Code,
 		"txHash":            receiptdata.TxHash.Hex(),
 		"contractAddress":   receiptdata.ContractAddress.Hex(),
 		"cumulativeGasUsed": receiptdata.CumulativeGasUsed,

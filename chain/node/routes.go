@@ -63,6 +63,17 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 
 		// query API
 		"query": rpc.NewRPCFunc(h.Query, "query"),
+		"query_nonce": rpc.NewRPCFunc(h.QueryNonce, "address"),
+		"query_balance": rpc.NewRPCFunc(h.QueryBalance, "address"),
+		"query_share": rpc.NewRPCFunc(h.QueryShare, "pubkey"),
+
+		"query_receipt": rpc.NewRPCFunc(h.QueryReceipt, "hash"),
+
+		//"query_contract": rpc.NewRPCFunc(h.QueryContract, "address"),
+
+		//"query_contract_existance": rpc.NewRPCFunc(h.QueryContractExistance, "address"),
+
+
 	}
 }
 
@@ -94,12 +105,28 @@ func (h *rpcHandler) Status() (agtypes.RPCResult, error) {
 		LatestBlockTime:   latestBlockTime}, nil
 }
 
+// Block will return the information of the block at the given height
+// If the height is 0, returns the latest block. (Height starts from 1)
+// This is a workaround since http parameters can only be provided as "text" (with quotes) OR pure number.
+// under the current rpc framework. Find some time to get rid of it.
 func (h *rpcHandler) Block(height def.INT) (agtypes.RPCResult, error) {
 	var err error
-	res := agtypes.ResultBlock{}
+	res := agtypes.ResultBlockInfo{}
 	var blockc *agtypes.BlockCache
-	blockc, res.BlockMeta, err = h.node.Angine.GetBlock(height)
-	res.Block = blockc.Block
+
+	var blockMeta *pbtypes.BlockMeta
+
+	if height == 0{
+		blockc, blockMeta, err = h.node.Angine.GetLatestBlock()
+	}else{
+		blockc, blockMeta, err = h.node.Angine.GetBlock(height)
+	}
+	res.BlockMeta = (&agtypes.ResultBlockMeta{}).Adapt(blockMeta)
+
+	if err != nil{
+		return nil, err
+	}
+	res.Block = (&agtypes.ResultBlock{}).Adapt(blockc.Block)
 	return &res, err
 }
 
@@ -217,3 +244,23 @@ func (h *rpcHandler) NetInfo() (agtypes.RPCResult, error) {
 	res.Listening, res.Listeners, res.Peers = h.node.Angine.GetP2PNetInfo()
 	return &res, nil
 }
+
+func (h *rpcHandler) QueryNonce(addrBytes []byte) (agtypes.ResultQueryNonce, error) {
+	return h.node.Application.QueryNonce(addrBytes), nil
+}
+
+
+func (h *rpcHandler) QueryBalance(addrBytes []byte) (agtypes.ResultQueryBalance, error){
+	return h.node.Application.QueryBalance(addrBytes), nil
+}
+
+func (h *rpcHandler) QueryShare(pubkeyBytes []byte) (agtypes.ResultQueryShare, error) {
+	return h.node.Application.QueryShare(pubkeyBytes), nil
+}
+
+func (h *rpcHandler) QueryReceipt(txHash []byte) (agtypes.ResultQueryReceipt, error){
+	return h.node.Application.QueryReceipt(txHash), nil
+}
+
+//func (h *rpcHandler) QueryContract(addrBytes []byte) (agtypes.ResultQueryContract, error){}
+//func (h *rpcHandler) QueryContractExistance(addrBytes []byte) (agtypes.ResultQueryContractExistance, error){}

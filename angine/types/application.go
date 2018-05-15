@@ -39,6 +39,14 @@ type Application interface {
 	Initialized() bool
 	ValSetLoader() ValSetLoaderFunc                // not necessary
 	SuspectValidator(pubkey []byte, reason string) // not necessary
+
+	// extra queries
+	QueryNonce(addrBytes []byte) ResultQueryNonce
+	QueryBalance(addrBytes []byte) ResultQueryBalance
+	QueryShare(pubkeyBytes []byte) ResultQueryShare
+	QueryReceipt(addrBytes []byte) ResultQueryReceipt
+	//QueryContract(addrBytes []byte) ResultQueryContract
+	//QueryContractExistance(addrBytes []byte) ResultQueryContractExistance
 }
 
 // BaseApplication defines the default save/load last block implementations

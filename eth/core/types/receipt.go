@@ -24,13 +24,13 @@ import (
 	"math/big"
 
 	"github.com/Baptist-Publication/chorus/eth/common"
-	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
 	"github.com/Baptist-Publication/chorus/eth/rlp"
 )
 
 var (
 	errMissingReceiptPostState = errors.New("missing post state root in JSON receipt")
 	errMissingReceiptFields    = errors.New("missing required JSON receipt fields")
+	errBadFormat    = errors.New("number format not valid")
 )
 
 // Receipt represents the results of a transaction.
@@ -50,13 +50,13 @@ type Receipt struct {
 
 type jsonReceipt struct {
 	PostState         *common.Hash    `json:"root"`
-	CumulativeGasUsed *hexutil.Big    `json:"cumulativeGasUsed"`
-	Bloom             *Bloom          `json:"logsBloom"`
+	CumulativeGasUsed string          `json:"cumulative_gas_used"`
+	Bloom             *Bloom          `json:"logs_bloom"`
 	Logs              []*Log          `json:"logs"`
-	TxHash            *common.Hash    `json:"transactionHash"`
-	ContractAddress   *common.Address `json:"contractAddress"`
-	GasUsed           *hexutil.Big    `json:"gasUsed"`
-	Height            *hexutil.Big    `json:"height"`
+	TxHash            *common.Hash    `json:"transaction_hash"`
+	ContractAddress   *common.Address `json:"contract_address"`
+	GasUsed           string          `json:"gas_used"`
+	Height            string          `json:"height"`
 }
 
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
@@ -92,13 +92,13 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(&jsonReceipt{
 		PostState:         &root,
-		CumulativeGasUsed: (*hexutil.Big)(r.CumulativeGasUsed),
+		CumulativeGasUsed: r.CumulativeGasUsed.String(),
 		Bloom:             &r.Bloom,
 		Logs:              r.Logs,
 		TxHash:            &r.TxHash,
 		ContractAddress:   &r.ContractAddress,
-		GasUsed:           (*hexutil.Big)(r.GasUsed),
-		Height:            (*hexutil.Big)(r.Height),
+		GasUsed:           r.GasUsed.String(),
+		Height:            r.Height.String(),
 	})
 }
 
@@ -114,19 +114,30 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 	if dec.PostState == nil {
 		return errMissingReceiptPostState
 	}
-	if dec.CumulativeGasUsed == nil || dec.Bloom == nil ||
-		dec.Logs == nil || dec.TxHash == nil || dec.GasUsed == nil {
+	if dec.CumulativeGasUsed == "" || dec.Bloom == nil ||
+		dec.Logs == nil || dec.TxHash == nil || dec.GasUsed == "" {
 		return errMissingReceiptFields
 	}
 	*r = Receipt{
 		PostState:         (*dec.PostState)[:],
-		CumulativeGasUsed: (*big.Int)(dec.CumulativeGasUsed),
 		Bloom:             *dec.Bloom,
 		Logs:              dec.Logs,
 		TxHash:            *dec.TxHash,
-		GasUsed:           (*big.Int)(dec.GasUsed),
-		Height:            (*big.Int)(dec.Height),
 	}
+	var ok bool
+	r.CumulativeGasUsed, ok = new(big.Int).SetString(dec.CumulativeGasUsed,10)
+	if !ok {
+		return errBadFormat
+	}
+	r.GasUsed, ok = new(big.Int).SetString(dec.GasUsed,10)
+	if !ok {
+		return errBadFormat
+	}
+	r.Height, ok = new(big.Int).SetString(dec.Height,10)
+	if !ok {
+		return errBadFormat
+	}
+
 	if dec.ContractAddress != nil {
 		r.ContractAddress = *dec.ContractAddress
 	}

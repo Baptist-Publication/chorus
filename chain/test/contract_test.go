@@ -156,18 +156,17 @@ func TestContractRead(t *testing.T) {
 
 func getNonce(addr string) (nonce uint64, err error) {
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	tmResult := new(agtypes.RPCResult)
+	res := new(agtypes.ResultQuery)
 
 	addrHex := ac.SanitizeHex(addr)
 	adr, _ := hex.DecodeString(addrHex)
 	query := append([]byte{types.QueryTypeNonce}, adr...)
 
-	_, err = clientJSON.Call("query", []interface{}{query}, tmResult)
+	_, err = clientJSON.Call("query", []interface{}{query}, res)
 	if err != nil {
 		return 0, err
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
 	//nonce = binary.LittleEndian.Uint64(res.Result.Data)
 	rlp.DecodeBytes(res.Result.Data, &nonce)
 	return nonce, nil
