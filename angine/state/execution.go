@@ -133,7 +133,7 @@ func (s *State) execBlock(eventSwitch agtypes.EventSwitch, block *agtypes.BlockC
 		return nil, res.Error
 	}
 
-	tpsc.AddRecord(uint32(len(res.ValidTxs)))
+	tpsc.AddRecord(uint32(len(res.ValidTxs) + len(res.InvalidTxs)))
 	tps := tpsc.TPS()
 
 	if s.logger != nil {

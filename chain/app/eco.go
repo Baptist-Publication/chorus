@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/vmihailenco/msgpack"
@@ -88,8 +87,12 @@ func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Vali
 	exists := make(map[*Share]struct{})
 	accList := make([]*Share, 0, app.ShareState.Size())
 	accHeap := cmn.NewHeap() // max-heap
+	luckyThreshold := app.Config.GetInt64("elect_threshold_lucky")
 	app.ShareState.Iterate(func(shr *Share) bool {
 		if shr.GHeight == 0 || shr.ShareGuaranty.Cmp(big0) == 0 { // indicate he is not in
+			return false
+		}
+		if shr.ShareGuaranty.Cmp(big.NewInt(luckyThreshold)) < 0 { // did not reach the minimum requirement
 			return false
 		}
 
@@ -103,10 +106,13 @@ func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Vali
 	})
 
 	// Pick the rich-guys
+	richThreshold := app.Config.GetInt64("elect_threshold_rich")
 	richGuys := make([]*Share, 0, accHeap.Len())
 	for accHeap.Len() > 0 {
 		shr := accHeap.Pop().(*Share)
-		richGuys = append(richGuys, shr)
+		if shr.ShareGuaranty.Cmp(big.NewInt(richThreshold)) >= 0 { // rich threshold
+			richGuys = append(richGuys, shr)
+		}
 	}
 	pickedRichGuys, err := pickAccounts(richGuys, exists, 11, bigbang)
 	if err != nil {
@@ -119,7 +125,8 @@ func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Vali
 	//  if      n <= 11 	then 0
 	//  if 11 < n <= 15 	then n - 11
 	//  if 15 < n			then 4
-	numLuckyGuys := len(accList) - 11
+	numLuckyGuys := len(accList) - len(pickedRichGuys)
+	// numLuckyGuys := len(accList) - 11
 	if numLuckyGuys < 0 {
 		numLuckyGuys = 0
 	} else if numLuckyGuys > 4 {
@@ -283,15 +290,19 @@ func (app *App) doCoinbaseTx(block *agtypes.BlockCache) error {
 }
 
 func calculateRewards(height uint64) *big.Int {
-	startRewards := uint64(128 * 1000000000)
-	declinePerBlocks := uint64(5000000)
+	declinePerBlocks := uint64(10000000)
 
-	declineCount := height / declinePerBlocks
-	if declineCount > 7 {
-		declineCount = 7
+	var rewards uint64
+	switch uint64(float64(height) / float64(declinePerBlocks)) {
+	case 0:
+		rewards = 5 * 1000000000
+	case 1:
+		rewards = 3 * 1000000000
+	case 2:
+		rewards = 1 * 1000000000
+	default:
+		rewards = 0
 	}
-	declineBase := uint64(math.Pow(2, float64(declineCount)))
-	rewards := startRewards / declineBase
 
 	return new(big.Int).SetUint64(rewards)
 }

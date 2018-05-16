@@ -33,15 +33,17 @@ func testPushTx() {
 	fmt.Println("SendPerThread:", sendPerThread)
 	time.Sleep(time.Second * 2)
 
+	rand.Seed(time.Now().UnixNano())
+
 	var wg sync.WaitGroup
 
 	go resPrintRoutine()
 
 	for i := 0; i < threadCount-1; i++ {
-		go testTx(&wg, i, fmt.Sprintf("%04dc3dafd3c0215b8526b26f8dbdb93242fc7dcfbdfa1000d93436d577c0000", rand.Uint64()%10000))
+		go testTx(&wg, i, fmt.Sprintf("%06dCD0D48031A21F4B50EBDE558CE5294C550390118C87A3E8C69DCAFE89A", rand.Uint64()%1000000))
 	}
 
-	testTx(&wg, threadCount-1, "") // use to block routine
+	testTx(&wg, threadCount-1, fmt.Sprintf("%06dCD0D48031A21F4B50EBDE558CE5294C550390118C87A3E8C69DCAFE89A", rand.Uint64()%1000000)) // use to block routine
 
 	wg.Wait()
 }
@@ -50,6 +52,9 @@ func testTx(w *sync.WaitGroup, id int, privkey string) {
 	if w != nil {
 		w.Add(1)
 	}
+
+	fmt.Println("using privkey:", privkey)
+	time.Sleep(time.Second * 2)
 
 	if privkey == "" {
 		privkey = defaultPrivKey

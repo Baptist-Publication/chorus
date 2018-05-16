@@ -30,14 +30,13 @@ func send(client *cl.ClientJSONRPC, privkey, toAddr string, value int64, nonce u
 	b, err := tools.ToBytes(tx)
 	panicErr(err)
 
-	tmResult := new(agtypes.RPCResult)
+	res := new(agtypes.ResultBroadcastTx)
 	if client == nil {
 		client = cl.NewClientJSONRPC(logger, rpcTarget)
 	}
-	_, err = client.Call("broadcast_tx_sync", []interface{}{append(types.TxTagAppEvmCommon, b...)}, tmResult)
+	_, err = client.Call("broadcast_tx_sync", []interface{}{append(types.TxTagAppEvmCommon, b...)}, res)
 	panicErr(err)
 
-	res := (*tmResult).(*agtypes.ResultBroadcastTx)
 	if res.Code != 0 {
 		fmt.Println(res.Code, string(res.Data), res.Log)
 		return errors.New(string(res.Data))

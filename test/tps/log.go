@@ -1,7 +1,9 @@
 package main
 
 import (
+	"math/rand"
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -28,6 +30,8 @@ func makeErrorFilter() zapcore.LevelEnabler {
 }
 
 func init() {
+	rand.Seed(time.Now().UnixNano())
+
 	var encoderCfg zapcore.EncoderConfig
 	encoderCfg = zap.NewDevelopmentEncoderConfig()
 	coreInfo := zapcore.NewCore(
