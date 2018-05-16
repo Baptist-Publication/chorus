@@ -179,6 +179,9 @@ func SetDefaults(runtime string, conf *viper.Viper) *viper.Viper {
 
 	conf.Set("block_gaslimit", 80000000)
 
+	conf.Set("elect_threshold_rich", 1000000)
+	conf.Set("elect_threshold_lucky", 10000)
+
 	conf.SetDefault("enable_incentive", false)
 	setMempoolDefaults(conf)
 	setConsensusDefaults(conf)

@@ -16,7 +16,6 @@ package types
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -64,7 +63,7 @@ func (ba *BaseApplication) ValSetLoader() ValSetLoaderFunc {
 // SuspectValidator suggest punishment when needed
 func (ba *BaseApplication) SuspectValidator(pubkey []byte, reason string) {
 	// Nothing to do here
-	fmt.Printf("punish: %X\n", pubkey)
+	// fmt.Printf("punish: %X\n", pubkey)
 }
 
 // InitBaseApplication must be the first thing to be called when an application embeds BaseApplication
