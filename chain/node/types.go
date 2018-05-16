@@ -77,3 +77,8 @@ type IMetropolisApp interface {
 	PushAttribute(string, string)
 	AttributeExists(string) bool
 }
+
+type Payload struct {
+	Function string        `json:"function"`
+	Params   []interface{} `json:"params"`
+}

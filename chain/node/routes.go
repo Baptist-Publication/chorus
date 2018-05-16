@@ -1,6 +1,7 @@
 package node
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -8,6 +9,8 @@ import (
 
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
+	"github.com/Baptist-Publication/chorus/client/commons"
+	"github.com/Baptist-Publication/chorus/eth/accounts/abi"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	rpc "github.com/Baptist-Publication/chorus/module/lib/go-rpc/server"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
@@ -62,17 +65,17 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 		"broadcast_tx_sync":   rpc.NewRPCFunc(h.BroadcastTx, "tx"),
 
 		// query API
-		"query": rpc.NewRPCFunc(h.Query, "query"),
-		"query_nonce": rpc.NewRPCFunc(h.QueryNonce, "address"),
-		"query_balance": rpc.NewRPCFunc(h.QueryBalance, "address"),
-		"query_share": rpc.NewRPCFunc(h.QueryShare, "pubkey"),
+		"query":            rpc.NewRPCFunc(h.Query, "query"),
+		"query_nonce":      rpc.NewRPCFunc(h.QueryNonce, "address"),
+		"query_balance":    rpc.NewRPCFunc(h.QueryBalance, "address"),
+		"query_share":      rpc.NewRPCFunc(h.QueryShare, "pubkey"),
+		"contract_payload": rpc.NewRPCFunc(h.ConstructPayload, "payload, abistr"),
 
 		"query_receipt": rpc.NewRPCFunc(h.QueryReceipt, "hash"),
 
 		//"query_contract": rpc.NewRPCFunc(h.QueryContract, "address"),
 
 		//"query_contract_existance": rpc.NewRPCFunc(h.QueryContractExistance, "address"),
-
 
 	}
 }
@@ -116,14 +119,14 @@ func (h *rpcHandler) Block(height def.INT) (agtypes.RPCResult, error) {
 
 	var blockMeta *pbtypes.BlockMeta
 
-	if height == 0{
+	if height == 0 {
 		blockc, blockMeta, err = h.node.Angine.GetLatestBlock()
-	}else{
+	} else {
 		blockc, blockMeta, err = h.node.Angine.GetBlock(height)
 	}
 	res.BlockMeta = (&agtypes.ResultBlockMeta{}).Adapt(blockMeta)
 
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	res.Block = (&agtypes.ResultBlock{}).Adapt(blockc.Block)
@@ -249,8 +252,7 @@ func (h *rpcHandler) QueryNonce(addrBytes []byte) (agtypes.ResultQueryNonce, err
 	return h.node.Application.QueryNonce(addrBytes), nil
 }
 
-
-func (h *rpcHandler) QueryBalance(addrBytes []byte) (agtypes.ResultQueryBalance, error){
+func (h *rpcHandler) QueryBalance(addrBytes []byte) (agtypes.ResultQueryBalance, error) {
 	return h.node.Application.QueryBalance(addrBytes), nil
 }
 
@@ -258,9 +260,36 @@ func (h *rpcHandler) QueryShare(pubkeyBytes []byte) (agtypes.ResultQueryShare, e
 	return h.node.Application.QueryShare(pubkeyBytes), nil
 }
 
-func (h *rpcHandler) QueryReceipt(txHash []byte) (agtypes.ResultQueryReceipt, error){
+func (h *rpcHandler) QueryReceipt(txHash []byte) (agtypes.ResultQueryReceipt, error) {
 	return h.node.Application.QueryReceipt(txHash), nil
 }
 
 //func (h *rpcHandler) QueryContract(addrBytes []byte) (agtypes.ResultQueryContract, error){}
 //func (h *rpcHandler) QueryContractExistance(addrBytes []byte) (agtypes.ResultQueryContractExistance, error){}
+
+func (h *rpcHandler) ConstructPayload(payload string, abistr string) (agtypes.ResultContractPayload, error) {
+	res := agtypes.ResultContractPayload{}
+
+	load := Payload{}
+	err := json.Unmarshal([]byte(payload), &load)
+	if err != nil {
+		return res, err
+	}
+	aabbii, err := abi.JSON(strings.NewReader(abistr))
+	if err != nil {
+		return res, err
+	}
+	// param := []interface{}{params}
+	args, err := commons.ParseArgs(load.Function, aabbii, load.Params)
+	if err != nil {
+		return res, err
+	}
+	data, err := aabbii.Pack(load.Function, args...)
+	if err != nil {
+		return res, err
+	}
+	res.Data = data
+	res.Code = pbtypes.CodeType_OK
+
+	return res, nil
+}

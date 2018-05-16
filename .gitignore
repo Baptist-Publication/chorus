@@ -16,3 +16,4 @@ logs/
 *.log
 dump*
 *.iml
+.vscode

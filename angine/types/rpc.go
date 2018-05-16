@@ -18,13 +18,13 @@ import (
 	"time"
 
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
+	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p"
 	"github.com/Baptist-Publication/chorus/module/lib/go-rpc/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
-	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
 	"github.com/Baptist-Publication/chorus/tools"
 	"github.com/Baptist-Publication/chorus/types"
 )
@@ -34,7 +34,7 @@ import (
 // By default, go json encodes []byte as base64. In our response it will be a plain HEX string prefixed by 0x.
 // Meanwhile changed json key names to lowercase for better naming convention
 type ResultBlockMeta struct {
-	Hash        hexutil.Bytes        `json:"hash"`
+	Hash hexutil.Bytes `json:"hash"`
 	// removed for duplication
 	//Header      *ResultHeader        `json:"header,"
 	PartsHeader *ResultPartSetHeader `json:"parts_header"`
@@ -167,7 +167,7 @@ func (r *ResultData) Adapt(m *pbtypes.Data) *ResultData {
 
 	txs := BytesToTxSlc(m.Txs)
 	r.Txs = make([]hexutil.Bytes, len(txs))
-	for i, tx := range txs{
+	for i, tx := range txs {
 		blockTx := new(types.BlockTx)
 		tools.FromBytes(UnwrapTx(tx), blockTx)
 		r.Txs[i] = hexutil.Bytes(tools.Hash(blockTx))
@@ -175,7 +175,7 @@ func (r *ResultData) Adapt(m *pbtypes.Data) *ResultData {
 
 	extxs := BytesToTxSlc(m.ExTxs)
 	r.ExTxs = make([]hexutil.Bytes, len(extxs))
-	for i, tx := range extxs{
+	for i, tx := range extxs {
 		blockTx := new(types.BlockTx)
 		tools.FromBytes(UnwrapTx(tx), blockTx)
 		r.ExTxs[i] = hexutil.Bytes(tools.Hash(blockTx))
@@ -297,7 +297,7 @@ type ResultDialSeeds struct {
 }
 
 type Peer struct {
-	p2p.NodeInfo                          `json:"node_info"`
+	p2p.NodeInfo     `json:"node_info"`
 	IsOutbound       bool                 `json:"is_outbound"`
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
 }
@@ -333,6 +333,12 @@ type ResultBroadcastTxCommit struct {
 type ResultUnconfirmedTxs struct {
 	N   int  `json:"n_txs"`
 	Txs []Tx `json:"txs"`
+}
+
+type ResultContractPayload struct {
+	Code pbtypes.CodeType `json:"code"`
+	Data hexutil.Bytes    `json:"data"`
+	Log  string           `json:"log"`
 }
 
 type ResultInfo struct {
