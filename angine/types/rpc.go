@@ -379,6 +379,11 @@ type ResultQueryReceipt struct {
 	Receipt *ethtypes.Receipt `json:"receipt"`
 }
 
+type ResultQueryContract struct {
+	Code pbtypes.CodeType `json:"code`
+	Data  string 	`json:"data`
+}
+
 type ResultRefuseList struct {
 	Result []string `json:"result"`
 }

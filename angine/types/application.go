@@ -44,7 +44,7 @@ type Application interface {
 	QueryBalance(addrBytes []byte) ResultQueryBalance
 	QueryShare(pubkeyBytes []byte) ResultQueryShare
 	QueryReceipt(addrBytes []byte) ResultQueryReceipt
-	//QueryContract(addrBytes []byte) ResultQueryContract
+	QueryContract(rawtx []byte) Result
 	//QueryContractExistance(addrBytes []byte) ResultQueryContractExistance
 }
 

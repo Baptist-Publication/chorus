@@ -77,6 +77,19 @@ var (
 				},
 			},
 			{
+				Name:   "querycontract",
+				Usage:  "read a contract",
+				Action: queryContract,
+				Flags: []cli.Flag{
+					anntoolFlags.payload,
+					anntoolFlags.abistr,
+					anntoolFlags.callstr,
+					anntoolFlags.to,
+					anntoolFlags.abif,
+					anntoolFlags.callf,
+				},
+			},
+			{
 				Name:   "exist",
 				Usage:  "check if a contract has been deployed",
 				Action: existContract,
@@ -427,4 +440,62 @@ func getAbiJSON(ctx *cli.Context) (*abi.ABI, error) {
 		return nil, err
 	}
 	return &jAbi, nil
+}
+
+func queryContract(ctx *cli.Context) error {
+	json, err := getCallParamsJSON(ctx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+	aabbii, err := getAbiJSON(ctx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+	function := json.Get("function").MustString()
+	if !aabbii.Methods[function].Const {
+		fmt.Printf("we can only read constant method, %s is not! Any consequence is on you.\n", function)
+	}
+	params := json.Get("params").MustArray()
+	contractAddress := ac.SanitizeHex(json.Get("contract").MustString())
+	args, err := commons.ParseArgs(function, *aabbii, params)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	data, err := aabbii.Pack(function, args...)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	to := common.HexToAddress(contractAddress)
+	bodyTx := &types.TxEvmCommon{
+		To:   to[:],
+		Load: data,
+	}
+	bodyBs, err := tools.ToBytes(bodyTx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
+
+	from := common.Address{}
+
+	tx := types.NewBlockTx(gasLimit, gasPrice, 0, from[:], bodyBs)
+
+	b, err := tools.ToBytes(tx)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 123)
+	}
+	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
+	res := new(agtypes.ResultQuery)
+	_, err = clientJSON.Call("query_contract", []interface{}{b}, res)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 127)
+	}
+
+	// hex := common.Bytes2Hex(res.Result.Data)
+	// fmt.Println("query result:", hex)
+	parseResult, _ := unpackResult(function, *aabbii, string(res.Result.Data))
+	fmt.Println("parse result:", parseResult)
+
+	return nil
 }

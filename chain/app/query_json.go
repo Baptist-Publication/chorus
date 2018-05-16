@@ -5,8 +5,14 @@ import (
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	ethcmn "github.com/Baptist-Publication/chorus/eth/common"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
+	ethparams "github.com/Baptist-Publication/chorus/eth/params"
+	ethcore "github.com/Baptist-Publication/chorus/eth/core"
+	ethvm "github.com/Baptist-Publication/chorus/eth/core/vm"
+	"github.com/Baptist-Publication/chorus/types"
+	"github.com/Baptist-Publication/chorus/tools"
 	"github.com/Baptist-Publication/chorus/eth/rlp"
 	"fmt"
+	"time"
 	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
 	"math/big"
 )
@@ -81,4 +87,42 @@ func (app *App) QueryReceipt(txHashBytes []byte) agtypes.ResultQueryReceipt {
 
 	return agtypes.ResultQueryReceipt{Code: pbtypes.CodeType_OK,
 		Receipt: (*ethtypes.Receipt)(receipt)}
+}
+
+func (app *App)QueryContract(rawtx []byte)agtypes.Result {
+	tx := &types.BlockTx{}
+	err := rlp.DecodeBytes(rawtx, tx)
+	if err != nil {
+		// return agtypes.ResultQueryContract{Code:pbtypes.CodeType_EncodingError}
+		return agtypes.NewError(pbtypes.CodeType_EncodingError, err.Error())
+	}
+	txbody := &types.TxEvmCommon{}
+	if err := tools.FromBytes(tx.Payload, txbody); err != nil {
+		// return agtypes.ResultQueryContract{Code:pbtypes.CodeType_EncodingError}
+		return agtypes.NewError(pbtypes.CodeType_EncodingError, err.Error())
+	}
+	from := ethcmn.BytesToAddress(tx.Sender)
+	to := ethcmn.BytesToAddress(txbody.To)
+	evmtx := ethtypes.NewTransaction(tx.Nonce, from, to, txbody.Amount, tx.GasLimit, big.NewInt(0), txbody.Load)
+	fakeHeader := &ethtypes.Header{
+		ParentHash: ethcmn.HexToHash("0x00"),
+		Difficulty: big0,
+		GasLimit:   big.NewInt(app.Config.GetInt64("block_gaslimit")),
+		Number:     ethparams.MainNetSpuriousDragon,
+		Time:       big.NewInt(time.Now().Unix()),
+	}
+	txMsg, _ := evmtx.AsMessage()
+	envCxt := ethcore.NewEVMContext(txMsg, fakeHeader, nil)
+
+	app.evmStateMtx.Lock()
+	defer app.evmStateMtx.Unlock()
+	vmEnv := ethvm.NewEVM(envCxt, app.evmState.Copy(), app.chainConfig, evmConfig)
+	gpl := new(ethcore.GasPool).AddGas(ethcmn.MaxBig)
+	res, _, err := ethcore.ApplyMessage(vmEnv, txMsg, gpl) // we don't care about gasUsed
+	if err != nil {
+		// logger.Debug("transition error", err)
+		return agtypes.NewError(pbtypes.CodeType_InternalError, err.Error())
+	}
+	// return agtypes.ResultQueryContract{Code: pbtypes.CodeType_OK, Data: string(res)}
+	return agtypes.NewResultOK(res, "")
 }
