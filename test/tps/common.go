@@ -22,7 +22,7 @@ func panicErr(err error) {
 }
 
 func getNonce(client *cl.ClientJSONRPC, address string) (uint64, error) {
-	tmResult := new(agtypes.RPCResult)
+	res := new(agtypes.ResultQuery)
 
 	addrHex := ac.SanitizeHex(address)
 	addr := common.Hex2Bytes(addrHex)
@@ -31,12 +31,11 @@ func getNonce(client *cl.ClientJSONRPC, address string) (uint64, error) {
 	if client == nil {
 		client = cl.NewClientJSONRPC(logger, rpcTarget)
 	}
-	_, err := client.Call("query", []interface{}{query}, tmResult)
+	_, err := client.Call("query", []interface{}{query}, res)
 	if err != nil {
 		return 0, err
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
 	if res.Result.IsErr() {
 		fmt.Println(res.Result.Code, res.Result.Log)
 		return 0, errors.New(res.Result.Error())
@@ -49,7 +48,7 @@ func getNonce(client *cl.ClientJSONRPC, address string) (uint64, error) {
 }
 
 func getBalance(client *cl.ClientJSONRPC, address string) (uint64, error) {
-	tmResult := new(agtypes.RPCResult)
+	res := new(agtypes.ResultQuery)
 
 	addrHex := ac.SanitizeHex(address)
 	addr := common.Hex2Bytes(addrHex)
@@ -58,12 +57,11 @@ func getBalance(client *cl.ClientJSONRPC, address string) (uint64, error) {
 	if client == nil {
 		client = cl.NewClientJSONRPC(logger, rpcTarget)
 	}
-	_, err := client.Call("query", []interface{}{query}, tmResult)
+	_, err := client.Call("query", []interface{}{query}, res)
 	if err != nil {
 		return 0, err
 	}
 
-	res := (*tmResult).(*agtypes.ResultQuery)
 	if res.Result.IsErr() {
 		fmt.Println(res.Result.Code, res.Result.Log)
 		return 0, errors.New(res.Result.Error())
