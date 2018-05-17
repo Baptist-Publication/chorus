@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"reflect"
 	"strings"
 
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
@@ -62,21 +61,6 @@ var (
 				},
 			},
 			{
-				Name:   "read",
-				Usage:  "read a contract",
-				Action: readContract,
-				Flags: []cli.Flag{
-					anntoolFlags.payload,
-					anntoolFlags.privkey,
-					anntoolFlags.nonce,
-					anntoolFlags.abistr,
-					anntoolFlags.callstr,
-					anntoolFlags.to,
-					anntoolFlags.abif,
-					anntoolFlags.callf,
-				},
-			},
-			{
 				Name:   "querycontract",
 				Usage:  "read a contract",
 				Action: queryContract,
@@ -100,69 +84,6 @@ var (
 		},
 	}
 )
-
-func readContract(ctx *cli.Context) error {
-	json, err := getCallParamsJSON(ctx)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	aabbii, err := getAbiJSON(ctx)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	function := json.Get("function").MustString()
-	if !aabbii.Methods[function].Const {
-		fmt.Printf("we can only read constant method, %s is not! Any consequence is on you.\n", function)
-	}
-	params := json.Get("params").MustArray()
-	contractAddress := ac.SanitizeHex(json.Get("contract").MustString())
-	args, err := commons.ParseArgs(function, *aabbii, params)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	data, err := aabbii.Pack(function, args...)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	privkey := ctx.String("privkey")
-	nonce := ctx.Uint64("nonce")
-	to := common.HexToAddress(contractAddress)
-
-	if privkey == "" {
-		privkey = json.Get("privkey").MustString()
-	}
-	if privkey == "" {
-		panic("should provide privkey.")
-	}
-	key, err := crypto.HexToECDSA(privkey)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	from := crypto.PubkeyToAddress(key.PublicKey)
-	privkey = ac.SanitizeHex(privkey)
-	tx := ethtypes.NewTransaction(nonce, from, to, big.NewInt(0), gasLimit, gasPrice, data)
-
-	b, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-	query := append([]byte{types.QueryTypeContract}, b...)
-	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	res := new(agtypes.ResultQuery)
-	_, err = clientJSON.Call("query", []interface{}{query}, res)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 127)
-	}
-
-	hex := common.Bytes2Hex(res.Result.Data)
-	fmt.Println("query result:", hex)
-	parseResult, _ := unpackResult(function, *aabbii, string(res.Result.Data))
-	fmt.Println("parse result:", reflect.TypeOf(parseResult), parseResult)
-
-	return nil
-}
 
 func unpackResult(method string, abiDef abi.ABI, output string) (interface{}, error) {
 	m, ok := abiDef.Methods[method]
