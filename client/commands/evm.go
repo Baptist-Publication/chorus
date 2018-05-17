@@ -486,15 +486,15 @@ func queryContract(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 123)
 	}
 	clientJSON := cl.NewClientJSONRPC(logger, commons.QueryServer)
-	res := new(agtypes.ResultQuery)
+	res := new(agtypes.ResultQueryContract)
 	_, err = clientJSON.Call("query_contract", []interface{}{b}, res)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	// hex := common.Bytes2Hex(res.Result.Data)
-	// fmt.Println("query result:", hex)
-	parseResult, _ := unpackResult(function, *aabbii, string(res.Result.Data))
+	hex := common.Bytes2Hex([]byte(res.Data))
+	fmt.Println("query result:", hex)
+	parseResult, _ := unpackResult(function, *aabbii, res.Data)
 	fmt.Println("parse result:", parseResult)
 
 	return nil

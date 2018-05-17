@@ -264,9 +264,10 @@ func (h *rpcHandler) QueryReceipt(txHash []byte) (agtypes.ResultQueryReceipt, er
 	return h.node.Application.QueryReceipt(txHash), nil
 }
 
-func (h *rpcHandler) QueryContract(tx []byte) (agtypes.Result, error){
+func (h *rpcHandler) QueryContract(tx []byte) (agtypes.ResultQueryContract, error) {
 	return h.node.Application.QueryContract(tx), nil
 }
+
 //func (h *rpcHandler) QueryContractExistance(addrBytes []byte) (agtypes.ResultQueryContractExistance, error){}
 
 func (h *rpcHandler) ConstructPayload(payload string, abistr string) (agtypes.ResultContractPayload, error) {
