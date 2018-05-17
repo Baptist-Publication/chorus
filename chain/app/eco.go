@@ -80,7 +80,7 @@ func (app *App) getWorldRand(height uint64) ([]byte, error) {
 }
 
 func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Validator {
-	shrs := make([]*Share, 0, 21)
+	shrs := make([]*Share, 0, 15)
 
 	// Iterate share list of world state
 	// to get all share accounts that taking part in current election
@@ -120,6 +120,11 @@ func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Vali
 		return nil
 	}
 	shrs = append(shrs, pickedRichGuys...)
+
+	// richguys do not participate in the next election
+	// for i := 0; i < len(richGuys); i++ {
+	// 	exists[richGuys[i]] = struct{}{}
+	// }
 
 	// Pick lucky-guys
 	//  if      n <= 11 	then 0
@@ -161,6 +166,9 @@ func pickAccounts(froms []*Share, exists map[*Share]struct{}, maxPick int, bigba
 	}
 
 	if len(froms) <= maxPick {
+		for i := 0; i < len(froms); i++ {
+			exists[froms[i]] = struct{}{}
+		}
 		return froms, nil
 	}
 
@@ -172,6 +180,7 @@ func pickAccounts(froms []*Share, exists map[*Share]struct{}, maxPick int, bigba
 			return nil, nil
 		}
 		guys = append(guys, guy)
+		exists[guy] = struct{}{}
 	}
 
 	return guys, nil
@@ -204,7 +213,6 @@ func randomSelect(accs []*Share, exists map[*Share]struct{}, bigbang *big.Int) (
 	lottery := new(big.Int).Mod(bigbang, totalShare)
 	for i := 0; i < len(votes); i++ {
 		if lottery.Cmp(votes[i].votesEnd) < 0 {
-			exists[votes[i].ref] = struct{}{}
 			return votes[i].ref, nil
 		}
 	}
