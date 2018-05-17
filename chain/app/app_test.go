@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strings"
 	"testing"
 
+	"github.com/Baptist-Publication/chorus/config"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	db "github.com/Baptist-Publication/chorus/module/lib/go-db"
 	"github.com/Baptist-Publication/chorus/tools"
@@ -139,30 +141,64 @@ func getShareState() *ShareState {
 
 func TestElection(t *testing.T) {
 	app := &App{}
+	app.Config = config.GetConfig("")
+	app.Config.Set("elect_threshold_lucky", 10000)
+	app.Config.Set("elect_threshold_rich", 1000000)
 	ss := getShareState()
 	app.ShareState = ss
 
-	for i := 0; i < 50; i++ {
-		k := randomPubkey()
-		p := new(big.Int).SetUint64(uint64(10 + i*10))
-		ss.CreateShareAccount(k[:], p)
-		ss.AddGuaranty(k, p, 20)
-		// fmt.Printf("%X-%s\n", k[:2], p.String())
-	}
+	// for i := 0; i < 50; i++ {
+	// 	k := randomPubkey()
+	// 	p := new(big.Int).SetUint64(uint64(10 + i*10))
+	// 	ss.AddGuaranty(k, p, 20)
+	// }
+
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(20000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(20000), 20)
 
 	root, _ := ss.Commit()
 	ss.Reload(root)
 
 	bigbang := new(big.Int).SetBytes(root)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		bigbang.Add(bigbang, new(big.Int).SetUint64(rand.Uint64()))
 		vals := app.doElect(bigbang, 20, 2)
 		// fmt.Println(len(vals))
 		for _, v := range vals {
-			// fmt.Printf("%s-%d ", v.PubKey.KeyString()[:4], v.VotingPower)
-			fmt.Printf("%d ", v.VotingPower)
+			fmt.Printf("%s-%d ", v.PubKey.KeyString()[:4], v.VotingPower)
+			// fmt.Printf("%d ", v.VotingPower)
 		}
 		fmt.Println()
 	}
+}
+
+func TestJSON(t *testing.T) {
+	type foo struct {
+		Name string
+		Age  int
+	}
+
+	f := foo{
+		Name: "lilei",
+		Age:  18,
+	}
+
+	b, err := json.Marshal(f)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(string(b))
+
+	s := "{'Name':'lilei','Age':18}"
+	s = strings.Replace(s, "'", "\"", -1)
+	f1 := &foo{}
+	err = json.Unmarshal([]byte(s), f1)
+	if err != nil {
+		panic(err)
+	}
+
 }
