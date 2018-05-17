@@ -18,6 +18,8 @@ import (
 	"unsafe"
 
 	"github.com/Baptist-Publication/chorus/module/lib/go-merkle"
+	"github.com/Baptist-Publication/chorus/types"
+	"github.com/Baptist-Publication/chorus/tools"
 )
 
 type Tx []byte
@@ -49,6 +51,13 @@ func (txs Txs) Hash() []byte {
 		right := Txs(txs[(len(txs)+1)/2:]).Hash()
 		return merkle.SimpleHashFromTwoHashes(left, right)
 	}
+}
+
+// TxHash returns the hash without header. It is an unwrapped tx
+func (tx Tx) TxHash() []byte{
+	blockTx := new(types.BlockTx)
+	tools.FromBytes(UnwrapTx(tx), blockTx)
+	return tools.Hash(blockTx)
 }
 
 func (txs Txs) ToBytes() [][]byte {

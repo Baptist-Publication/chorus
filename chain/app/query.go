@@ -134,7 +134,7 @@ func (app *App) queryReceipt(txHashBytes []byte) agtypes.Result {
 	key := append(ReceiptsPrefix, txHashBytes...)
 	data, err := app.evmStateDb.Get(key)
 	if err != nil {
-		return agtypes.NewError(pbtypes.CodeType_InternalError, "fail to get receipt for tx:"+string(key))
+		return agtypes.NewError(pbtypes.CodeType_InternalError, "Failed to get receipt for tx:"+string(key))
 	}
 	return agtypes.NewResultOK(data, "")
 }

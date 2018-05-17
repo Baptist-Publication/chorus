@@ -25,7 +25,6 @@ import (
 	"github.com/Baptist-Publication/chorus/module/lib/go-rpc/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
-	"github.com/Baptist-Publication/chorus/tools"
 	"github.com/Baptist-Publication/chorus/types"
 )
 
@@ -168,17 +167,13 @@ func (r *ResultData) Adapt(m *pbtypes.Data) *ResultData {
 	txs := BytesToTxSlc(m.Txs)
 	r.Txs = make([]hexutil.Bytes, len(txs))
 	for i, tx := range txs {
-		blockTx := new(types.BlockTx)
-		tools.FromBytes(UnwrapTx(tx), blockTx)
-		r.Txs[i] = hexutil.Bytes(tools.Hash(blockTx))
+		r.Txs[i] = hexutil.Bytes(tx.TxHash())
 	}
 
 	extxs := BytesToTxSlc(m.ExTxs)
 	r.ExTxs = make([]hexutil.Bytes, len(extxs))
 	for i, tx := range extxs {
-		blockTx := new(types.BlockTx)
-		tools.FromBytes(UnwrapTx(tx), blockTx)
-		r.ExTxs[i] = hexutil.Bytes(tools.Hash(blockTx))
+		r.Txs[i] = hexutil.Bytes(tx.TxHash())
 	}
 	return r
 }
@@ -297,7 +292,7 @@ type ResultDialSeeds struct {
 }
 
 type Peer struct {
-	p2p.NodeInfo     `json:"node_info"`
+	p2p.NodeInfo                          `json:"node_info"`
 	IsOutbound       bool                 `json:"is_outbound"`
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
 }
@@ -360,17 +355,17 @@ type ResultQueryNonce struct {
 }
 
 type ResultQueryBalance struct {
-	Code    pbtypes.CodeType `json:"code"`
-	Log     string           `json:"log"`
-	Balance *hexutil.Big     `json:"balance"`
+	Code    pbtypes.CodeType   `json:"code"`
+	Log     string             `json:"log"`
+	Balance *hexutil.BigNumber `json:"balance"`
 }
 
 type ResultQueryShare struct {
-	Code          pbtypes.CodeType `json:"code"`
-	Log           string           `json:"log"`
-	ShareBalance  *hexutil.Big     `json:"share_balance"`
-	ShareGuaranty *hexutil.Big     `json:"share_guaranty"`
-	GHeight       *hexutil.Big     `json:"gheight"`
+	Code          pbtypes.CodeType   `json:"code"`
+	Log           string             `json:"log"`
+	ShareBalance  *hexutil.BigNumber `json:"share_balance"`
+	ShareGuaranty *hexutil.BigNumber `json:"share_guaranty"`
+	GHeight       *hexutil.BigNumber `json:"gheight"`
 }
 
 type ResultQueryReceipt struct {
@@ -380,8 +375,64 @@ type ResultQueryReceipt struct {
 }
 
 type ResultQueryContract struct {
-	Code pbtypes.CodeType `json:"code`
-	Data  string 	`json:"data`
+	Code pbtypes.CodeType `json:"code"`
+	Data string           `json:"data"`
+}
+
+type ResultBlockTx struct {
+	GasLimit  *hexutil.BigNumber `json:"gas_limit"`
+	GasPrice  *hexutil.BigNumber `json:"gas_price"`
+	Nonce     uint64             `json:"nonce"`
+	Sender    hexutil.Bytes      `json:"sender"`
+	Payload   interface{}        `json:"payload"`
+	Signature hexutil.Bytes      `json:"signature"`
+	Tx_Type   string             `json:"tx_type"`
+}
+type ResultQueryTx struct {
+	Code pbtypes.CodeType `json:"code"`
+	Log  string           `json:"log"`
+	Tx   *ResultBlockTx   `json:"tx"`
+}
+
+type ResultTxEvmCommon struct {
+	To     hexutil.Bytes      `json:"to"`
+	Amount *hexutil.BigNumber `json:"amount"`
+	Load   hexutil.Bytes      `json:"load"`
+}
+
+func (r *ResultTxEvmCommon) Adapt(m *types.TxEvmCommon) *ResultTxEvmCommon {
+	r.To = m.To
+	r.Load = m.Load
+	r.Amount = (*hexutil.BigNumber)(m.Amount)
+	return r
+}
+
+type ResultTxShareEco struct {
+	Source    hexutil.Bytes      `json:"source"`
+	Amount    *hexutil.BigNumber `json:"amount"`
+	Signature hexutil.Bytes      `json:"signature"`
+}
+
+func (r *ResultTxShareEco) Adapt(m *types.TxShareEco) *ResultTxShareEco {
+	r.Signature = m.Signature
+	r.Source = m.Source
+	r.Amount = (*hexutil.BigNumber)(m.Amount)
+	return r
+}
+
+type ResultTxShareTransfer struct {
+	ShareSrc hexutil.Bytes      `json:"share_source"`
+	ShareDst hexutil.Bytes      `json:"share_destination"`
+	Amount   *hexutil.BigNumber `json:"amount"`
+	ShareSig hexutil.Bytes      `json:"share_signature"`
+}
+
+func (r *ResultTxShareTransfer) Adapt(m *types.TxShareTransfer) *ResultTxShareTransfer {
+	r.ShareSrc = m.ShareSrc
+	r.ShareDst = m.ShareDst
+	r.ShareSig = m.ShareSig
+	r.Amount = (*hexutil.BigNumber)(m.Amount)
+	return r
 }
 
 type ResultRefuseList struct {

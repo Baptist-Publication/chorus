@@ -43,9 +43,10 @@ type Application interface {
 	QueryNonce(addrBytes []byte) ResultQueryNonce
 	QueryBalance(addrBytes []byte) ResultQueryBalance
 	QueryShare(pubkeyBytes []byte) ResultQueryShare
-	QueryReceipt(addrBytes []byte) ResultQueryReceipt
+	QueryReceipt(txHash []byte) ResultQueryReceipt
 	QueryContract(rawtx []byte) ResultQueryContract
 	//QueryContractExistance(addrBytes []byte) ResultQueryContractExistance
+	QueryTx(txHash []byte) ResultQueryTx
 }
 
 // BaseApplication defines the default save/load last block implementations
