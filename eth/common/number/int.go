@@ -20,6 +20,8 @@ import (
 	"math/big"
 
 	"github.com/Baptist-Publication/chorus/eth/common"
+	"strings"
+	"errors"
 )
 
 var tt256 = new(big.Int).Lsh(big.NewInt(1), 256)
@@ -195,3 +197,46 @@ var (
 	Uint = Uint256
 	Int  = Int256
 )
+
+var (
+	jsonNull          = []byte("null")
+	jsonZero          = []byte(`"0"`)
+)
+
+// BigNumber marshals/unmarshals as a JSON string with plain number inside. There are quotes around the number.
+// The zero value marshals as "0". Negative integers are supported.
+// Use it whileu providing JSON APIs since some of the clients does not support parsing very long plain integers.
+type BigNumber big.Int
+
+// MarshalJSON implements json.Marshaler.
+func (b *BigNumber) MarshalJSON() ([]byte, error) {
+	if b == nil {
+		return jsonNull, nil
+	}
+	bigint := (*big.Int)(b)
+	return []byte("\"" + bigint .String() + "\""), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (b *BigNumber) UnmarshalJSON(input []byte) error {
+	s := string(input)
+	if !strings.HasPrefix(s, "\"") || strings.HasSuffix(s, "\""){
+		return errors.New("Not a string with quotes: " + string(input))
+	}
+	num, ok := (*big.Int)(b).SetString(string(input), 10)
+	if !ok{
+		return errors.New("Failed to parse to bigint: " + string(input))
+	}
+	*b = (BigNumber)(*num)
+	return nil
+}
+
+// ToInt converts b to a big.Int.
+func (b *BigNumber) ToInt() *big.Int {
+	return (*big.Int)(b)
+}
+
+// String returns the hex encoding of b.
+func (b *BigNumber) String() string {
+	return b.String()
+}

@@ -152,39 +152,6 @@ func (b *Big) String() string {
 	return EncodeBig(b.ToInt())
 }
 
-// BigNumber marshals/unmarshals as a JSON string with plain number inside. The zero value marshals as
-// "0". Negative integers are supported
-type BigNumber big.Int
-
-// MarshalJSON implements json.Marshaler.
-func (b *BigNumber) MarshalJSON() ([]byte, error) {
-	if b == nil {
-		return jsonNull, nil
-	}
-	bigint := (*big.Int)(b)
-	return []byte(bigint.String()), nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (b *BigNumber) UnmarshalJSON(input []byte) error {
-	num, ok := (*big.Int)(b).SetString(string(input), 10)
-	if !ok{
-		return errors.New("Failed to parse to bigint: " + string(input))
-	}
-	*b = (BigNumber)(*num)
-	return nil
-}
-
-// ToInt converts b to a big.Int.
-func (b *BigNumber) ToInt() *big.Int {
-	return (*big.Int)(b)
-}
-
-// String returns the hex encoding of b.
-func (b *BigNumber) String() string {
-	return b.String()
-}
-
 // Uint64 marshals/unmarshals as a JSON string with 0x prefix.
 // The zero value marshals as "0x0".
 type Uint64 uint64

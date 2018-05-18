@@ -26,6 +26,7 @@ import (
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
 	"github.com/Baptist-Publication/chorus/types"
+	"github.com/Baptist-Publication/chorus/eth/common/number"
 )
 
 // ResultBlockMeta simply duplicates pbtypes.BlockMeta but change the way to marshal []byte.
@@ -357,15 +358,15 @@ type ResultQueryNonce struct {
 type ResultQueryBalance struct {
 	Code    pbtypes.CodeType   `json:"code"`
 	Log     string             `json:"log"`
-	Balance *hexutil.BigNumber `json:"balance"`
+	Balance *number.BigNumber `json:"balance"`
 }
 
 type ResultQueryShare struct {
 	Code          pbtypes.CodeType   `json:"code"`
 	Log           string             `json:"log"`
-	ShareBalance  *hexutil.BigNumber `json:"share_balance"`
-	ShareGuaranty *hexutil.BigNumber `json:"share_guaranty"`
-	GHeight       *hexutil.BigNumber `json:"gheight"`
+	ShareBalance  *number.BigNumber `json:"share_balance"`
+	ShareGuaranty *number.BigNumber `json:"share_guaranty"`
+	GHeight       *number.BigNumber `json:"gheight"`
 }
 
 type ResultQueryReceipt struct {
@@ -380,8 +381,8 @@ type ResultQueryContract struct {
 }
 
 type ResultBlockTx struct {
-	GasLimit  *hexutil.BigNumber `json:"gas_limit"`
-	GasPrice  *hexutil.BigNumber `json:"gas_price"`
+	GasLimit  *number.BigNumber `json:"gas_limit"`
+	GasPrice  *number.BigNumber `json:"gas_price"`
 	Nonce     uint64             `json:"nonce"`
 	Sender    hexutil.Bytes      `json:"sender"`
 	Payload   interface{}        `json:"payload"`
@@ -396,34 +397,34 @@ type ResultQueryTx struct {
 
 type ResultTxEvmCommon struct {
 	To     hexutil.Bytes      `json:"to"`
-	Amount *hexutil.BigNumber `json:"amount"`
+	Amount *number.BigNumber `json:"amount"`
 	Load   hexutil.Bytes      `json:"load"`
 }
 
 func (r *ResultTxEvmCommon) Adapt(m *types.TxEvmCommon) *ResultTxEvmCommon {
 	r.To = m.To
 	r.Load = m.Load
-	r.Amount = (*hexutil.BigNumber)(m.Amount)
+	r.Amount = (*number.BigNumber)(m.Amount)
 	return r
 }
 
 type ResultTxShareEco struct {
 	Source    hexutil.Bytes      `json:"source"`
-	Amount    *hexutil.BigNumber `json:"amount"`
+	Amount    *number.BigNumber `json:"amount"`
 	Signature hexutil.Bytes      `json:"signature"`
 }
 
 func (r *ResultTxShareEco) Adapt(m *types.TxShareEco) *ResultTxShareEco {
 	r.Signature = m.Signature
 	r.Source = m.Source
-	r.Amount = (*hexutil.BigNumber)(m.Amount)
+	r.Amount = (*number.BigNumber)(m.Amount)
 	return r
 }
 
 type ResultTxShareTransfer struct {
 	ShareSrc hexutil.Bytes      `json:"share_source"`
 	ShareDst hexutil.Bytes      `json:"share_destination"`
-	Amount   *hexutil.BigNumber `json:"amount"`
+	Amount   *number.BigNumber `json:"amount"`
 	ShareSig hexutil.Bytes      `json:"share_signature"`
 }
 
@@ -431,7 +432,7 @@ func (r *ResultTxShareTransfer) Adapt(m *types.TxShareTransfer) *ResultTxShareTr
 	r.ShareSrc = m.ShareSrc
 	r.ShareDst = m.ShareDst
 	r.ShareSig = m.ShareSig
-	r.Amount = (*hexutil.BigNumber)(m.Amount)
+	r.Amount = (*number.BigNumber)(m.Amount)
 	return r
 }
 

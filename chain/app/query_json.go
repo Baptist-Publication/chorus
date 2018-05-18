@@ -9,7 +9,6 @@ import (
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	ethcmn "github.com/Baptist-Publication/chorus/eth/common"
-	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
 	ethcore "github.com/Baptist-Publication/chorus/eth/core"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	ethvm "github.com/Baptist-Publication/chorus/eth/core/vm"
@@ -19,6 +18,7 @@ import (
 	"github.com/Baptist-Publication/chorus/types"
 	"bytes"
 	"github.com/pkg/errors"
+	"github.com/Baptist-Publication/chorus/eth/common/number"
 )
 
 // This file is for JSON interface
@@ -48,7 +48,7 @@ func (app *App) QueryBalance(addrBytes []byte) agtypes.ResultQueryBalance {
 	balance := app.evmState.GetBalance(addr)
 	app.evmStateMtx.RUnlock()
 
-	return agtypes.ResultQueryBalance{Code: pbtypes.CodeType_OK, Balance: (*hexutil.BigNumber)(balance)}
+	return agtypes.ResultQueryBalance{Code: pbtypes.CodeType_OK, Balance: (*number.BigNumber)(balance)}
 }
 
 func (app *App) QueryShare(pubkeyBytes []byte) agtypes.ResultQueryShare {
@@ -62,13 +62,13 @@ func (app *App) QueryShare(pubkeyBytes []byte) agtypes.ResultQueryShare {
 
 	res := agtypes.ResultQueryShare{Code: pbtypes.CodeType_OK}
 	if share == nil {
-		res.ShareBalance = (*hexutil.BigNumber)(big0)
-		res.ShareGuaranty = (*hexutil.BigNumber)(big0)
-		res.GHeight = (*hexutil.BigNumber)(big0)
+		res.ShareBalance = (*number.BigNumber)(big0)
+		res.ShareGuaranty = (*number.BigNumber)(big0)
+		res.GHeight = (*number.BigNumber)(big0)
 	} else {
-		res.ShareBalance = (*hexutil.BigNumber)(share.ShareBalance)
-		res.ShareGuaranty = (*hexutil.BigNumber)(share.ShareGuaranty)
-		res.GHeight = (*hexutil.BigNumber)(big.NewInt(0).SetUint64(share.GHeight))
+		res.ShareBalance = (*number.BigNumber)(share.ShareBalance)
+		res.ShareGuaranty = (*number.BigNumber)(share.ShareGuaranty)
+		res.GHeight = (*number.BigNumber)(big.NewInt(0).SetUint64(share.GHeight))
 	}
 
 	return res
@@ -115,8 +115,8 @@ func DecodeTx(tx agtypes.Tx) (*agtypes.ResultBlockTx, error) {
 		return nil, errors.New("Failed to decode tx")
 	}
 	result := &agtypes.ResultBlockTx{
-		GasLimit:  (*hexutil.BigNumber)(blockTx.GasLimit),
-		GasPrice:  (*hexutil.BigNumber)(blockTx.GasPrice),
+		GasLimit:  (*number.BigNumber)(blockTx.GasLimit),
+		GasPrice:  (*number.BigNumber)(blockTx.GasPrice),
 		Sender:    blockTx.Sender,
 		Nonce:     blockTx.Nonce,
 		Signature: blockTx.Signature,
