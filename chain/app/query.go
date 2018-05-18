@@ -88,6 +88,7 @@ func (app *App) queryContract(load []byte) agtypes.Result {
 	res, _, err := ethcore.ApplyMessage(vmEnv, txMsg, gpl) // we don't care about gasUsed
 	if err != nil {
 		// logger.Debug("transition error", err)
+		return agtypes.NewError(pbtypes.CodeType_InvalidTx, err.Error())
 	}
 
 	return agtypes.NewResultOK(res, "")
