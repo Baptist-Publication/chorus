@@ -265,6 +265,9 @@ type ResultVoteData struct {
 }
 
 func (r *ResultVoteData) Adapt(m *pbtypes.VoteData) *ResultVoteData {
+	if m == nil {
+		return nil
+	}
 	r.BlockID = new(ResultBlockID).Adapt(m.BlockID)
 	r.Height = m.Height
 	r.Round = m.Round
@@ -381,7 +384,7 @@ type ResultQueryReceipt struct {
 
 type ResultQueryContract struct {
 	Code pbtypes.CodeType `json:"code`
-	Data  string 	`json:"data`
+	Data string           `json:"data`
 }
 
 type ResultRefuseList struct {
