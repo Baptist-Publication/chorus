@@ -6,9 +6,12 @@ import (
 	"math/big"
 	"time"
 
+	"bytes"
+
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	ethcmn "github.com/Baptist-Publication/chorus/eth/common"
+	"github.com/Baptist-Publication/chorus/eth/common/number"
 	ethcore "github.com/Baptist-Publication/chorus/eth/core"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	ethvm "github.com/Baptist-Publication/chorus/eth/core/vm"
@@ -16,9 +19,7 @@ import (
 	"github.com/Baptist-Publication/chorus/eth/rlp"
 	"github.com/Baptist-Publication/chorus/tools"
 	"github.com/Baptist-Publication/chorus/types"
-	"bytes"
 	"github.com/pkg/errors"
-	"github.com/Baptist-Publication/chorus/eth/common/number"
 )
 
 // This file is for JSON interface

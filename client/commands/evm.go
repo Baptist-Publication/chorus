@@ -1,7 +1,8 @@
 package commands
 
 import (
-	_ "encoding/json"
+	// _ "encoding/json"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -26,9 +27,9 @@ import (
 var (
 	// gasLimit is the amount we will borrow from gas pool
 	gasLimitCreate = big.NewInt(4700000)
-	gasLimitExec = big.NewInt(210000)
-	gasLimitExist = big.NewInt(210000)
-	gasLimitQuery = big.NewInt(210000)
+	gasLimitExec   = big.NewInt(210000)
+	gasLimitExist  = big.NewInt(210000)
+	gasLimitQuery  = big.NewInt(210000)
 
 	gasPrice = big.NewInt(2)
 	//ContractCommands defines a more git-like subcommand system
@@ -416,9 +417,11 @@ func queryContract(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 127)
 	}
 
-	hex := common.Bytes2Hex([]byte(res.Data))
-	fmt.Println("query result:", hex)
-	parseResult, _ := unpackResult(function, *aabbii, res.Data)
+	resdata, err := hex.DecodeString(res.Data)
+	if err != nil {
+		return err
+	}
+	parseResult, _ := unpackResult(function, *aabbii, string(resdata))
 	fmt.Println("parse result:", parseResult)
 
 	return nil
