@@ -25,12 +25,13 @@ import (
 
 	"github.com/Baptist-Publication/chorus/eth/common"
 	"github.com/Baptist-Publication/chorus/eth/rlp"
+	"github.com/Baptist-Publication/chorus/eth/common/number"
 )
 
 var (
 	errMissingReceiptPostState = errors.New("missing post state root in JSON receipt")
 	errMissingReceiptFields    = errors.New("missing required JSON receipt fields")
-	errBadFormat    = errors.New("number format not valid")
+	errBadFormat               = errors.New("number format not valid")
 )
 
 // Receipt represents the results of a transaction.
@@ -49,14 +50,14 @@ type Receipt struct {
 }
 
 type jsonReceipt struct {
-	PostState         *common.Hash    `json:"root"`
-	CumulativeGasUsed string          `json:"cumulative_gas_used"`
-	Bloom             *Bloom          `json:"logs_bloom"`
-	Logs              []*Log          `json:"logs"`
-	TxHash            *common.Hash    `json:"transaction_hash"`
-	ContractAddress   *common.Address `json:"contract_address"`
-	GasUsed           string          `json:"gas_used"`
-	Height            string          `json:"height"`
+	PostState         *common.Hash      `json:"root"`
+	CumulativeGasUsed *number.BigNumber `json:"cumulative_gas_used"`
+	Bloom             *Bloom            `json:"logs_bloom"`
+	Logs              []*Log            `json:"logs"`
+	TxHash            *common.Hash      `json:"transaction_hash"`
+	ContractAddress   *common.Address   `json:"contract_address"`
+	GasUsed           *number.BigNumber `json:"gas_used"`
+	Height            *number.BigNumber `json:"height"`
 }
 
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
@@ -92,13 +93,13 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(&jsonReceipt{
 		PostState:         &root,
-		CumulativeGasUsed: r.CumulativeGasUsed.String(),
+		CumulativeGasUsed: (*number.BigNumber)(r.CumulativeGasUsed),
 		Bloom:             &r.Bloom,
 		Logs:              r.Logs,
 		TxHash:            &r.TxHash,
 		ContractAddress:   &r.ContractAddress,
-		GasUsed:           r.GasUsed.String(),
-		Height:            r.Height.String(),
+		GasUsed:           (*number.BigNumber)(r.GasUsed),
+		Height:            (*number.BigNumber)(r.Height),
 	})
 }
 
@@ -114,8 +115,8 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 	if dec.PostState == nil {
 		return errMissingReceiptPostState
 	}
-	if dec.CumulativeGasUsed == "" || dec.Bloom == nil ||
-		dec.Logs == nil || dec.TxHash == nil || dec.GasUsed == "" {
+	if dec.CumulativeGasUsed == nil || dec.Bloom == nil ||
+		dec.Logs == nil || dec.TxHash == nil || dec.GasUsed == nil {
 		return errMissingReceiptFields
 	}
 	*r = Receipt{
@@ -123,21 +124,10 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		Bloom:             *dec.Bloom,
 		Logs:              dec.Logs,
 		TxHash:            *dec.TxHash,
+		CumulativeGasUsed: (*big.Int)(dec.CumulativeGasUsed),
+		GasUsed:           (*big.Int)(dec.GasUsed),
+		Height:            (*big.Int)(dec.Height),
 	}
-	var ok bool
-	r.CumulativeGasUsed, ok = new(big.Int).SetString(dec.CumulativeGasUsed,10)
-	if !ok {
-		return errBadFormat
-	}
-	r.GasUsed, ok = new(big.Int).SetString(dec.GasUsed,10)
-	if !ok {
-		return errBadFormat
-	}
-	r.Height, ok = new(big.Int).SetString(dec.Height,10)
-	if !ok {
-		return errBadFormat
-	}
-
 	if dec.ContractAddress != nil {
 		r.ContractAddress = *dec.ContractAddress
 	}

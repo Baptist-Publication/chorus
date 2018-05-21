@@ -72,6 +72,7 @@ func (n *Node) rpcRoutes() map[string]*rpc.RPCFunc {
 		"contract_payload": rpc.NewRPCFunc(h.ConstructPayload, "payload, abistr"),
 
 		"query_receipt": rpc.NewRPCFunc(h.QueryReceipt, "hash"),
+		"query_tx": rpc.NewRPCFunc(h.QueryTx, "hash"),
 
 		"query_contract": rpc.NewRPCFunc(h.QueryContract, "tx"),
 
@@ -269,6 +270,10 @@ func (h *rpcHandler) QueryContract(tx []byte) (agtypes.ResultQueryContract, erro
 }
 
 //func (h *rpcHandler) QueryContractExistance(addrBytes []byte) (agtypes.ResultQueryContractExistance, error){}
+
+func (h *rpcHandler) QueryTx(txHash []byte) (agtypes.ResultQueryTx, error){
+	return h.node.Application.QueryTx(txHash), nil
+}
 
 func (h *rpcHandler) ConstructPayload(payload string, abistr string) (agtypes.ResultContractPayload, error) {
 	res := agtypes.ResultContractPayload{}

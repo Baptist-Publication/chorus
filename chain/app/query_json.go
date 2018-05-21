@@ -9,7 +9,6 @@ import (
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	ethcmn "github.com/Baptist-Publication/chorus/eth/common"
-	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
 	ethcore "github.com/Baptist-Publication/chorus/eth/core"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	ethvm "github.com/Baptist-Publication/chorus/eth/core/vm"
@@ -17,6 +16,9 @@ import (
 	"github.com/Baptist-Publication/chorus/eth/rlp"
 	"github.com/Baptist-Publication/chorus/tools"
 	"github.com/Baptist-Publication/chorus/types"
+	"bytes"
+	"github.com/pkg/errors"
+	"github.com/Baptist-Publication/chorus/eth/common/number"
 )
 
 // This file is for JSON interface
@@ -46,7 +48,7 @@ func (app *App) QueryBalance(addrBytes []byte) agtypes.ResultQueryBalance {
 	balance := app.evmState.GetBalance(addr)
 	app.evmStateMtx.RUnlock()
 
-	return agtypes.ResultQueryBalance{Code: pbtypes.CodeType_OK, Balance: (*hexutil.Big)(balance)}
+	return agtypes.ResultQueryBalance{Code: pbtypes.CodeType_OK, Balance: (*number.BigNumber)(balance)}
 }
 
 func (app *App) QueryShare(pubkeyBytes []byte) agtypes.ResultQueryShare {
@@ -60,13 +62,13 @@ func (app *App) QueryShare(pubkeyBytes []byte) agtypes.ResultQueryShare {
 
 	res := agtypes.ResultQueryShare{Code: pbtypes.CodeType_OK}
 	if share == nil {
-		res.ShareBalance = (*hexutil.Big)(big0)
-		res.ShareGuaranty = (*hexutil.Big)(big0)
-		res.GHeight = (*hexutil.Big)(big0)
+		res.ShareBalance = (*number.BigNumber)(big0)
+		res.ShareGuaranty = (*number.BigNumber)(big0)
+		res.GHeight = (*number.BigNumber)(big0)
 	} else {
-		res.ShareBalance = (*hexutil.Big)(share.ShareBalance)
-		res.ShareGuaranty = (*hexutil.Big)(share.ShareGuaranty)
-		res.GHeight = (*hexutil.Big)(big.NewInt(0).SetUint64(share.GHeight))
+		res.ShareBalance = (*number.BigNumber)(share.ShareBalance)
+		res.ShareGuaranty = (*number.BigNumber)(share.ShareGuaranty)
+		res.GHeight = (*number.BigNumber)(big.NewInt(0).SetUint64(share.GHeight))
 	}
 
 	return res
@@ -79,7 +81,7 @@ func (app *App) QueryReceipt(txHashBytes []byte) agtypes.ResultQueryReceipt {
 	key := append(ReceiptsPrefix, txHashBytes...)
 	data, err := app.evmStateDb.Get(key)
 	if err != nil {
-		return agtypes.ResultQueryReceipt{Code: pbtypes.CodeType_InternalError, Log: "Fail to get receipt for tx: " + fmt.Sprintf("%X", txHashBytes)}
+		return agtypes.ResultQueryReceipt{Code: pbtypes.CodeType_InternalError, Log: "Fail to get tx: " + fmt.Sprintf("%X", txHashBytes)}
 	}
 
 	receipt := &ethtypes.ReceiptForStorage{}
@@ -90,6 +92,84 @@ func (app *App) QueryReceipt(txHashBytes []byte) agtypes.ResultQueryReceipt {
 
 	return agtypes.ResultQueryReceipt{Code: pbtypes.CodeType_OK,
 		Receipt: (*ethtypes.Receipt)(receipt)}
+}
+
+func GetTx(blockData *pbtypes.Data, hash []byte) (agtypes.Tx, error) {
+	txs := agtypes.BytesToTxSlc(blockData.Txs)
+	for _, tx := range txs {
+		if bytes.Equal(tx.TxHash(), hash) {
+			// found
+			return tx, nil
+		}
+	}
+	return agtypes.Tx{}, errors.New("Transaction not found")
+}
+
+// DecodeTx converts a raw []byte tx to a struct.
+// Payload inside the ResultBlockTx may vary.
+func DecodeTx(tx agtypes.Tx) (*agtypes.ResultBlockTx, error) {
+	blockTxBytes := agtypes.UnwrapTx(tx)
+	blockTx := types.BlockTx{}
+	err := tools.FromBytes(blockTxBytes, &blockTx)
+	if err != nil {
+		return nil, errors.New("Failed to decode tx")
+	}
+	result := &agtypes.ResultBlockTx{
+		GasLimit:  (*number.BigNumber)(blockTx.GasLimit),
+		GasPrice:  (*number.BigNumber)(blockTx.GasPrice),
+		Sender:    blockTx.Sender,
+		Nonce:     blockTx.Nonce,
+		Signature: blockTx.Signature,
+	}
+	switch {
+	case bytes.HasPrefix(tx, types.TxTagAppEvmCommon):
+		result.Tx_Type = "TxEvmCommon"
+		payload := new(types.TxEvmCommon)
+		tools.FromBytes(blockTx.Payload, payload)
+		result.Payload = new(agtypes.ResultTxEvmCommon).Adapt(payload)
+	case bytes.HasPrefix(tx, types.TxTagAppEcoShareTransfer):
+		result.Tx_Type = "TxShareTransfer"
+		payload := new(types.TxShareTransfer)
+		tools.FromBytes(blockTx.Payload, payload)
+		result.Payload = new(agtypes.ResultTxShareTransfer).Adapt(payload)
+	case bytes.HasPrefix(tx, types.TxTagAppEcoGuarantee):
+		result.Tx_Type = "TxShareGuarantee"
+		payload := new(types.TxShareEco)
+		tools.FromBytes(blockTx.Payload, payload)
+		result.Payload = new(agtypes.ResultTxShareEco).Adapt(payload)
+	case bytes.HasPrefix(tx, types.TxTagAppEcoRedeem):
+		result.Tx_Type = "TxShareRedeem"
+		payload := new(types.TxShareEco)
+		tools.FromBytes(blockTx.Payload, payload)
+		result.Payload = new(agtypes.ResultTxShareEco).Adapt(payload)
+
+	default:
+		return nil, errors.New("Tx type not supported yet: " + fmt.Sprintf("%X", tx[0:3]))
+	}
+
+	return result, nil
+}
+
+func (app *App) QueryTx(txHashBytes []byte) agtypes.ResultQueryTx {
+	receiptResponse := app.QueryReceipt(txHashBytes)
+	if receiptResponse.Code != pbtypes.CodeType_OK {
+		return agtypes.ResultQueryTx{Code: receiptResponse.Code, Log: receiptResponse.Log}
+	}
+	receipt := receiptResponse.Receipt
+	blockc, _, err := app.AngineRef.GetBlock(receipt.Height.Int64())
+	if err != nil {
+		return agtypes.ResultQueryTx{Code: pbtypes.CodeType_InternalError, Log: err.Error()}
+	}
+	tx, err := GetTx(blockc.Data, txHashBytes)
+	if err != nil {
+		return agtypes.ResultQueryTx{Code: pbtypes.CodeType_InvalidTx, Log: err.Error()}
+	}
+
+	decodedTx, err := DecodeTx(tx)
+	if err != nil {
+		return agtypes.ResultQueryTx{Code: pbtypes.CodeType_InternalError, Log: err.Error()}
+	}
+	return agtypes.ResultQueryTx{Code: pbtypes.CodeType_OK, Tx: decodedTx}
 }
 
 func (app *App) QueryContract(rawtx []byte) agtypes.ResultQueryContract {
