@@ -25,7 +25,10 @@ import (
 
 var (
 	// gasLimit is the amount we will borrow from gas pool
-	gasLimit = big.NewInt(210000)
+	gasLimitCreate = big.NewInt(4700000)
+	gasLimitExec = big.NewInt(210000)
+	gasLimitExist = big.NewInt(210000)
+	gasLimitQuery = big.NewInt(210000)
 
 	gasPrice = big.NewInt(2)
 	//ContractCommands defines a more git-like subcommand system
@@ -189,7 +192,7 @@ func executeContract(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 123)
 	}
 
-	tx := types.NewBlockTx(gasLimit, gasPrice, nonce, from[:], bodyBs)
+	tx := types.NewBlockTx(gasLimitExec, gasPrice, nonce, from[:], bodyBs)
 	tx.Signature, err = tools.SignSecp256k1(tx, crypto.FromECDSA(key))
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
@@ -263,7 +266,7 @@ func createContract(ctx *cli.Context) error {
 		return cli.NewExitError(err.Error(), 123)
 	}
 
-	tx := types.NewBlockTx(gasLimit, gasPrice, nonce, from[:], bodyBs)
+	tx := types.NewBlockTx(gasLimitCreate, gasPrice, nonce, from[:], bodyBs)
 	tx.Signature, err = tools.SignSecp256k1(tx, crypto.FromECDSA(key))
 	if err != nil {
 		return cli.NewExitError(err.Error(), 123)
@@ -308,7 +311,7 @@ func existContract(ctx *cli.Context) error {
 	}
 	data := common.Hex2Bytes(bytecode)
 	contractAddr := common.HexToAddress(ac.SanitizeHex(contractAddress))
-	tx := ethtypes.NewTransaction(0, common.Address{}, contractAddr, big.NewInt(0), gasLimit, big.NewInt(0), crypto.Keccak256(data))
+	tx := ethtypes.NewTransaction(0, common.Address{}, contractAddr, big.NewInt(0), gasLimitExist, big.NewInt(0), crypto.Keccak256(data))
 
 	txBytes, err := rlp.EncodeToBytes(tx)
 	if err != nil {
@@ -400,7 +403,7 @@ func queryContract(ctx *cli.Context) error {
 
 	from := common.Address{}
 
-	tx := types.NewBlockTx(gasLimit, gasPrice, 0, from[:], bodyBs)
+	tx := types.NewBlockTx(gasLimitQuery, gasPrice, 0, from[:], bodyBs)
 
 	b, err := tools.ToBytes(tx)
 	if err != nil {
