@@ -19,6 +19,7 @@ import (
 
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	"github.com/Baptist-Publication/chorus/eth/common/hexutil"
+	"github.com/Baptist-Publication/chorus/eth/common/number"
 	ethtypes "github.com/Baptist-Publication/chorus/eth/core/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p"
@@ -26,7 +27,6 @@ import (
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
 	"github.com/Baptist-Publication/chorus/types"
-	"github.com/Baptist-Publication/chorus/eth/common/number"
 )
 
 // ResultBlockMeta simply duplicates pbtypes.BlockMeta but change the way to marshal []byte.
@@ -261,6 +261,9 @@ type ResultVoteData struct {
 }
 
 func (r *ResultVoteData) Adapt(m *pbtypes.VoteData) *ResultVoteData {
+	if m == nil {
+		return nil
+	}
 	r.BlockID = new(ResultBlockID).Adapt(m.BlockID)
 	r.Height = m.Height
 	r.Round = m.Round
@@ -293,7 +296,7 @@ type ResultDialSeeds struct {
 }
 
 type Peer struct {
-	p2p.NodeInfo                          `json:"node_info"`
+	p2p.NodeInfo     `json:"node_info"`
 	IsOutbound       bool                 `json:"is_outbound"`
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
 }
@@ -356,14 +359,14 @@ type ResultQueryNonce struct {
 }
 
 type ResultQueryBalance struct {
-	Code    pbtypes.CodeType   `json:"code"`
-	Log     string             `json:"log"`
+	Code    pbtypes.CodeType  `json:"code"`
+	Log     string            `json:"log"`
 	Balance *number.BigNumber `json:"balance"`
 }
 
 type ResultQueryShare struct {
-	Code          pbtypes.CodeType   `json:"code"`
-	Log           string             `json:"log"`
+	Code          pbtypes.CodeType  `json:"code"`
+	Log           string            `json:"log"`
 	ShareBalance  *number.BigNumber `json:"share_balance"`
 	ShareGuaranty *number.BigNumber `json:"share_guaranty"`
 	GHeight       *number.BigNumber `json:"gheight"`
@@ -383,11 +386,11 @@ type ResultQueryContract struct {
 type ResultBlockTx struct {
 	GasLimit  *number.BigNumber `json:"gas_limit"`
 	GasPrice  *number.BigNumber `json:"gas_price"`
-	Nonce     uint64             `json:"nonce"`
-	Sender    hexutil.Bytes      `json:"sender"`
-	Payload   interface{}        `json:"payload"`
-	Signature hexutil.Bytes      `json:"signature"`
-	Tx_Type   string             `json:"tx_type"`
+	Nonce     uint64            `json:"nonce"`
+	Sender    hexutil.Bytes     `json:"sender"`
+	Payload   interface{}       `json:"payload"`
+	Signature hexutil.Bytes     `json:"signature"`
+	Tx_Type   string            `json:"tx_type"`
 }
 type ResultQueryTx struct {
 	Code pbtypes.CodeType `json:"code"`
@@ -396,9 +399,9 @@ type ResultQueryTx struct {
 }
 
 type ResultTxEvmCommon struct {
-	To     hexutil.Bytes      `json:"to"`
+	To     hexutil.Bytes     `json:"to"`
 	Amount *number.BigNumber `json:"amount"`
-	Load   hexutil.Bytes      `json:"load"`
+	Load   hexutil.Bytes     `json:"load"`
 }
 
 func (r *ResultTxEvmCommon) Adapt(m *types.TxEvmCommon) *ResultTxEvmCommon {
@@ -409,9 +412,9 @@ func (r *ResultTxEvmCommon) Adapt(m *types.TxEvmCommon) *ResultTxEvmCommon {
 }
 
 type ResultTxShareEco struct {
-	Source    hexutil.Bytes      `json:"source"`
+	Source    hexutil.Bytes     `json:"source"`
 	Amount    *number.BigNumber `json:"amount"`
-	Signature hexutil.Bytes      `json:"signature"`
+	Signature hexutil.Bytes     `json:"signature"`
 }
 
 func (r *ResultTxShareEco) Adapt(m *types.TxShareEco) *ResultTxShareEco {
@@ -422,10 +425,10 @@ func (r *ResultTxShareEco) Adapt(m *types.TxShareEco) *ResultTxShareEco {
 }
 
 type ResultTxShareTransfer struct {
-	ShareSrc hexutil.Bytes      `json:"share_source"`
-	ShareDst hexutil.Bytes      `json:"share_destination"`
+	ShareSrc hexutil.Bytes     `json:"share_source"`
+	ShareDst hexutil.Bytes     `json:"share_destination"`
 	Amount   *number.BigNumber `json:"amount"`
-	ShareSig hexutil.Bytes      `json:"share_signature"`
+	ShareSig hexutil.Bytes     `json:"share_signature"`
 }
 
 func (r *ResultTxShareTransfer) Adapt(m *types.TxShareTransfer) *ResultTxShareTransfer {
