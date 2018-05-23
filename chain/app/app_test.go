@@ -149,23 +149,42 @@ func TestElection(t *testing.T) {
 
 	// for i := 0; i < 50; i++ {
 	// 	k := randomPubkey()
-	// 	p := new(big.Int).SetUint64(uint64(10 + i*10))
+	// 	p := new(big.Int).SetUint64(uint64(1000000 + i*10))
 	// 	ss.AddGuaranty(k, p, 20)
 	// }
 
 	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
 	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
-	ss.AddGuaranty(randomPubkey(), big.NewInt(20000), 20)
-	ss.AddGuaranty(randomPubkey(), big.NewInt(20000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(2000000), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(20013), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(20555), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(20111), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(20335), 20)
+	ss.AddGuaranty(randomPubkey(), big.NewInt(20888), 20)
 
 	root, _ := ss.Commit()
 	ss.Reload(root)
+
+	fmt.Println(ss.Size())
 
 	bigbang := new(big.Int).SetBytes(root)
 
 	for i := 0; i < 1; i++ {
 		bigbang.Add(bigbang, new(big.Int).SetUint64(rand.Uint64()))
-		vals := app.doElect(bigbang, 20, 2)
+		vals := app.doElect(bigbang, 20, 1)
 		// fmt.Println(len(vals))
 		for _, v := range vals {
 			fmt.Printf("%s-%d ", v.PubKey.KeyString()[:4], v.VotingPower)

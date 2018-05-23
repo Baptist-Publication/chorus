@@ -422,7 +422,8 @@ func (ang *Angine) Height() def.INT {
 }
 
 func (ang *Angine) NonEmptyHeight() def.INT {
-	return ang.stateMachine.LastNonEmptyHeight
+	st := ang.consensus.GetState()
+	return st.LastNonEmptyHeight
 }
 
 // Destroy is called after something go south while before angine.Start has been called
@@ -545,7 +546,8 @@ func (ang *Angine) FlushMempool() {
 }
 
 func (ang *Angine) GetValidators() (def.INT, *agtypes.ValidatorSet) {
-	return ang.stateMachine.LastBlockHeight, ang.stateMachine.Validators
+	vs := ang.consensus.GetValidatorSet()
+	return ang.stateMachine.LastBlockHeight, vs
 }
 
 func (ang *Angine) GetP2PNetInfo() (bool, []string, []*agtypes.Peer) {
@@ -592,8 +594,8 @@ func (ang *Angine) GetUnconfirmedTxs() []agtypes.Tx {
 }
 
 func (ang *Angine) IsNodeValidator(pub crypto.PubKey) bool {
-	vals := ang.stateMachine.Validators
-	return vals.HasAddress(pub.Address())
+	vs := ang.consensus.GetValidatorSet()
+	return vs.HasAddress(pub.Address())
 }
 
 func (ang *Angine) GetBlacklist() []string {

@@ -177,10 +177,7 @@ func SetDefaults(runtime string, conf *viper.Viper) *viper.Viper {
 	conf.SetDefault("log_path", "")
 	conf.SetDefault("threshold_blocks", 0)
 
-	conf.Set("block_gaslimit", 80000000)
-
-	conf.Set("elect_threshold_rich", 1000000)
-	conf.Set("elect_threshold_lucky", 10000)
+	conf.SetDefault("block_gaslimit", 80000000)
 
 	conf.SetDefault("enable_incentive", false)
 	setMempoolDefaults(conf)
@@ -202,21 +199,22 @@ func setConsensusDefaults(conf *viper.Viper) {
 	conf.SetDefault("cs_wal_dir", path.Join(conf.GetString("runtime"), DATADIR, "cs.wal"))
 	conf.SetDefault("cs_wal_light", false)
 	conf.SetDefault("block_max_txs", 5000)         // max number of txs
-	conf.SetDefault("block_max_size", 2*1024*1024) // max size of block(just for txs)
+	conf.SetDefault("block_max_size", 1*1024*1024) // max size of block(just for txs)
 	conf.SetDefault("block_part_size", 65536)      // part size 64K
 	conf.SetDefault("disable_data_hash", false)
-	conf.SetDefault("timeout_propose", 5000)
-	conf.SetDefault("timeout_propose_delta", 500)
+	conf.SetDefault("timeout_propose", 6000)
+	conf.SetDefault("timeout_propose_delta", 1000)
 	conf.SetDefault("timeout_prevote", 3000)
-	conf.SetDefault("timeout_prevote_delta", 500)
+	conf.SetDefault("timeout_prevote_delta", 1000)
 	conf.SetDefault("timeout_precommit", 3000)
-	conf.SetDefault("timeout_precommit_delta", 500)
-	conf.SetDefault("timeout_commit", 1000)
+	conf.SetDefault("timeout_precommit_delta", 1000)
+	conf.SetDefault("timeout_commit", 10000)
 	conf.SetDefault("skip_timeout_commit", false)
 
-	conf.SetDefault("tracerouter_msg_ttl", 5) // seconds
+	conf.SetDefault("election", 5000)
+	conf.SetDefault("elect_threshold_rich", 1000000)
+	conf.SetDefault("elect_threshold_lucky", 10000)
 
-	conf.SetDefault("election", 20)
-	conf.SetDefault("worldrand_threshold", 0.6)
+	conf.SetDefault("worldrand_threshold", 0.8)
 	conf.SetDefault("worldrand_votes_amount", 11)
 }

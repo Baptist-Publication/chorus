@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -401,10 +402,13 @@ func (cs *ConsensusState) GetTotalVotingPower() int64 {
 	return cs.Validators.TotalVotingPower()
 }
 
-func (cs *ConsensusState) GetValidators() (def.INT, []*agtypes.Validator) {
-	cs.mtx.Lock()
-	defer cs.mtx.Unlock()
-	return cs.state.LastBlockHeight, cs.state.Validators.Copy().Validators
+func (cs *ConsensusState) GetValidatorSet() *agtypes.ValidatorSet {
+	// cs.mtx.Lock()
+	// defer cs.mtx.Unlock()
+
+	oldSate := unsafe.Pointer(cs.state)
+	stateSnap := (*sm.State)(atomic.LoadPointer(&oldSate))
+	return stateSnap.Validators.Copy()
 }
 
 // Sets our private validator account for signing votes.

@@ -122,9 +122,9 @@ func (app *App) doElect(bigbang *big.Int, height, round def.INT) []*agtypes.Vali
 	shrs = append(shrs, pickedRichGuys...)
 
 	// richguys do not participate in the next election
-	// for i := 0; i < len(richGuys); i++ {
-	// 	exists[richGuys[i]] = struct{}{}
-	// }
+	for i := 0; i < len(richGuys); i++ {
+		exists[richGuys[i]] = struct{}{}
+	}
 
 	// Pick lucky-guys
 	//  if      n <= 11 	then 0
