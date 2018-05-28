@@ -29,12 +29,6 @@ func testTxCallOnce() {
 }
 
 func testPushTx() {
-	fmt.Println("ThreadCount:", threadCount)
-	fmt.Println("SendPerThread:", sendPerThread)
-	time.Sleep(time.Second * 2)
-
-	rand.Seed(time.Now().UnixNano())
-
 	var wg sync.WaitGroup
 
 	go resPrintRoutine()
@@ -53,8 +47,8 @@ func testTx(w *sync.WaitGroup, id int, privkey string) {
 		w.Add(1)
 	}
 
-	fmt.Println("using privkey:", privkey)
-	time.Sleep(time.Second * 2)
+	// fmt.Println("using privkey:", privkey)
+	// time.Sleep(time.Second * 1)
 
 	if privkey == "" {
 		privkey = defaultPrivKey
@@ -67,6 +61,7 @@ func testTx(w *sync.WaitGroup, id int, privkey string) {
 	nonce, err := getNonce(client, caller.Hex())
 	panicErr(err)
 
+	sleep := 1000 / tps
 	for i := 0; i < sendPerThread; i++ {
 		err := send(client, privkey, defaultReceiver, 0, nonce)
 		panicErr(err)

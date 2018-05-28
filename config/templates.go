@@ -19,7 +19,6 @@ const CONFIGTPL = `# This is a TOML config file.
 environment = "production"                # log mode, e.g. "development"/"production"
 p2p_laddr = "tcp://0.0.0.0:46656"               # p2p port that this node is listening
 rpc_laddr = "tcp://0.0.0.0:46657"               # rpc port this node is exposing
-event_laddr = "tcp://0.0.0.0:46658"             # chorus uses a exposed port for events function
 log_path = ""                             #
 seeds = ""                                # peers to connect when the node is starting
 signbyCA = ""                             # you must require a signature from a valid CA if the blockchain is a permissioned blockchain

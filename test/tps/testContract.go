@@ -18,7 +18,7 @@ type res struct {
 
 var (
 	threadCount   = 10
-	sendPerThread = 1000
+	sendPerThread = 10000000
 )
 
 var (
@@ -47,11 +47,6 @@ func testContractCallOnce() {
 
 func testPushContract() {
 	assertContractExist(nil)
-
-	fmt.Println("ThreadCount:", threadCount)
-	fmt.Println("SendPerThread:", sendPerThread)
-	time.Sleep(time.Second * 2)
-
 	var wg sync.WaitGroup
 
 	go resPrintRoutine()
@@ -85,6 +80,7 @@ func testContract(w *sync.WaitGroup, id int, privkey string) {
 	nonce, err := getNonce(client, caller.Hex())
 	panicErr(err)
 
+	sleep := 1000 / tps
 	for i := 0; i < sendPerThread; i++ {
 		// nonce, err := getNonce(client, caller.Hex())
 		// panicErr(err)

@@ -674,6 +674,8 @@ func (cs *ConsensusState) updateToState(state *sm.State) {
 	// RoundState fields
 	cs.updateHeight(height)
 	cs.updateRoundStep(0, csspb.RoundStepType_NewHeight)
+	// for debug
+	cs.CommitTime = cs.StartTime
 	if cs.CommitTime.IsZero() {
 		// "Now" makes it easier to sync up dev nodes.
 		// We add timeoutCommit to allow transactions
