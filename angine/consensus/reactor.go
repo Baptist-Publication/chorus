@@ -550,14 +550,14 @@ OUTER_LOOP:
 	}
 }
 
-func (conR *ConsensusReactor) gossipVotesToPeers(rs *RoundState) {
-	peers := conR.Switch.Peers()
-	for _, peer := range peers.List() {
-		psData := peer.Data.Get(agtypes.PeerStateKey)
-		ps := psData.(*PeerState)
-		conR.gossipVotes(rs, ps)
-	}
-}
+// func (conR *ConsensusReactor) gossipVotesToPeers(rs *RoundState) {
+// 	peers := conR.Switch.Peers()
+// 	for _, peer := range peers.List() {
+// 		psData := peer.Data.Get(agtypes.PeerStateKey)
+// 		ps := psData.(*PeerState)
+// 		conR.gossipVotes(rs, ps)
+// 	}
+// }
 
 func (conR *ConsensusReactor) gossipVotes(rs *RoundState, ps *PeerState) bool {
 	prs := ps.GetRoundState()

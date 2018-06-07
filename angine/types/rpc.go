@@ -174,7 +174,7 @@ func (r *ResultData) Adapt(m *pbtypes.Data) *ResultData {
 	extxs := BytesToTxSlc(m.ExTxs)
 	r.ExTxs = make([]hexutil.Bytes, len(extxs))
 	for i, tx := range extxs {
-		r.Txs[i] = hexutil.Bytes(tx.TxHash())
+		r.ExTxs[i] = hexutil.Bytes(tx.TxHash())
 	}
 	return r
 }

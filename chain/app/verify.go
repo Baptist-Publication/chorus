@@ -96,7 +96,7 @@ func makeTxQueue(txs [][]byte, apptxQ []appTx, exit *int32) {
 		// decode bytes
 		if bytes.HasPrefix(raw, types.TxTagApp) {
 			apptxQ[i].tx = new(types.BlockTx)
-			if err := rlp.DecodeBytes(agtypes.UnwrapTx(raw), apptxQ[i].tx); err != nil {
+			if err := tools.FromBytes(agtypes.UnwrapTx(raw), apptxQ[i].tx); err != nil {
 				apptxQ[i].err = err
 			}
 		} else {
