@@ -19,6 +19,7 @@ import (
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p"
 	"github.com/Baptist-Publication/chorus/module/lib/go-rpc/server"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
+	"github.com/Baptist-Publication/chorus/test/testdb"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -105,6 +106,11 @@ func RunNode(logger *zap.Logger, config *viper.Viper) {
 
 // Call Start() after adding the listeners.
 func (n *Node) Start() error {
+	err := testdb.InitDB()
+	if err != nil {
+		n.Angine.Stop()
+		return err
+	}
 	if err := n.Application.Start(); err != nil {
 		n.Angine.Stop()
 		return err
