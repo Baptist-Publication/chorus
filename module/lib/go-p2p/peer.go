@@ -15,11 +15,14 @@
 package p2p
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"time"
 
+	"github.com/Baptist-Publication/chorus/test/testdb"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
@@ -81,6 +84,27 @@ func peerHandshake(conn net.Conn, sw *Switch) (*NodeInfo, error) {
 	return peerNodeInfo, nil
 }
 
+func saveP2pmessage(logger *zap.Logger, chID byte, p *Peer, msgBytes []byte) {
+	var chanId string
+	insertTime := time.Now().Format("2006-01-02 15:04:05")
+	chanId = fmt.Sprintf("%x", chID)
+	h := sha256.New()
+	h.Write(msgBytes)
+	size := len(msgBytes)
+	mesHash := fmt.Sprintf("%x", h.Sum(nil))
+
+	peerRemote, peerListen := "", ""
+	if p.NodeInfo != nil {
+		peerRemote = p.NodeInfo.RemoteAddr
+		peerListen = p.NodeInfo.ListenAddr
+	}
+	err := testdb.SaveP2pMessage(insertTime, chanId, mesHash, size, peerRemote, peerListen)
+	if err != nil {
+		logger.Error("save p2p", zap.String("insert to db error ", fmt.Sprintf("%v", err)))
+	}
+	return
+}
+
 // NOTE: call peerHandshake on conn before calling newPeer().
 func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInfo *NodeInfo, outbound bool, reactorsByCh map[byte]Reactor, chDescs []*ChannelDescriptor, onPeerError func(*Peer, interface{})) *Peer {
 	var p *Peer
@@ -89,6 +113,7 @@ func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInf
 		if reactor == nil {
 			PanicSanity(Fmt("Unknown channel %X", chID))
 		}
+		saveP2pmessage(logger, chID, p, msgBytes)
 		reactor.Receive(chID, p, msgBytes)
 	}
 	onError := func(r interface{}) {
