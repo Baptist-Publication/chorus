@@ -29,6 +29,7 @@ import (
 	"github.com/Baptist-Publication/chorus/angine/blockchain/refuse_list"
 	"github.com/Baptist-Publication/chorus/angine/consensus"
 	"github.com/Baptist-Publication/chorus/angine/mempool"
+	p2pAng "github.com/Baptist-Publication/chorus/angine/p2p"
 	"github.com/Baptist-Publication/chorus/angine/plugin"
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	"github.com/Baptist-Publication/chorus/angine/state"
@@ -270,6 +271,8 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 		}
 	})
 
+	p2pReactor := p2pAng.NewP2PReactor(ang.logger, conf)
+
 	// spRouter := trace.NewRouter(ang.logger, conf, stateM, ang.PrivValidator())
 	// spReactor := trace.NewTraceReactor(ang.logger, conf, spRouter)
 	// spRouter.SetReactor(spReactor)
@@ -280,6 +283,7 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 	ang.p2pSwitch.AddReactor("MEMPOOL", memReactor)
 	ang.p2pSwitch.AddReactor("BLOCKCHAIN", bcReactor)
 	ang.p2pSwitch.AddReactor("CONSENSUS", consensusReactor)
+	ang.p2pSwitch.AddReactor("P2P", p2pReactor)
 	// ang.p2pSwitch.AddReactor("SPECIALOP", spReactor)
 
 	var addrBook *p2p.AddrBook
