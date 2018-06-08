@@ -1,0 +1,39 @@
+syntax = "proto3";
+package p2p ;
+enum  CheckType { 
+    Unkown = 0 ;
+    Tx = 1;
+   
+    BlockRequeste =4 ;
+    BlockResponse = 5;
+    StatusRequest = 6;
+    StatusResponse = 7;
+    BlockHeaderRequest = 8;
+    BlockHeaderResponse = 9;
+
+    NewRoundStep = 10; 
+	CommitStep   =11; 
+	Proposal     =12; 
+	ProposalPOL  = 13; 
+	BlockPart    = 3; // both block & POL
+	Vote         = 15; 
+	HasVote      = 16; 
+	VoteSetMaj23 = 17; 
+    VoteSetBits  = 18; 
+    
+    PexRequest = 19;
+    PexAddrs = 20;
+
+} 
+
+enum MsgType {
+    None = 0 ;
+    CheckRequest = 1;
+    CheckResponse =2 ;
+}
+
+message CheckMessage {
+    MsgType Type =1 ;
+    CheckType ChecType = 2;
+    bytes Data = 3;
+}
