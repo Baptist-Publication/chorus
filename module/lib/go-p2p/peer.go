@@ -177,11 +177,11 @@ func (p *Peer) SendBytes(chID byte, msg []byte) bool {
 		return false
 	}
 
-	// check if a msg is sent repeatedly
-	if p.msgRepeated(chID, msg) {
-		p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
-		return true
-	}
+	// // check if a msg is sent repeatedly
+	// if p.msgRepeated(chID, msg) {
+	// 	p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+	// 	return true
+	// }
 	return p.mconn.Send(chID, msg)
 }
 
@@ -200,11 +200,11 @@ func (p *Peer) TrySendBytes(chID byte, msg []byte) bool {
 	if !p.IsRunning() {
 		return false
 	}
-	// check if a msg is sent repeatedly
-	if p.msgRepeated(chID, msg) {
-		p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
-		return true
-	}
+	// // check if a msg is sent repeatedly
+	// if p.msgRepeated(chID, msg) {
+	// 	p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+	// 	return true
+	// }
 	return p.mconn.TrySend(chID, msg)
 }
 
@@ -257,7 +257,7 @@ type CheckRepeated struct {
 	RespCh chan bool
 }
 
-func (p *Peer) msgRepeated(chID byte, msg []byte) bool {
+func (p *Peer) MsgRepeated(chID byte, msg []byte) bool {
 	h := sha256.New()
 	h.Write(msg)
 	msgID := fmt.Sprintf("%x", h.Sum(nil))

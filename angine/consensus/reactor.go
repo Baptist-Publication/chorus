@@ -54,6 +54,8 @@ type ConsensusReactor struct {
 
 	logger  *zap.Logger
 	slogger *zap.SugaredLogger
+
+	sendFunc func(*p2p.Peer, byte, []byte) bool 
 }
 
 func NewConsensusReactor(logger *zap.Logger, consensusState *ConsensusState, fastSync bool) *ConsensusReactor {
@@ -453,7 +455,10 @@ OUTER_LOOP:
 					Round:  rs.Round,  // This tells peer that this part applies to us.
 					Part:   part,
 				}
-				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+
+				conR.sendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+
+				// peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			}
@@ -721,6 +726,16 @@ func (conR *ConsensusReactor) StringIndented(indent string) string {
 	}
 	s += indent + "}"
 	return s
+}
+
+func (conR *ConsensusReactor) sendBytes(peer *p2p.Peer, chID byte, msg []byte) {
+	
+	// check if a msg is sent repeatedly
+	if peer.MsgRepeated(chID, msg) {
+		conR.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+		return 
+	}
+	peer.SendBytes(chID, msg)
 }
 
 //-----------------------------------------------------------------------------
