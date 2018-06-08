@@ -53,7 +53,7 @@ type (
 )
 
 const (
-	checkMsgChBufSize       = 10
+	checkMsgChBufSize       = 1024
 	checkTimeInMilliSeconds = 1000
 )
 
@@ -272,9 +272,9 @@ func (p *Peer) msgRepeated(chID byte, msg []byte) bool {
 		select {
 		case p.CheckMsgCh <- cr:
 			p.logger.Info(fmt.Sprintf("check msg repeated start sending  %x ", chID))
-			p.mux.Lock()
+			//p.mux.Lock()
 			p.CheckRespChSet[msgID] = cr.RespCh
-			p.mux.Unlock()
+			//p.mux.Unlock()
 			defer delete(p.CheckRespChSet, msgID)
 		case result := <-cr.RespCh:
 			p.logger.Info(fmt.Sprintf("check msg repeated got response  %x  %v", chID, result))
