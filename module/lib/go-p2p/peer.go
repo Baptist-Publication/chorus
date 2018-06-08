@@ -192,18 +192,6 @@ func (p *Peer) PureSendBytes(chID byte, msg []byte) bool {
 	return p.mconn.Send(chID, msg)
 }
 
-// PureSend is for check msg channel only
-func (p *Peer) PureTrySendBytes(chID byte, msg []byte) bool {
-	if !p.IsRunning() {
-		return false
-	}
-	return p.mconn.TrySend(chID, msg)
-}
-
-func (p *Peer) PureTyrSend(chID byte, msg interface{}) bool {
-	return p.TrySendBytes(chID, wire.BinaryBytes(msg))
-}
-
 func (p *Peer) TrySend(chID byte, msg interface{}) bool {
 	return p.TrySendBytes(chID, wire.BinaryBytes(msg))
 }
@@ -216,6 +204,18 @@ func (p *Peer) TrySendBytes(chID byte, msg []byte) bool {
 	if p.msgRepeated(chID, msg) {
 		p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
 		return true
+	}
+	return p.mconn.TrySend(chID, msg)
+}
+
+func (p *Peer) PureTrySend(chID byte, msg interface{}) bool {
+	return p.PureTrySendBytes(chID, wire.BinaryBytes(msg))
+}
+
+// PureSend is for check msg channel only
+func (p *Peer) PureTrySendBytes(chID byte, msg []byte) bool {
+	if !p.IsRunning() {
+		return false
 	}
 	return p.mconn.TrySend(chID, msg)
 }
@@ -271,6 +271,7 @@ func (p *Peer) msgRepeated(chID byte, msg []byte) bool {
 	for {
 		select {
 		case p.CheckMsgCh <- cr:
+			p.logger.Info(fmt.Sprintf("check msg repeated start sending  %x ", chID))
 			p.mux.Lock()
 			p.CheckRespChSet[msgID] = cr.RespCh
 			p.mux.Unlock()
