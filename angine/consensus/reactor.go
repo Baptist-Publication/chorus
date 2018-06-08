@@ -68,6 +68,13 @@ func NewConsensusReactor(logger *zap.Logger, consensusState *ConsensusState, fas
 	return conR
 }
 
+func (conR *ConsensusReactor) GetConsensusState() *ConsensusState {
+	if conR != nil {
+		return conR.conS
+	}
+	return nil
+}
+
 func (conR *ConsensusReactor) OnStart() error {
 	conR.logger.Info("ConsensusReactor ", zap.Bool("fastSync", conR.fastSync))
 	conR.BaseReactor.OnStart()

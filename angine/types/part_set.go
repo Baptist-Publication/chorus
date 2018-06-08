@@ -232,6 +232,15 @@ func (ps *PartSet) GetPart(index int) *pbtypes.Part {
 	return ps.parts[index].Part
 }
 
+func (ps *PartSet) PartExists(index int) bool {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+	if ps.parts[index] != nil {
+		return true
+	}
+	return false
+}
+
 func (ps *PartSet) IsComplete() bool {
 	return ps.count == ps.total
 }

@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/Baptist-Publication/chorus/test/testdb"
 	"github.com/spf13/viper"
@@ -36,16 +36,16 @@ type (
 	Peer struct {
 		BaseService
 
-		logger *zap.Logger
-		mux sync.Mutex
+		logger   *zap.Logger
+		mux      sync.Mutex
 		outbound bool
 		mconn    *MConnection
 
 		*NodeInfo
 		Key  string
 		Data *CMap // User data.
-		
-		CheckMsgCh chan *CheckRepeated
+
+		CheckMsgCh     chan *CheckRepeated
 		CheckRespChSet map[string]chan bool
 	}
 
@@ -53,8 +53,8 @@ type (
 )
 
 const (
-	checkMsgChBufSize = 10
-	checkTimeInMilliSeconds = 100
+	checkMsgChBufSize       = 10
+	checkTimeInMilliSeconds = 1000
 )
 
 // NOTE: blocking
@@ -136,14 +136,14 @@ func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInf
 	cmCh := make(chan *CheckRepeated, checkMsgChBufSize)
 	crChSet := make(map[string]chan bool)
 	p = &Peer{
-		logger:			logger,
-		outbound: 		outbound,
-		mconn:    		mconn,
-		NodeInfo: 		peerNodeInfo,
-		Key:      		peerNodeInfo.PubKey.KeyString(),
-		Data:     		NewCMap(),
-		CheckMsgCh:		cmCh,
-		CheckRespChSet:	crChSet,
+		logger:         logger,
+		outbound:       outbound,
+		mconn:          mconn,
+		NodeInfo:       peerNodeInfo,
+		Key:            peerNodeInfo.PubKey.KeyString(),
+		Data:           NewCMap(),
+		CheckMsgCh:     cmCh,
+		CheckRespChSet: crChSet,
 	}
 	p.BaseService = *NewBaseService(logger, "Peer", p)
 	return p
@@ -176,7 +176,7 @@ func (p *Peer) SendBytes(chID byte, msg []byte) bool {
 	if !p.IsRunning() {
 		return false
 	}
-	
+
 	// check if a msg is sent repeatedly
 	if p.msgRepeated(chID, msg) {
 		p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
@@ -185,9 +185,23 @@ func (p *Peer) SendBytes(chID byte, msg []byte) bool {
 	return p.mconn.Send(chID, msg)
 }
 
-// PureSend is for check msg channel only
-func (p *Peer) PureSend(chID byte, msg []byte) bool {
+func (p *Peer) PureSendBytes(chID byte, msg []byte) bool {
+	if !p.IsRunning() {
+		return false
+	}
 	return p.mconn.Send(chID, msg)
+}
+
+// PureSend is for check msg channel only
+func (p *Peer) PureTrySendBytes(chID byte, msg []byte) bool {
+	if !p.IsRunning() {
+		return false
+	}
+	return p.mconn.TrySend(chID, msg)
+}
+
+func (p *Peer) PureTyrSend(chID byte, msg interface{}) bool {
+	return p.TrySendBytes(chID, wire.BinaryBytes(msg))
 }
 
 func (p *Peer) TrySend(chID byte, msg interface{}) bool {
@@ -197,6 +211,11 @@ func (p *Peer) TrySend(chID byte, msg interface{}) bool {
 func (p *Peer) TrySendBytes(chID byte, msg []byte) bool {
 	if !p.IsRunning() {
 		return false
+	}
+	// check if a msg is sent repeatedly
+	if p.msgRepeated(chID, msg) {
+		p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+		return true
 	}
 	return p.mconn.TrySend(chID, msg)
 }
@@ -232,10 +251,10 @@ func (p *Peer) Get(key string) interface{} {
 }
 
 type CheckRepeated struct {
-	ChID	byte
-	MsgID	string
-	Msg		[]byte
-	RespCh	chan bool
+	ChID   byte
+	MsgID  string
+	Msg    []byte
+	RespCh chan bool
 }
 
 func (p *Peer) msgRepeated(chID byte, msg []byte) bool {
@@ -243,26 +262,27 @@ func (p *Peer) msgRepeated(chID byte, msg []byte) bool {
 	h.Write(msg)
 	msgID := fmt.Sprintf("%x", h.Sum(nil))
 	cr := &CheckRepeated{
-		ChID: chID,
-		MsgID: msgID,
-		Msg: msg,
+		ChID:   chID,
+		MsgID:  msgID,
+		Msg:    msg,
 		RespCh: make(chan bool),
 	}
 	timer := time.NewTimer(time.Millisecond * checkTimeInMilliSeconds)
 	for {
-		select	{
+		select {
 		case p.CheckMsgCh <- cr:
 			p.mux.Lock()
 			p.CheckRespChSet[msgID] = cr.RespCh
 			p.mux.Unlock()
 			defer delete(p.CheckRespChSet, msgID)
 		case result := <-cr.RespCh:
+			p.logger.Info(fmt.Sprintf("check msg repeated got response  %x  %v", chID, result))
 			return result
 		case <-timer.C:
-			p.logger.Warn("check msg repeated timeout")
+			p.logger.Warn(fmt.Sprintf("check msg repeated timeout %x  ", chID))
 			return false
 		}
 	}
-	
+
 	// return false
 }
