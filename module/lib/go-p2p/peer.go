@@ -185,6 +185,11 @@ func (p *Peer) SendBytes(chID byte, msg []byte) bool {
 	return p.mconn.Send(chID, msg)
 }
 
+// PureSend is for check msg channel only
+func (p *Peer) PureSend(chID byte, msg []byte) bool {
+	return p.mconn.Send(chID, msg)
+}
+
 func (p *Peer) TrySend(chID byte, msg interface{}) bool {
 	return p.TrySendBytes(chID, wire.BinaryBytes(msg))
 }
