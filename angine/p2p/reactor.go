@@ -6,11 +6,13 @@ import (
 
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p"
+	"github.com/Baptist-Publication/chorus/angine/consensus"
+	"github.com/Baptist-Publication/chorus/angine/mempool"
 )
 
 const (
 	OptimiseChannel = byte(0x50)
-
+	// TODO more channel 
 
 )
 
@@ -39,16 +41,43 @@ func (pR *P2PReactor) GetChannels() []*p2p.ChannelDescriptor {
 	}
 }
 
+// Implement AddPeer
 func (pR *P2PReactor) AddPeer(peer *p2p.Peer) {
-// nothing to do yet
+	go pR.checkMsgRepeatedRoutine(peer)
 }
 
 func (pR *P2PReactor) RemovePeer(peer *p2p.Peer, reason interface{}) {
-// nothing to do yet
+	// nothing to do yet
 }
 
 func (pR *P2PReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
-// TODO
+	// TODO check logic
+
+
+	// TODO get msgID from msgBytes
+	msgID := "blablabla"
+	if cmCh, ok := src.CheckRespChSet[msgID]; ok {
+		// TODO get check result from msgBytes
+		msgRepeated := true
+		cmCh <- msgRepeated
+	} 
+}
+
+func (pR *P2PReactor) checkMsgRepeatedRoutine(peer *p2p.Peer) {
+	for {
+		select  {
+		case cr := <- peer.CheckMsgCh:
+			switch cr.ChID {
+			case consensus.DataChannel:
+				// TODO
+			case mempool.MempoolChannel:
+				// TODO
+			} 
+
+
+			// TODO implement a peer.Send
+		}
+	}
 }
 
 // implements events.Eventable

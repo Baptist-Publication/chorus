@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"time"
+	"sync"
 
 	"github.com/Baptist-Publication/chorus/test/testdb"
 	"github.com/spf13/viper"
@@ -35,15 +36,25 @@ type (
 	Peer struct {
 		BaseService
 
+		logger *zap.Logger
+		mux sync.Mutex
 		outbound bool
 		mconn    *MConnection
 
 		*NodeInfo
 		Key  string
 		Data *CMap // User data.
+		
+		CheckMsgCh chan *CheckRepeated
+		CheckRespChSet map[string]chan bool
 	}
 
 	AuthorizationFunc func(nodeinfo *NodeInfo) error
+)
+
+const (
+	checkMsgChBufSize = 10
+	checkTimeInMilliSeconds = 100
 )
 
 // NOTE: blocking
@@ -113,6 +124,7 @@ func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInf
 		if reactor == nil {
 			PanicSanity(Fmt("Unknown channel %X", chID))
 		}
+		// TODO delete this method later
 		saveP2pmessage(logger, chID, p, msgBytes)
 		reactor.Receive(chID, p, msgBytes)
 	}
@@ -121,12 +133,17 @@ func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInf
 		onPeerError(p, r)
 	}
 	mconn := NewMConnection(logger, config, conn, chDescs, onReceive, onError)
+	cmCh := make(chan *CheckRepeated, checkMsgChBufSize)
+	crChSet := make(map[string]chan bool)
 	p = &Peer{
-		outbound: outbound,
-		mconn:    mconn,
-		NodeInfo: peerNodeInfo,
-		Key:      peerNodeInfo.PubKey.KeyString(),
-		Data:     NewCMap(),
+		logger:			logger,
+		outbound: 		outbound,
+		mconn:    		mconn,
+		NodeInfo: 		peerNodeInfo,
+		Key:      		peerNodeInfo.PubKey.KeyString(),
+		Data:     		NewCMap(),
+		CheckMsgCh:		cmCh,
+		CheckRespChSet:	crChSet,
 	}
 	p.BaseService = *NewBaseService(logger, "Peer", p)
 	return p
@@ -158,6 +175,12 @@ func (p *Peer) Send(chID byte, msg interface{}) bool {
 func (p *Peer) SendBytes(chID byte, msg []byte) bool {
 	if !p.IsRunning() {
 		return false
+	}
+	
+	// check if a msg is sent repeatedly
+	if p.msgRepeated(chID, msg) {
+		p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+		return true
 	}
 	return p.mconn.Send(chID, msg)
 }
@@ -201,4 +224,40 @@ func (p *Peer) Equals(other *Peer) bool {
 
 func (p *Peer) Get(key string) interface{} {
 	return p.Data.Get(key)
+}
+
+type CheckRepeated struct {
+	ChID	byte
+	MsgID	string
+	Msg		[]byte
+	RespCh	chan bool
+}
+
+func (p *Peer) msgRepeated(chID byte, msg []byte) bool {
+	h := sha256.New()
+	h.Write(msg)
+	msgID := fmt.Sprintf("%x", h.Sum(nil))
+	cr := &CheckRepeated{
+		ChID: chID,
+		MsgID: msgID,
+		Msg: msg,
+		RespCh: make(chan bool),
+	}
+	timer := time.NewTimer(time.Millisecond * checkTimeInMilliSeconds)
+	for {
+		select	{
+		case p.CheckMsgCh <- cr:
+			p.mux.Lock()
+			p.CheckRespChSet[msgID] = cr.RespCh
+			p.mux.Unlock()
+			defer delete(p.CheckRespChSet, msgID)
+		case result := <-cr.RespCh:
+			return result
+		case <-timer.C:
+			p.logger.Warn("check msg repeated timeout")
+			return false
+		}
+	}
+	
+	// return false
 }
