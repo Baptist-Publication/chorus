@@ -233,8 +233,16 @@ func (ps *PartSet) GetPart(index int) *pbtypes.Part {
 }
 
 func (ps *PartSet) PartExists(index int) bool {
+	if ps == nil {
+		fmt.Println("part exists err partset is nil ,index ", index)
+		return false
+	}
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
+	// Invalid part index
+	if def.INT(index) >= ps.total {
+		return true
+	}
 	if ps.parts[index] != nil {
 		fmt.Println("part exists ,index ", index)
 		return true
