@@ -55,7 +55,7 @@ type ConsensusReactor struct {
 	logger  *zap.Logger
 	slogger *zap.SugaredLogger
 
-	sendFunc func(*p2p.Peer, byte, []byte) bool 
+	sendFunc func(*p2p.Peer, byte, []byte) bool
 }
 
 func NewConsensusReactor(logger *zap.Logger, consensusState *ConsensusState, fastSync bool) *ConsensusReactor {
@@ -456,7 +456,7 @@ OUTER_LOOP:
 					Part:   part,
 				}
 
-				conR.sendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
 
 				// peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
@@ -493,7 +493,8 @@ OUTER_LOOP:
 					Round:  prs.Round,  // Not our height, so it doesn't matter.
 					Part:   part,
 				}
-				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
+				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			} else {
@@ -518,7 +519,8 @@ OUTER_LOOP:
 			// Proposal: share the proposal metadata with peer.
 			{
 				msg := &csspb.ProposalMessage{Proposal: rs.Proposal}
-				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
+				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 
 				ps.SetHasProposal(rs.Proposal)
 			}
@@ -533,7 +535,8 @@ OUTER_LOOP:
 					ProposalPOLRound: pPOLRound,
 					ProposalPOL:      csspb.TransferBitArray(rs.Votes.Prevotes(pPOLRound).BitArray()),
 				}
-				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
+				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 			}
 			continue OUTER_LOOP
 		}
@@ -729,11 +732,11 @@ func (conR *ConsensusReactor) StringIndented(indent string) string {
 }
 
 func (conR *ConsensusReactor) sendBytes(peer *p2p.Peer, chID byte, msg []byte) {
-	
+
 	// check if a msg is sent repeatedly
 	if peer.MsgRepeated(chID, msg) {
 		conR.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
-		return 
+		return
 	}
 	peer.SendBytes(chID, msg)
 }
