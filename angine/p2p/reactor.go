@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/spf13/viper"
@@ -73,15 +74,17 @@ func (pR *P2PReactor) RemovePeer(peer *p2p.Peer, reason interface{}) {
 	// nothing to do yet
 }
 
+//checkBlockPartExists  is blockpart exists or invalid return true
 func (pR *P2PReactor) checkBlockPartExists(height, round int64, index int32) bool {
 	cssReator := pR.Switch.Reactor("CONSENSUS").(*consensus.ConsensusReactor)
 	conS := cssReator.GetConsensusState()
 	if conS == nil {
 		pR.logger.Warn(" ConsensusState is nil")
-		return false
+		return true
 	}
 	if conS.Height != height {
-		return false
+		pR.logger.Info(fmt.Sprintf("height err cs.Height %v , height %v ", conS.Height, height))
+		return true
 	}
 	return conS.ProposalBlockParts.PartExists(int(index))
 }
@@ -114,12 +117,13 @@ func (pR *P2PReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 			if exists {
 				blockPartMsg.Response = p2ppb.MsgResponseType_DataExists
 			} else {
-				blockPartMsg.Response = p2ppb.MsgResponseType_DataExists
+				blockPartMsg.Response = p2ppb.MsgResponseType_DataNotexists
 			}
 			msgBytes := p2ppb.MarshalDataToChkMsg(blockPartMsg)
 			src.PureTrySendBytes(CheckResponseChannel, msgBytes)
+			pR.logger.Info(fmt.Sprintf("got  checkmsg  request  peerKey %v   msg %v ", src.Key, msg))
 		default:
-			pR.slogger.Warnf("Unknown message type %T", reflect.TypeOf(msg))
+			pR.logger.Warn(fmt.Sprintf("Unknown message type %T", reflect.TypeOf(msg)))
 		}
 
 	case CheckResponseChannel:
@@ -135,10 +139,11 @@ func (pR *P2PReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 				} else {
 					msgRepeated = false
 				}
+				pR.logger.Info(fmt.Sprintf("receive checkmsg response peerKey  msgid  %v msg %v ", src.Key, msgId, msg))
 				cmCh <- msgRepeated
 			}
 		default:
-			pR.slogger.Warnf("Unknown message type %T", reflect.TypeOf(msg))
+			pR.logger.Warn(fmt.Sprintf("Unknown message type %T", reflect.TypeOf(msg)))
 
 		}
 
@@ -158,7 +163,7 @@ func (pR *P2PReactor) checkMsgRepeatedRoutine(peer *p2p.Peer) {
 			case consensus.DataChannel:
 				msg, err := csspb.UnmarshalCssMsg(cr.Msg)
 				if err != nil {
-					pR.slogger.Warnw("Error decoding message", "src", peer.Key, "chId", cr.ChID, "error", err, "bytes", cr.Msg)
+					pR.logger.Warn(fmt.Sprintf("Error decoding message peerKey  %v  chId %x error %v  bytes  %v ", peer.Key, cr.ChID, err, cr.Msg))
 					// TODO punish peer?
 					continue
 				}
@@ -172,7 +177,7 @@ func (pR *P2PReactor) checkMsgRepeatedRoutine(peer *p2p.Peer) {
 					}
 					msgBytes := p2ppb.MarshalDataToChkMsg(blockPartMsg)
 					peer.PureSendBytes(CheckRequestChannel, msgBytes)
-					pR.slogger.Infow(" send checkmsg", "src", peer.Key, "chId", cr.ChID, "error", err, "bytes", cr.Msg)
+					pR.logger.Info(fmt.Sprintf("send checkmsg  peer.Key %v chid  %x   part %v", peer.Key, cr.ChID, blockPartMsg))
 				default:
 					pR.DirectResponse(peer, cr.MsgID)
 				}

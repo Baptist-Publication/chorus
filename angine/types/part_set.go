@@ -236,6 +236,7 @@ func (ps *PartSet) PartExists(index int) bool {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 	if ps.parts[index] != nil {
+		fmt.Println("part exists ,index ", index)
 		return true
 	}
 	return false

@@ -267,15 +267,25 @@ func (p *Peer) MsgRepeated(chID byte, msg []byte) bool {
 		Msg:    msg,
 		RespCh: make(chan bool),
 	}
+	p.logger.Info(fmt.Sprintf("check msg repeated  before start sending  %x  ", chID))
+	//p.mux.Lock()
+	p.CheckRespChSet[msgID] = cr.RespCh
 	timer := time.NewTimer(time.Millisecond * checkTimeInMilliSeconds)
+
+	select {
+	case p.CheckMsgCh <- cr:
+		p.logger.Info(fmt.Sprintf("check msg repeated start sending  %x  ", chID))
+		//p.mux.Lock()
+		p.CheckRespChSet[msgID] = cr.RespCh
+		//p.mux.Unlock()
+		defer delete(p.CheckRespChSet, msgID)
+	case <-timer.C:
+		p.logger.Warn(fmt.Sprintf("check msg repeated timeout %x  ", chID))
+		return false
+	}
+
 	for {
 		select {
-		case p.CheckMsgCh <- cr:
-			p.logger.Info(fmt.Sprintf("check msg repeated start sending  %x ", chID))
-			//p.mux.Lock()
-			p.CheckRespChSet[msgID] = cr.RespCh
-			//p.mux.Unlock()
-			defer delete(p.CheckRespChSet, msgID)
 		case result := <-cr.RespCh:
 			p.logger.Info(fmt.Sprintf("check msg repeated got response  %x  %v", chID, result))
 			return result
