@@ -98,6 +98,19 @@ func (pexR *PEXReactor) AddPeer(peer *Peer) {
 		// (For outbound peers, the address is already in the books)
 		pexR.book.AddAddress(netAddr, netAddr)
 	}
+
+	maxPeers := pexR.Switch.config.GetInt(configKeyMaxNumPeers)
+	if pexR.Switch.Peers().Size() >= maxPeers {
+		addrs := pexR.book.GetSelection()
+		ok := pexR.TrySendAddrs(peer, addrs)
+		if ok {
+			<-time.After(1 * time.Second)
+			pexR.Switch.StopPeerGracefully(peer)
+		}
+		pexR.logger.Debug(fmt.Sprintf("addPeer: reach the max peer, exchange then close"))
+		return
+	}
+	return
 }
 
 // Implements Reactor
@@ -143,6 +156,14 @@ func (pexR *PEXReactor) RequestPEX(peer *Peer) {
 
 func (pexR *PEXReactor) SendAddrs(peer *Peer, addrs []*NetAddress) {
 	peer.Send(PexChannel, struct{ PexMessage }{&pexAddrsMessage{Addrs: addrs}})
+}
+
+func (pexR *PEXReactor) TrySendAddrs(peer *Peer, addrs []*NetAddress) bool {
+	ok := peer.TrySend(PexChannel, struct{ PexMessage }{&pexAddrsMessage{Addrs: addrs}})
+	if !ok {
+		pexR.Switch.StopPeerGracefully(peer)
+	}
+	return ok
 }
 
 // Ensures that sufficient peers are connected. (continuous)

@@ -629,7 +629,10 @@ OUTER:
 			case ConnActionP2P:
 				// ignore connection if we already have enough
 				maxPeers := sw.config.GetInt(configKeyMaxNumPeers)
-				if maxPeers <= sw.peers.Size() {
+				// disconnect if we alrady have 2 * MaxNumPeers, we do this because we wanna address book get exchanged even if
+				// the connect is full. The pex will disconnect the peer after address exchange, the max connected peer won't
+				// be double of MaxNumPeers
+				if maxPeers*2 <= sw.peers.Size() {
 					sw.logger.Debug("Ignoring inbound connection: already have enough peers", zap.Stringer("address", inConn.RemoteAddr()), zap.Int("numPeers", sw.peers.Size()), zap.Int("max", maxPeers))
 					continue OUTER
 				}
