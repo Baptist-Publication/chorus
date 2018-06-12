@@ -12,6 +12,7 @@ import (
 	p2ppb "github.com/Baptist-Publication/chorus/angine/protos/p2p"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p"
+	"github.com/Baptist-Publication/chorus/module/xlib/def"
 )
 
 const (
@@ -75,7 +76,7 @@ func (pR *P2PReactor) RemovePeer(peer *p2p.Peer, reason interface{}) {
 }
 
 //checkBlockPartExists  is blockpart exists or invalid return true
-func (pR *P2PReactor) checkBlockPartExists(height, round int64, index int32) bool {
+func (pR *P2PReactor) checkBlockPartExists(src *p2p.Peer, height, round int64, index int32) bool {
 	cssReator := pR.Switch.Reactor("CONSENSUS").(*consensus.ConsensusReactor)
 	conS := cssReator.GetConsensusState()
 	if conS == nil {
@@ -86,6 +87,7 @@ func (pR *P2PReactor) checkBlockPartExists(height, round int64, index int32) boo
 		pR.logger.Info(fmt.Sprintf("height err cs.Height %v , height %v ", conS.Height, height))
 		return true
 	}
+
 	return conS.ProposalBlockParts.PartExists(int(index))
 }
 
@@ -106,8 +108,7 @@ func (pR *P2PReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 	case CheckRequestChannel:
 		switch msg := msg.(type) {
 		case *p2ppb.BlockPartMessage:
-			var exists bool
-			exists = pR.checkBlockPartExists(msg.Height, msg.Round, msg.Index)
+			exists := pR.checkBlockPartExists(src, msg.Height, msg.Round, msg.Index)			
 			blockPartMsg := &p2ppb.BlockPartMessage{
 				MsgId:  msg.MsgId,
 				Height: msg.Height, // This tells peer that this part applies to us.
@@ -115,6 +116,8 @@ func (pR *P2PReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 				Index:  msg.Index,
 			}
 			if exists {
+				ps := src.Data.Get(agtypes.PeerStateKey).(*consensus.PeerState)
+				ps.SetHasProposalBlockPart(def.INT(msg.Height), def.INT(msg.Round), int(msg.Index))
 				blockPartMsg.Response = p2ppb.MsgResponseType_DataExists
 			} else {
 				blockPartMsg.Response = p2ppb.MsgResponseType_DataNotexists

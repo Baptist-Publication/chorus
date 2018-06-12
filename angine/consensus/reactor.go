@@ -456,10 +456,10 @@ OUTER_LOOP:
 					Part:   part,
 				}
 
-				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg), ps, prs.Height, prs.Round, index)
+				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
 
 				// peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
-				// ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
+				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			}
 		}
@@ -493,10 +493,10 @@ OUTER_LOOP:
 					Round:  prs.Round,  // Not our height, so it doesn't matter.
 					Part:   part,
 				}
-				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg), ps, prs.Height, prs.Round, index)
+				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
 
 				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
-				// ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
+				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			} else {
 				time.Sleep(peerGossipSleepDuration)
@@ -729,7 +729,7 @@ func (conR *ConsensusReactor) StringIndented(indent string) string {
 	return s
 }
 
-func (conR *ConsensusReactor) sendBlockPartBytes(peer *p2p.Peer, chID byte, msg []byte, ps *PeerState, height, round def.INT, index int) {
+func (conR *ConsensusReactor) sendBlockPartBytes(peer *p2p.Peer, chID byte, msg []byte) {
 
 	// check if a msg is sent repeatedly
 	if peer.MsgRepeated(chID, msg) {
@@ -737,7 +737,6 @@ func (conR *ConsensusReactor) sendBlockPartBytes(peer *p2p.Peer, chID byte, msg 
 		return
 	}
 	peer.SendBytes(chID, msg)
-	ps.SetHasProposalBlockPart(height, round, index)
 }
 
 //-----------------------------------------------------------------------------
