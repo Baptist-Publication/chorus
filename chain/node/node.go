@@ -108,8 +108,8 @@ func RunNode(logger *zap.Logger, config *viper.Viper) {
 func (n *Node) Start() error {
 	err := testdb.InitDB()
 	if err != nil {
-		n.Angine.Stop()
-		return err
+		//n.Angine.Stop()
+		//return err
 	}
 	if err := n.Application.Start(); err != nil {
 		n.Angine.Stop()
