@@ -456,10 +456,10 @@ OUTER_LOOP:
 					Part:   part,
 				}
 
-				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
+				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
 
 				// peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
-				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
+				// ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			}
 		}
@@ -493,9 +493,9 @@ OUTER_LOOP:
 					Round:  prs.Round,  // Not our height, so it doesn't matter.
 					Part:   part,
 				}
-				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
+				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
 				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
-				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
+				// ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			} else {
 				time.Sleep(peerGossipSleepDuration)
@@ -519,9 +519,7 @@ OUTER_LOOP:
 			// Proposal: share the proposal metadata with peer.
 			{
 				msg := &csspb.ProposalMessage{Proposal: rs.Proposal}
-				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
-				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
-
+				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 				ps.SetHasProposal(rs.Proposal)
 			}
 			// ProposalPOL: lets peer know which POL votes we have so far.
@@ -535,8 +533,7 @@ OUTER_LOOP:
 					ProposalPOLRound: pPOLRound,
 					ProposalPOL:      csspb.TransferBitArray(rs.Votes.Prevotes(pPOLRound).BitArray()),
 				}
-				conR.sendBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
-				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 			}
 			continue OUTER_LOOP
 		}
@@ -731,7 +728,7 @@ func (conR *ConsensusReactor) StringIndented(indent string) string {
 	return s
 }
 
-func (conR *ConsensusReactor) sendBytes(peer *p2p.Peer, chID byte, msg []byte) {
+func (conR *ConsensusReactor) sendBlockPartBytes(peer *p2p.Peer, chID byte, msg []byte) {
 
 	// check if a msg is sent repeatedly
 	if peer.MsgRepeated(chID, msg) {
@@ -739,6 +736,7 @@ func (conR *ConsensusReactor) sendBytes(peer *p2p.Peer, chID byte, msg []byte) {
 		return
 	}
 	peer.SendBytes(chID, msg)
+	ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 }
 
 //-----------------------------------------------------------------------------

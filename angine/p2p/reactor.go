@@ -157,6 +157,10 @@ func (pR *P2PReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 
 func (pR *P2PReactor) checkMsgRepeatedRoutine(peer *p2p.Peer) {
 	for {
+		if !pR.IsRunning() || !peer.IsRunning() {
+			return //Stop this for loop
+		}
+
 		select {
 		case cr := <-peer.CheckMsgCh:
 			switch cr.ChID {
