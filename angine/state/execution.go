@@ -52,7 +52,10 @@ func (s *State) ExecBlock(eventSwitch agtypes.EventSwitch, block *agtypes.BlockC
 	bheader := block.Header
 
 	s.blockExecutable.BeginBlock(block, eventSwitch, blockPartsHeader)
-	s.execBlock(eventSwitch, block, round)
+	_, err := s.execBlock(eventSwitch, block, round)
+	if err != nil {
+		return err
+	}
 	s.blockExecutable.EndBlock(block, eventSwitch, blockPartsHeader)
 
 	// All good!

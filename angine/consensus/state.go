@@ -1469,7 +1469,7 @@ func (cs *ConsensusState) finalizeCommit(height def.INT) {
 	// NOTE: the block.AppHash wont reflect these txs until the next block
 	err := stateCopy.ApplyBlock(cs.evsw, block, blockParts.Header(), cs.mempool, cs.Round)
 	if err != nil {
-		// TODO!
+		cs.logger.Fatal("ApplyBlock failed:" + err.Error())
 	}
 
 	// Fire off event for new block.
