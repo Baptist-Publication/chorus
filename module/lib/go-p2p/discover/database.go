@@ -30,13 +30,13 @@ import (
 
 	"github.com/Baptist-Publication/chorus/eth/crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
-	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"go.uber.org/zap"
 )
 
 var (
@@ -51,6 +51,7 @@ type nodeDB struct {
 	self   NodeID        // Own node id to prevent adding it into the database
 	runner sync.Once     // Ensures we can start at most one expirer
 	quit   chan struct{} // Channel to signal the expiring thread to stop
+	logger *zap.Logger
 }
 
 // Schema layout for the node database
@@ -69,30 +70,31 @@ var (
 // newNodeDB creates a new node database for storing and retrieving infos about
 // known peers in the network. If no path is given, an in-memory, temporary
 // database is constructed.
-func newNodeDB(path string, version int, self NodeID) (*nodeDB, error) {
+func newNodeDB(logger *zap.Logger, path string, version int, self NodeID) (*nodeDB, error) {
 	if path == "" {
-		return newMemoryNodeDB(self)
+		return newMemoryNodeDB(logger, self)
 	}
-	return newPersistentNodeDB(path, version, self)
+	return newPersistentNodeDB(logger, path, version, self)
 }
 
 // newMemoryNodeDB creates a new in-memory node database without a persistent
 // backend.
-func newMemoryNodeDB(self NodeID) (*nodeDB, error) {
+func newMemoryNodeDB(logger *zap.Logger, self NodeID) (*nodeDB, error) {
 	db, err := leveldb.Open(storage.NewMemStorage(), nil)
 	if err != nil {
 		return nil, err
 	}
 	return &nodeDB{
-		lvl:  db,
-		self: self,
-		quit: make(chan struct{}),
+		lvl:    db,
+		self:   self,
+		quit:   make(chan struct{}),
+		logger: logger,
 	}, nil
 }
 
 // newPersistentNodeDB creates/opens a leveldb backed persistent node database,
 // also flushing its contents in case of a version mismatch.
-func newPersistentNodeDB(path string, version int, self NodeID) (*nodeDB, error) {
+func newPersistentNodeDB(logger *zap.Logger, path string, version int, self NodeID) (*nodeDB, error) {
 	opts := &opt.Options{OpenFilesCacheCapacity: 5}
 	db, err := leveldb.OpenFile(path, opts)
 	if _, iscorrupted := err.(*errors.ErrCorrupted); iscorrupted {
@@ -122,13 +124,14 @@ func newPersistentNodeDB(path string, version int, self NodeID) (*nodeDB, error)
 			if err = os.RemoveAll(path); err != nil {
 				return nil, err
 			}
-			return newPersistentNodeDB(path, version, self)
+			return newPersistentNodeDB(logger, path, version, self)
 		}
 	}
 	return &nodeDB{
-		lvl:  db,
-		self: self,
-		quit: make(chan struct{}),
+		lvl:    db,
+		self:   self,
+		quit:   make(chan struct{}),
+		logger: logger,
 	}, nil
 }
 
@@ -245,7 +248,7 @@ func (db *nodeDB) expirer() {
 		select {
 		case <-tick.C:
 			if err := db.expireNodes(); err != nil {
-				log.Error(fmt.Sprintf("Failed to expire nodedb items: %v", err))
+				db.logger.Error(fmt.Sprintf("Failed to expire nodedb items: %v", err))
 			}
 		case <-db.quit:
 			return
@@ -346,7 +349,7 @@ seek:
 		id[0] = ctr + id[0]%16
 		it.Seek(makeKey(id, nodeDBDiscoverRoot))
 
-		n := nextNode(it)
+		n := db.nextNode(it)
 		if n == nil {
 			id[0] = 0
 			continue seek // iterator exhausted
@@ -388,7 +391,7 @@ func (db *nodeDB) updateTopicRegTickets(id NodeID, issued, used uint32) error {
 
 // reads the next node record from the iterator, skipping over other
 // database entries.
-func nextNode(it iterator.Iterator) *Node {
+func (db *nodeDB) nextNode(it iterator.Iterator) *Node {
 	for end := false; !end; end = !it.Next() {
 		id, field := splitKey(it.Key())
 		if field != nodeDBDiscoverRoot {
@@ -396,7 +399,7 @@ func nextNode(it iterator.Iterator) *Node {
 		}
 		var n Node
 		if err := wire.ReadBinaryBytes(it.Value(), &n); err != nil {
-			log.Error("invalid node:", id, err)
+			db.logger.Error(fmt.Sprintf("invalid node: %v %v", id, err))
 			continue
 		}
 		//if err := rlp.DecodeBytes(it.Value(), &n); err != nil {

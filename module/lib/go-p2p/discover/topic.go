@@ -23,7 +23,7 @@ import (
 	"math/rand"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -81,9 +81,10 @@ type topicTable struct {
 	requested             topicRequestQueue
 	requestCnt            uint64
 	lastGarbageCollection AbsTime
+	logger                *zap.Logger
 }
 
-func newTopicTable(db *nodeDB, self *Node) *topicTable {
+func newTopicTable(logger *zap.Logger, db *nodeDB, self *Node) *topicTable {
 	if printTestImgLogs {
 		fmt.Printf("*N %016x\n", self.sha[:8])
 	}
@@ -92,6 +93,7 @@ func newTopicTable(db *nodeDB, self *Node) *topicTable {
 		nodes:  make(map[*Node]*nodeInfo),
 		topics: make(map[Topic]*topicInfo),
 		self:   self,
+		logger: logger,
 	}
 }
 
@@ -241,7 +243,7 @@ func (t *topicTable) deleteEntry(e *topicEntry) {
 
 // It is assumed that topics and waitPeriods have the same length.
 func (t *topicTable) useTicket(node *Node, serialNo uint32, topics []Topic, idx int, issueTime uint64, waitPeriods []uint32) (registered bool) {
-	log.Debug("Using discovery ticket", "serial", serialNo, "topics", topics, "waits", waitPeriods)
+	t.logger.Debug(fmt.Sprintf("Using discovery ticket", "serial %v, topics %v,waits %v", serialNo, topics, waitPeriods))
 	//fmt.Println("useTicket", serialNo, topics, waitPeriods)
 	t.collectGarbage()
 

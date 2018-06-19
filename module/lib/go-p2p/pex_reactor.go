@@ -88,16 +88,20 @@ func (pexR *PEXReactor) AddPeer(peer *Peer) {
 		return
 	}
 
-	nodes := make([]*discover.Node, 10)
-	if n := pexR.discv.ReadRandomNodes(nodes); n == 0 {
-		return
-	}
+	/*
+		nodes := make([]*discover.Node, 10)
+		if n := pexR.discv.ReadRandomNodes(nodes); n == 0 {
+			return
+		}
 
-	if pexR.TrySendAddrs(peer, nodes) {
-		<-time.After(1 * time.Second)
-		pexR.Switch.StopPeerGracefully(peer)
-	}
-	pexR.logger.Warn("addPeer: reach the max peer, exchange then close")
+		if pexR.TrySendAddrs(peer, nodes) {
+			<-time.After(1 * time.Second)
+			pexR.Switch.StopPeerGracefully(peer)
+		}
+		pexR.logger.Warn("addPeer: reach the max peer, exchange then close")
+	*/
+	pexR.Switch.StopPeerGracefully(peer)
+	pexR.logger.Warn("addPeer: reach the max peer, close connection")
 	return
 }
 

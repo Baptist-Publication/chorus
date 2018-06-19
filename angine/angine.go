@@ -292,7 +292,7 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 	if conf.GetBool("pex_reactor") {
 		privKey := ang.privValidator.GetPrivKey()
 		privKeyEd25519 := *(privKey.(*crypto.PrivKeyEd25519))
-		discv, err := initDiscover(conf, &privKeyEd25519, ang.P2PPort())
+		discv, err := initDiscover(ang.logger, conf, &privKeyEd25519, ang.P2PPort())
 		if err != nil {
 			ang.logger.Error("discovery init fail", zap.String("error ", err.Error()))
 		} else {
@@ -321,7 +321,7 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 	}
 }
 
-func initDiscover(conf *viper.Viper, priv *crypto.PrivKeyEd25519, port uint16) (*discover.Network, error) {
+func initDiscover(logger *zap.Logger, conf *viper.Viper, priv *crypto.PrivKeyEd25519, port uint16) (*discover.Network, error) {
 	addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort("0.0.0.0", strconv.FormatUint(uint64(port), 10)))
 	if err != nil {
 		return nil, err
@@ -334,7 +334,7 @@ func initDiscover(conf *viper.Viper, priv *crypto.PrivKeyEd25519, port uint16) (
 
 	realaddr := conn.LocalAddr().(*net.UDPAddr)
 	dbDir := conf.GetString("db_dir")
-	ntab, err := discover.ListenUDP(priv, conn, realaddr, path.Join(dbDir, "discover.db"), nil)
+	ntab, err := discover.ListenUDP(logger, priv, conn, realaddr, path.Join(dbDir, "discover.db"), nil)
 	if err != nil {
 		return nil, err
 	}
