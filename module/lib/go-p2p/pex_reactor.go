@@ -19,11 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
 	. "github.com/Baptist-Publication/chorus/module/lib/go-common"
+	"github.com/Baptist-Publication/chorus/module/lib/go-p2p/discover"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 )
 
@@ -43,15 +45,14 @@ adequate number of peers are connected to the switch.
 type PEXReactor struct {
 	BaseReactor
 
-	book *AddrBook
-
+	discv   *discover.Network
 	logger  *zap.Logger
 	slogger *zap.SugaredLogger
 }
 
-func NewPEXReactor(logger *zap.Logger, book *AddrBook) *PEXReactor {
+func NewPEXReactor(logger *zap.Logger, discv *discover.Network) *PEXReactor {
 	pexR := &PEXReactor{
-		book:    book,
+		discv:   discv,
 		logger:  logger,
 		slogger: logger.Sugar(),
 	}
@@ -67,7 +68,6 @@ func (pexR *PEXReactor) OnStart() error {
 
 func (pexR *PEXReactor) OnStop() {
 	pexR.BaseReactor.OnStop()
-	pexR.book.Stop()
 }
 
 // Implements Reactor
@@ -83,33 +83,21 @@ func (pexR *PEXReactor) GetChannels() []*ChannelDescriptor {
 
 // Implements Reactor
 func (pexR *PEXReactor) AddPeer(peer *Peer) {
-	// Add the peer to the address book
-	netAddr, err := NewNetAddressString(peer.ListenAddr)
-	if err != nil {
-		pexR.logger.Warn("Error to Net Address String", zap.Error(err))
+	maxPeers := pexR.Switch.config.GetInt(configKeyMaxNumPeers)
+	if pexR.Switch.Peers().Size() <= maxPeers {
 		return
-	}
-	if peer.IsOutbound() {
-		if pexR.book.NeedMoreAddrs() {
-			pexR.RequestPEX(peer)
-		}
-	} else {
-		// For inbound connections, the peer is its own source
-		// (For outbound peers, the address is already in the books)
-		pexR.book.AddAddress(netAddr, netAddr)
 	}
 
-	maxPeers := pexR.Switch.config.GetInt(configKeyMaxNumPeers)
-	if pexR.Switch.Peers().Size() >= maxPeers {
-		addrs := pexR.book.GetSelection()
-		ok := pexR.TrySendAddrs(peer, addrs)
-		if ok {
-			<-time.After(1 * time.Second)
-			pexR.Switch.StopPeerGracefully(peer)
-		}
-		pexR.logger.Debug(fmt.Sprintf("addPeer: reach the max peer, exchange then close"))
+	nodes := make([]*discover.Node, 10)
+	if n := pexR.discv.ReadRandomNodes(nodes); n == 0 {
 		return
 	}
+
+	if pexR.TrySendAddrs(peer, nodes) {
+		<-time.After(1 * time.Second)
+		pexR.Switch.StopPeerGracefully(peer)
+	}
+	pexR.logger.Warn("addPeer: reach the max peer, exchange then close")
 	return
 }
 
@@ -126,6 +114,7 @@ func (pexR *PEXReactor) Receive(chID byte, src *Peer, msgBytes []byte) {
 	_, msg, err := DecodeMessage(msgBytes)
 	if err != nil {
 		pexR.logger.Warn("Error decoding message", zap.String("error", err.Error()))
+		pexR.Switch.StopPeerGracefully(src)
 		return
 	}
 	pexR.slogger.Infow("Received message", "msg", msg)
@@ -134,15 +123,14 @@ func (pexR *PEXReactor) Receive(chID byte, src *Peer, msgBytes []byte) {
 	case *pexRequestMessage:
 		// src requested some peers.
 		// TODO: prevent abuse.
-		pexR.SendAddrs(src, pexR.book.GetSelection())
+		nodes := make([]*discover.Node, 10)
+		if n := pexR.discv.ReadRandomNodes(nodes); n == 0 {
+			return
+		}
 	case *pexAddrsMessage:
 		// We received some peer addresses from src.
 		// TODO: prevent abuse.
 		// (We don't want to get spammed with bad peers)
-		srcAddr := src.Connection().RemoteAddress
-		for _, addr := range msg.Addrs {
-			pexR.book.AddAddress(addr, srcAddr)
-		}
 	default:
 		pexR.slogger.Warnf("Unknown message type %T", msg)
 	}
@@ -154,14 +142,30 @@ func (pexR *PEXReactor) RequestPEX(peer *Peer) {
 	peer.Send(PexChannel, struct{ PexMessage }{&pexRequestMessage{}})
 }
 
-func (pexR *PEXReactor) SendAddrs(peer *Peer, addrs []*NetAddress) {
+func (pexR *PEXReactor) SendAddrs(peer *Peer, nodes []*discover.Node) {
+	addrs := []*NetAddress{}
+	for _, node := range nodes {
+		if node == nil {
+			break
+		}
+		addrs = append(addrs, NewNetAddressIPPort(node.IP, node.TCP))
+	}
 	peer.Send(PexChannel, struct{ PexMessage }{&pexAddrsMessage{Addrs: addrs}})
 }
 
-func (pexR *PEXReactor) TrySendAddrs(peer *Peer, addrs []*NetAddress) bool {
-	ok := peer.TrySend(PexChannel, struct{ PexMessage }{&pexAddrsMessage{Addrs: addrs}})
+// SendAddrs sends addrs to the peer.
+func (r *PEXReactor) TrySendAddrs(p *Peer, nodes []*discover.Node) bool {
+	addrs := []*NetAddress{}
+	for _, node := range nodes {
+		if node == nil {
+			break
+		}
+		addrs = append(addrs, NewNetAddressIPPort(node.IP, node.TCP))
+	}
+
+	ok := p.TrySend(PexChannel, struct{ PexMessage }{&pexAddrsMessage{Addrs: addrs}})
 	if !ok {
-		pexR.Switch.StopPeerGracefully(peer)
+		r.Switch.StopPeerGracefully(p)
 	}
 	return ok
 }
@@ -189,77 +193,49 @@ FOR_LOOP:
 	timer.Stop()
 }
 
-// Ensures that sufficient peers are connected. (once)
-func (pexR *PEXReactor) ensurePeers() {
-	numOutPeers, _, numDialing := pexR.Switch.NumPeers()
-	numToDial := minNumOutboundPeers - (numOutPeers + numDialing)
-	pexR.logger.Debug("Ensure peers", zap.Int("numOutPeers", numOutPeers), zap.Int("numDialing", numDialing), zap.Int("numToDial", numToDial))
+func (pexR *PEXReactor) dialPeerWorker(a *NetAddress, wg *sync.WaitGroup) {
+	if _, err := pexR.Switch.DialPeerWithAddress(a); err != nil {
+		pexR.logger.Error("dialPeerWorker fail on dial peer", zap.String("addr ", a.String()), zap.String("err", err.Error()))
+	}
+	wg.Done()
+}
+
+func (r *PEXReactor) ensurePeers() {
+	numOutPeers, _, numDialing := r.Switch.NumPeers()
+	numToDial := (minNumOutboundPeers - (numOutPeers + numDialing))
+	r.logger.Debug("Ensure peers",
+		zap.Int("numOutPeers", numOutPeers),
+		zap.Int("numDialing", numDialing),
+		zap.Int("numToDial", numToDial))
 	if numToDial <= 0 {
 		return
 	}
-	toDial := make(map[string]*NetAddress)
 
-	myAddr := pexR.Switch.nodeInfo.ListenAddr
+	connectedPeers := make(map[string]struct{})
+	for _, peer := range r.Switch.Peers().List() {
+		connectedPeers[peer.RemoteAddrHost()] = struct{}{}
+	}
 
-	// Try to pick numToDial addresses to dial.
-	for i := 0; i < numToDial; i++ {
-		// The purpose of newBias is to first prioritize old (more vetted) peers
-		// when we have few connections, but to allow for new (less vetted) peers
-		// if we already have many connections. This algorithm isn't perfect, but
-		// it somewhat ensures that we prioritize connecting to more-vetted
-		// peers.
-
-		newBias := MinInt(numOutPeers, 8)*10 + 10
-		var picked *NetAddress
-		// Try to fetch a new peer 3 times.
-		// This caps the maximum number of tries to 3 * numToDial.
-		for j := 0; j < 3; j++ {
-			try := pexR.book.PickAddress(newBias)
-			if try == nil {
-				break
-			}
-			tryAddr := try.String()
-			_, alreadySelected := toDial[tryAddr]
-			alreadyDialing := pexR.Switch.IsDialing(try)
-			alreadyConnected := pexR.Switch.Peers().Has(tryAddr)
-			if myAddr == tryAddr || alreadySelected || alreadyDialing || alreadyConnected {
-				// pexR.Logger.Info("Cannot dial address", "addr", try,
-				//      "alreadySelected", alreadySelected,
-				//      "alreadyDialing", alreadyDialing,
-				//  "alreadyConnected", alreadyConnected)
-
-				continue
-			} else {
-				pexR.logger.Debug("Will dial address", zap.Stringer("addr", try))
-				picked = try
-				break
-			}
-		}
-		if picked == nil {
+	var wg sync.WaitGroup
+	nodes := make([]*discover.Node, numToDial)
+	n := r.discv.ReadRandomNodes(nodes)
+	for i := 0; i < n; i++ {
+		try := NewNetAddressIPPort(nodes[i].IP, nodes[i].TCP)
+		if r.Switch.NodeInfo().ListenAddr == try.String() {
 			continue
 		}
-		toDial[picked.String()] = picked
-	}
-
-	// Dial picked addresses
-	for _, item := range toDial {
-		go func(picked *NetAddress) {
-			_, err := pexR.Switch.DialPeerWithAddress(picked)
-			if err != nil {
-				pexR.book.MarkAttempt(picked)
-			}
-		}(item)
-	}
-
-	// If we need more addresses, pick a random peer and ask for more.
-	if pexR.book.NeedMoreAddrs() {
-		if peers := pexR.Switch.Peers().List(); len(peers) > 0 {
-			i := rand.Int() % len(peers)
-			peer := peers[i]
-			pexR.logger.Debug("No addresses to dial. Sending pexRequest to random peer", zap.Stringer("peer", peer))
-			pexR.RequestPEX(peer)
+		if dialling := r.Switch.IsDialing(try); dialling {
+			continue
 		}
+		if _, ok := connectedPeers[try.IP.String()]; ok {
+			continue
+		}
+
+		r.logger.Debug(fmt.Sprintf("Will dial address addr: %v", try))
+		wg.Add(1)
+		go r.dialPeerWorker(try, &wg)
 	}
+	wg.Wait()
 }
 
 //-----------------------------------------------------------------------------
