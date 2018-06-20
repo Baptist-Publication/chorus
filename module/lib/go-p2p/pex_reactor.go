@@ -92,7 +92,7 @@ func (pexR *PEXReactor) AddPeer(peer *Peer) {
 	if n := pexR.discv.ReadRandomNodes(nodes); n == 0 {
 		return
 	}
-	pexR.TrySendAddrs(peer, nodes) 
+	pexR.TrySendAddrs(peer, nodes)
 	pexR.logger.Warn("addPeer: reach the max peer, exchange then close")
 	pexR.Switch.StopPeerGracefully(peer)
 	return
@@ -221,13 +221,9 @@ func (pexR *PEXReactor) ensurePeers() {
 
 	toDial := make(map[string]*NetAddress)
 	maxTry := numToDial * 3
-
-	for i := 0; i < maxTry; i++ {
-		nodes := make([]*discover.Node, 1)
-		if n := pexR.discv.ReadRandomNodes(nodes); n != 1 {
-			return
-		}
-
+	nodes := make([]*discover.Node, maxTry)
+	n := pexR.discv.ReadRandomNodes(nodes)
+	for i := 0; i < n && len(toDial) < numToDial; i++ {
 		try := NewNetAddressIPPort(nodes[i].IP, nodes[i].TCP)
 		if pexR.Switch.NodeInfo().ListenAddr == try.String() {
 			continue
