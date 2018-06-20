@@ -24,10 +24,9 @@ import (
 	"net"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p/netutil"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
+	"go.uber.org/zap"
 
 	"github.com/Baptist-Publication/chorus/eth/common"
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
@@ -261,27 +260,28 @@ type udp struct {
 	priv        *crypto.PrivKeyEd25519
 	ourEndpoint rpcEndpoint
 	//nat         nat.Interface
-	net *Network
+	net    *Network
+	logger *zap.Logger
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
-func ListenUDP(priv *crypto.PrivKeyEd25519, conn conn, realaddr *net.UDPAddr, nodeDBPath string, netrestrict *netutil.Netlist) (*Network, error) {
-	transport, err := listenUDP(priv, conn, realaddr)
+func ListenUDP(logger *zap.Logger, priv *crypto.PrivKeyEd25519, conn conn, realaddr *net.UDPAddr, nodeDBPath string, netrestrict *netutil.Netlist) (*Network, error) {
+	transport, err := listenUDP(logger, priv, conn, realaddr)
 	if err != nil {
 		return nil, err
 	}
-	net, err := newNetwork(transport, priv.PubKey().(*crypto.PubKeyEd25519), nodeDBPath, netrestrict)
+	net, err := newNetwork(logger, transport, priv.PubKey().(*crypto.PubKeyEd25519), nodeDBPath, netrestrict)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("UDP listener up v5", "net", net.tab.self)
+	fmt.Println("UDP listener up v5", "net", net.tab.self)
 	transport.net = net
 	go transport.readLoop()
 	return net, nil
 }
 
-func listenUDP(priv *crypto.PrivKeyEd25519, conn conn, realaddr *net.UDPAddr) (*udp, error) {
-	return &udp{conn: conn, priv: priv, ourEndpoint: makeEndpoint(realaddr, uint16(realaddr.Port))}, nil
+func listenUDP(logger *zap.Logger, priv *crypto.PrivKeyEd25519, conn conn, realaddr *net.UDPAddr) (*udp, error) {
+	return &udp{logger: logger, conn: conn, priv: priv, ourEndpoint: makeEndpoint(realaddr, uint16(realaddr.Port))}, nil
 }
 
 func (t *udp) localAddr() *net.UDPAddr {
@@ -363,14 +363,14 @@ func (t *udp) sendTopicNodes(remote *Node, queryHash common.Hash, nodes []*Node)
 
 func (t *udp) sendPacket(toid NodeID, toaddr *net.UDPAddr, ptype byte, req interface{}) (hash []byte, err error) {
 	//fmt.Println("sendPacket", nodeEvent(ptype), toaddr.String(), toid.String())
-	packet, hash, err := encodePacket(t.priv, ptype, req)
+	packet, hash, err := t.encodePacket(t.priv, ptype, req)
 	if err != nil {
 		//fmt.Println(err)
 		return hash, err
 	}
-	log.Debug(fmt.Sprintf(">>> %v to %x@%v", nodeEvent(ptype), toid[:8], toaddr))
+	t.logger.Debug(fmt.Sprintf(">>> %v to %x@%v", nodeEvent(ptype), toid[:8], toaddr))
 	if _, err = t.conn.WriteToUDP(packet, toaddr); err != nil {
-		log.Info(fmt.Sprint("UDP send failed:", err))
+		t.logger.Info(fmt.Sprint("UDP send failed:", err))
 	}
 	return hash, err
 }
@@ -378,14 +378,14 @@ func (t *udp) sendPacket(toid NodeID, toaddr *net.UDPAddr, ptype byte, req inter
 // zeroed padding space for encodePacket.
 var headSpace = make([]byte, headSize)
 
-func encodePacket(priv *crypto.PrivKeyEd25519, ptype byte, req interface{}) (p, hash []byte, err error) {
+func (t *udp) encodePacket(priv *crypto.PrivKeyEd25519, ptype byte, req interface{}) (p, hash []byte, err error) {
 	b := new(bytes.Buffer)
 	b.Write(headSpace)
 	b.WriteByte(ptype)
 	var size int
 	wire.WriteJSON(req, b, &size, &err)
 	if err != nil {
-		log.Error(fmt.Sprint("error encoding packet:", err))
+		t.logger.Error(fmt.Sprint("error encoding packet:", err))
 		return nil, nil, err
 	}
 	packet := b.Bytes()
@@ -411,11 +411,11 @@ func (t *udp) readLoop() {
 		nbytes, from, err := t.conn.ReadFromUDP(buf)
 		if netutil.IsTemporaryError(err) {
 			// Ignore temporary read errors.
-			log.Debug(fmt.Sprintf("Temporary read error: %v", err))
+			t.logger.Debug(fmt.Sprintf("Temporary read error: %v", err))
 			continue
 		} else if err != nil {
 			// Shut down the loop for permament errors.
-			log.Debug(fmt.Sprintf("Read error: %v", err))
+			t.logger.Debug(fmt.Sprintf("Read error: %v", err))
 			return
 		}
 		t.handlePacket(from, buf[:nbytes])
@@ -425,7 +425,7 @@ func (t *udp) readLoop() {
 func (t *udp) handlePacket(from *net.UDPAddr, buf []byte) error {
 	pkt := ingressPacket{remoteAddr: from}
 	if err := decodePacket(buf, &pkt); err != nil {
-		log.Debug(fmt.Sprintf("Bad packet from %v: %v", from, err))
+		t.logger.Debug(fmt.Sprintf("Bad packet from %v: %v", from, err))
 		//fmt.Println("bad packet", err)
 		return err
 	}
@@ -469,7 +469,8 @@ func decodePacket(buffer []byte, pkt *ingressPacket) error {
 	var err error
 	wire.ReadJSON(pkt.data, sigdata[1:], &err)
 	if err != nil {
-		log.Error("wire readjson err:", err)
+		//log.Error("wire readjson err:", err)
+		err = fmt.Errorf("wire readjson err: %v", err)
 	}
 
 	return err

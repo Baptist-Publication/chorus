@@ -26,6 +26,7 @@ import (
 	"github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/Baptist-Publication/chorus/eth/common"
@@ -85,6 +86,7 @@ type Network struct {
 
 	// Buffers for state transition.
 	sendBuf []*ingressPacket
+	logger  *zap.Logger
 }
 
 // transport is implemented by the UDP transport.
@@ -132,7 +134,7 @@ type timeoutEvent struct {
 	node *Node
 }
 
-func newNetwork(conn transport, ourPubkey *crypto.PubKeyEd25519, dbPath string, netrestrict *netutil.Netlist) (*Network, error) {
+func newNetwork(logger *zap.Logger, conn transport, ourPubkey *crypto.PubKeyEd25519, dbPath string, netrestrict *netutil.Netlist) (*Network, error) {
 	if ourPubkey == nil {
 		err := fmt.Errorf("pubkey is nil")
 		return nil, err
@@ -142,7 +144,7 @@ func newNetwork(conn transport, ourPubkey *crypto.PubKeyEd25519, dbPath string, 
 	var db *nodeDB
 	if dbPath != "<no database>" {
 		var err error
-		if db, err = newNodeDB(dbPath, Version, ourID); err != nil {
+		if db, err = newNodeDB(logger, dbPath, Version, ourID); err != nil {
 			return nil, err
 		}
 	}
@@ -153,8 +155,8 @@ func newNetwork(conn transport, ourPubkey *crypto.PubKeyEd25519, dbPath string, 
 		conn:             conn,
 		netrestrict:      netrestrict,
 		tab:              tab,
-		topictab:         newTopicTable(db, tab.self),
-		ticketStore:      newTicketStore(),
+		topictab:         newTopicTable(logger, db, tab.self),
+		ticketStore:      newTicketStore(logger),
 		refreshReq:       make(chan []*Node),
 		refreshResp:      make(chan (<-chan struct{})),
 		closed:           make(chan struct{}),
@@ -168,6 +170,7 @@ func newNetwork(conn transport, ourPubkey *crypto.PubKeyEd25519, dbPath string, 
 		topicRegisterReq: make(chan topicRegisterReq),
 		topicSearchReq:   make(chan topicSearchReq),
 		nodes:            make(map[NodeID]*Node),
+		logger:           logger,
 	}
 	go net.loop()
 	return net, nil
@@ -418,26 +421,26 @@ loop:
 
 		select {
 		case <-net.closeReq:
-			log.Debug("<-net.closeReq")
+			net.logger.Debug("<-net.closeReq")
 			break loop
 
 		// Ingress packet handling.
 		case pkt := <-net.read:
 			//fmt.Println("read", pkt.ev)
-			log.Debug("<-net.read")
+			net.logger.Debug("<-net.read")
 			n := net.internNode(&pkt)
 			prestate := n.state
 			status := "ok"
 			if err := net.handle(n, pkt.ev, &pkt); err != nil {
 				status = err.Error()
 			}
-			log.Debug("", "msg", net.tab.count, pkt.ev, pkt.remoteID[:8], pkt.remoteAddr, prestate, n.state, status)
+			net.logger.Debug(fmt.Sprint("", "msg", net.tab.count, pkt.ev, pkt.remoteID[:8], pkt.remoteAddr, prestate, n.state, status))
 
 			// TODO: persist state if n.state goes >= known, delete if it goes <= known
 
 		// State transition timeouts.
 		case timeout := <-net.timeout:
-			log.Debug("<-net.timeout")
+			net.logger.Debug("<-net.timeout")
 			if net.timeoutTimers[timeout] == nil {
 				// Stale timer (was aborted).
 				continue
@@ -448,24 +451,24 @@ loop:
 			if err := net.handle(timeout.node, timeout.ev, nil); err != nil {
 				status = err.Error()
 			}
-			log.Debug("", "msg", net.tab.count, timeout.ev, timeout.node.ID[:8], timeout.node.addr(), prestate, timeout.node.state, status)
+			net.logger.Debug(fmt.Sprint("", "msg", net.tab.count, timeout.ev, timeout.node.ID[:8], timeout.node.addr(), prestate, timeout.node.state, status))
 
 		// Querying.
 		case q := <-net.queryReq:
-			log.Debug("<-net.queryReq")
+			net.logger.Debug("<-net.queryReq")
 			if !q.start(net) {
 				q.remote.deferQuery(q)
 			}
 
 		// Interacting with the table.
 		case f := <-net.tableOpReq:
-			log.Debug("<-net.tableOpReq")
+			net.logger.Debug("<-net.tableOpReq")
 			f()
 			net.tableOpResp <- struct{}{}
 
 		// Topic registration stuff.
 		case req := <-net.topicRegisterReq:
-			log.Debug("<-net.topicRegisterReq")
+			net.logger.Debug("<-net.topicRegisterReq")
 			if !req.add {
 				net.ticketStore.removeRegisterTopic(req.topic)
 				continue
@@ -476,7 +479,7 @@ loop:
 			// determination for new topics.
 			// if topicRegisterLookupDone == nil {
 			if topicRegisterLookupTarget.target == (common.Hash{}) {
-				log.Debug("topicRegisterLookupTarget == null")
+				net.logger.Debug("topicRegisterLookupTarget == null")
 				if topicRegisterLookupTick.Stop() {
 					<-topicRegisterLookupTick.C
 				}
@@ -486,7 +489,7 @@ loop:
 			}
 
 		case nodes := <-topicRegisterLookupDone:
-			log.Debug("<-topicRegisterLookupDone")
+			net.logger.Debug("<-topicRegisterLookupDone")
 			net.ticketStore.registerLookupDone(topicRegisterLookupTarget, nodes, func(n *Node) []byte {
 				net.ping(n, n.addr())
 				return n.pingEcho
@@ -497,7 +500,7 @@ loop:
 			topicRegisterLookupDone = nil
 
 		case <-topicRegisterLookupTick.C:
-			log.Debug("<-topicRegisterLookupTick")
+			net.logger.Debug("<-topicRegisterLookupTick")
 			if (topicRegisterLookupTarget.target == common.Hash{}) {
 				target, delay := net.ticketStore.nextRegisterLookup()
 				topicRegisterLookupTarget = target
@@ -510,14 +513,14 @@ loop:
 			}
 
 		case <-nextRegisterTime:
-			log.Debug("<-nextRegisterTime")
+			net.logger.Debug("<-nextRegisterTime")
 			net.ticketStore.ticketRegistered(*nextTicket)
 			//fmt.Println("sendTopicRegister", nextTicket.t.node.addr().String(), nextTicket.t.topics, nextTicket.idx, nextTicket.t.pong)
 			net.conn.sendTopicRegister(nextTicket.t.node, nextTicket.t.topics, nextTicket.idx, nextTicket.t.pong)
 
 		case req := <-net.topicSearchReq:
 			if refreshDone == nil {
-				log.Debug("<-net.topicSearchReq")
+				net.logger.Debug("<-net.topicSearchReq")
 				info, ok := searchInfo[req.topic]
 				if ok {
 					if req.delay == time.Duration(0) {
@@ -575,7 +578,7 @@ loop:
 			})
 
 		case <-statsDump.C:
-			log.Debug("<-statsDump.C")
+			net.logger.Debug("<-statsDump.C")
 			/*r, ok := net.ticketStore.radius[testTopic]
 			if !ok {
 				fmt.Printf("(%x) no radius @ %v\n", net.tab.self.ID[:8], time.Now())
@@ -604,7 +607,7 @@ loop:
 
 		// Periodic / lookup-initiated bucket refresh.
 		case <-refreshTimer.C:
-			log.Debug("<-refreshTimer.C")
+			net.logger.Debug("<-refreshTimer.C")
 			// TODO: ideally we would start the refresh timer after
 			// fallback nodes have been set for the first time.
 			if refreshDone == nil {
@@ -618,7 +621,7 @@ loop:
 				bucketRefreshTimer.Reset(bucketRefreshInterval)
 			}()
 		case newNursery := <-net.refreshReq:
-			log.Debug("<-net.refreshReq")
+			net.logger.Debug("<-net.refreshReq")
 			if newNursery != nil {
 				net.nursery = newNursery
 			}
@@ -628,7 +631,7 @@ loop:
 			}
 			net.refreshResp <- refreshDone
 		case <-refreshDone:
-			log.Debug("<-net.refreshDone", "table size", net.tab.count)
+			net.logger.Debug("<-net.refreshDone", zap.Int("table size", net.tab.count))
 			if net.tab.count != 0 {
 				refreshDone = nil
 				list := searchReqWhenRefreshDone
@@ -644,9 +647,9 @@ loop:
 			}
 		}
 	}
-	log.Debug("loop stopped")
+	net.logger.Debug("loop stopped")
 
-	log.Debug(fmt.Sprintf("shutting down"))
+	net.logger.Debug(fmt.Sprintf("shutting down"))
 	if net.conn != nil {
 		net.conn.Close()
 	}
@@ -791,14 +794,14 @@ func (n *nodeNetGuts) startNextQuery(net *Network) {
 func (q *findnodeQuery) start(net *Network) bool {
 	// Satisfy queries against the local node directly.
 	if q.remote == net.tab.self {
-		log.Debug("findnodeQuery self")
+		net.logger.Debug("findnodeQuery self")
 		closest := net.tab.closest(common.BytesToHash(q.target[:]), bucketSize)
 
 		q.reply <- closest.entries
 		return true
 	}
 	if q.remote.state.canQuery && q.remote.pendingNeighbours == nil {
-		log.Debug("findnodeQuery", "remote peer:", q.remote.ID, "targetID:", q.target)
+		net.logger.Debug(fmt.Sprint("findnodeQuery", "remote peer:", q.remote.ID, "targetID:", q.target))
 		net.conn.sendFindnodeHash(q.remote, q.target)
 		net.timedEvent(respTimeout, q.remote, neighboursTimeout)
 		q.remote.pendingNeighbours = q
@@ -808,7 +811,7 @@ func (q *findnodeQuery) start(net *Network) bool {
 	// Initiate the transition to known.
 	// The request will be sent later when the node reaches known state.
 	if q.remote.state == unknown {
-		log.Debug("findnodeQuery", "id:", q.remote.ID, "status:", "unknown->verifyinit")
+		net.logger.Debug(fmt.Sprint("findnodeQuery", "id:", q.remote.ID, "status:", "unknown->verifyinit"))
 		net.transition(q.remote, verifyinit)
 	}
 	return false
@@ -1104,14 +1107,14 @@ func (net *Network) ping(n *Node, addr *net.UDPAddr) {
 		//fmt.Println(" not sent")
 		return
 	}
-	log.Debug("Pinging remote node", "node", n.ID)
+	net.logger.Debug("Pinging remote node", zap.String("node", n.ID.String()))
 	n.pingTopics = net.ticketStore.regTopicSet()
 	n.pingEcho = net.conn.sendPing(n, addr, n.pingTopics)
 	net.timedEvent(respTimeout, n, pongTimeout)
 }
 
 func (net *Network) handlePing(n *Node, pkt *ingressPacket) {
-	log.Debug("Handling remote ping", "node", n.ID)
+	net.logger.Debug("Handling remote ping", zap.String("node", n.ID.String()))
 	ping := pkt.data.(*ping)
 	n.TCP = ping.From.TCP
 	t := net.topictab.getTicket(n, ping.Topics)
@@ -1126,7 +1129,7 @@ func (net *Network) handlePing(n *Node, pkt *ingressPacket) {
 }
 
 func (net *Network) handleKnownPong(n *Node, pkt *ingressPacket) error {
-	log.Debug("Handling known pong", "node", n.ID)
+	net.logger.Debug("Handling known pong", zap.String("node", n.ID.String()))
 	net.abortTimedEvent(n, pongTimeout)
 	now := Now()
 	ticket, err := pongToTicket(now, n.pingTopics, n, pkt)
@@ -1134,7 +1137,7 @@ func (net *Network) handleKnownPong(n *Node, pkt *ingressPacket) error {
 		// fmt.Printf("(%x) ticket: %+v\n", net.tab.self.ID[:8], pkt.data)
 		net.ticketStore.addTicket(now, pkt.data.(*pong).ReplyTok, ticket)
 	} else {
-		log.Debug("Failed to convert pong to ticket", "err", err)
+		net.logger.Debug("Failed to convert pong to ticket", zap.String("err", err.Error()))
 	}
 	n.pingEcho = nil
 	n.pingTopics = nil
@@ -1248,7 +1251,7 @@ func (net *Network) handleNeighboursPacket(n *Node, pkt *ingressPacket) error {
 	for i, rn := range req.Nodes {
 		nn, err := net.internNodeFromNeighbours(pkt.remoteAddr, rn)
 		if err != nil {
-			log.Debug(fmt.Sprintf("invalid neighbour (%v) from %x@%v: %v", rn.IP, n.ID[:8], pkt.remoteAddr, err))
+			net.logger.Debug(fmt.Sprintf("invalid neighbour (%v) from %x@%v: %v", rn.IP, n.ID[:8], pkt.remoteAddr, err))
 			continue
 		}
 		nodes[i] = nn
