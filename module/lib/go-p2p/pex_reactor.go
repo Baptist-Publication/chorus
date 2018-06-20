@@ -131,6 +131,10 @@ func (pexR *PEXReactor) Receive(chID byte, src *Peer, msgBytes []byte) {
 		// We received some peer addresses from src.
 		// TODO: prevent abuse.
 		// (We don't want to get spammed with bad peers)
+		for _, nodeid := range msg.NodeIdSet {
+			pexR.discv.Resolve(nodeid)
+		}
+
 	default:
 		pexR.slogger.Warnf("Unknown message type %T", msg)
 	}
@@ -143,27 +147,27 @@ func (pexR *PEXReactor) RequestPEX(peer *Peer) {
 }
 
 func (pexR *PEXReactor) SendAddrs(peer *Peer, nodes []*discover.Node) {
-	addrs := []*NetAddress{}
+	nodeIdSet := []discover.NodeID{}
 	for _, node := range nodes {
 		if node == nil {
 			break
 		}
-		addrs = append(addrs, NewNetAddressIPPort(node.IP, node.TCP))
+		nodeIdSet = append(nodeIdSet, node.ID)
 	}
-	peer.Send(PexChannel, struct{ PexMessage }{&pexAddrsMessage{Addrs: addrs}})
+	peer.Send(PexChannel, struct{ PexMessage }{&pexAddrsMessage{NodeIdSet: nodeIdSet}})
 }
 
 // SendAddrs sends addrs to the peer.
 func (r *PEXReactor) TrySendAddrs(p *Peer, nodes []*discover.Node) bool {
-	addrs := []*NetAddress{}
+	nodeIdSet := []discover.NodeID{}
 	for _, node := range nodes {
 		if node == nil {
 			break
 		}
-		addrs = append(addrs, NewNetAddressIPPort(node.IP, node.TCP))
+		nodeIdSet = append(nodeIdSet, node.ID)
 	}
 
-	ok := p.TrySend(PexChannel, struct{ PexMessage }{&pexAddrsMessage{Addrs: addrs}})
+	ok := p.TrySend(PexChannel, struct{ PexMessage }{&pexAddrsMessage{NodeIdSet: nodeIdSet}})
 	if !ok {
 		r.Switch.StopPeerGracefully(p)
 	}
@@ -200,10 +204,10 @@ func (pexR *PEXReactor) dialPeerWorker(a *NetAddress, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func (r *PEXReactor) ensurePeers() {
-	numOutPeers, _, numDialing := r.Switch.NumPeers()
+func (pexR *PEXReactor) ensurePeers() {
+	numOutPeers, _, numDialing := pexR.Switch.NumPeers()
 	numToDial := (minNumOutboundPeers - (numOutPeers + numDialing))
-	r.logger.Debug("Ensure peers",
+	pexR.logger.Debug("Ensure peers",
 		zap.Int("numOutPeers", numOutPeers),
 		zap.Int("numDialing", numDialing),
 		zap.Int("numToDial", numToDial))
@@ -212,28 +216,38 @@ func (r *PEXReactor) ensurePeers() {
 	}
 
 	connectedPeers := make(map[string]struct{})
-	for _, peer := range r.Switch.Peers().List() {
+	for _, peer := range pexR.Switch.Peers().List() {
 		connectedPeers[peer.RemoteAddrHost()] = struct{}{}
 	}
 
-	var wg sync.WaitGroup
-	nodes := make([]*discover.Node, numToDial)
-	n := r.discv.ReadRandomNodes(nodes)
-	for i := 0; i < n; i++ {
+	toDial := make(map[string]*NetAddress)
+	maxTry := numToDial * 3
+
+	for i := 0; i < maxTry; i++ {
+		nodes := make([]*discover.Node, 1)
+		if n := pexR.discv.ReadRandomNodes(nodes); n != 1 {
+			return
+		}
+
 		try := NewNetAddressIPPort(nodes[i].IP, nodes[i].TCP)
-		if r.Switch.NodeInfo().ListenAddr == try.String() {
+		if pexR.Switch.NodeInfo().ListenAddr == try.String() {
 			continue
 		}
-		if dialling := r.Switch.IsDialing(try); dialling {
+		if dialling := pexR.Switch.IsDialing(try); dialling {
 			continue
 		}
 		if _, ok := connectedPeers[try.IP.String()]; ok {
 			continue
 		}
 
-		r.logger.Debug(fmt.Sprintf("Will dial address addr: %v", try))
+		toDial[try.IP.String()] = try
+	}
+
+	var wg sync.WaitGroup
+	for key, oneAttempt := range toDial {
+		pexR.logger.Debug(fmt.Sprintf("Will dial address addr: %v", key))
 		wg.Add(1)
-		go r.dialPeerWorker(try, &wg)
+		go pexR.dialPeerWorker(oneAttempt, &wg)
 	}
 	wg.Wait()
 }
@@ -276,9 +290,9 @@ func (m *pexRequestMessage) String() string {
 A message with announced peer addresses.
 */
 type pexAddrsMessage struct {
-	Addrs []*NetAddress
+	NodeIdSet []discover.NodeID
 }
 
 func (m *pexAddrsMessage) String() string {
-	return fmt.Sprintf("[pexAddrs %v]", m.Addrs)
+	return fmt.Sprintf("[pexAddrs %v]", m.NodeIdSet)
 }
