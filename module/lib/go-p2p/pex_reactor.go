@@ -124,6 +124,8 @@ func (pexR *PEXReactor) Receive(chID byte, src *Peer, msgBytes []byte) {
 		if n := pexR.discv.ReadRandomNodes(nodes); n == 0 {
 			return
 		}
+		pexR.TrySendAddrs(src, nodes) 
+		
 	case *pexAddrsMessage:
 		// We received some peer addresses from src.
 		// TODO: prevent abuse.
