@@ -15,6 +15,7 @@
 package p2p
 
 import (
+	"strings"
 	"bytes"
 	"errors"
 	"fmt"
@@ -35,6 +36,7 @@ const (
 	PexChannel               = byte(0x00)
 	ensurePeersPeriodSeconds = 30
 	maxPexMessageSize        = 1048576 // 1MB
+	defaultNodePort			 = ":46656"
 )
 
 /*
@@ -87,6 +89,7 @@ func (pexR *PEXReactor) AddPeer(peer *Peer) {
 	maxPeers := pexR.Switch.config.GetInt(ConfigKeyMaxNumPeers)
 	if pexR.Switch.Peers().Size() <= maxPeers {
 		url := peer.NodeInfo.RemoteAddr
+		url = strings.Split(url, ":")[0] + defaultNodePort 
 		fmt.Println("bound in node with url: ", url)
 		node := discover.MustParseNode(url)
 		pexR.discv.AddNodeToTable(node)

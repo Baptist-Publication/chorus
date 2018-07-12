@@ -102,7 +102,6 @@ type Switch struct {
 	addToRefuselist func([32]byte) error
 
 	logger  *zap.Logger
-	dumpLogger *zap.Logger
 	slogger *zap.SugaredLogger
 
 	genesisBytes     []byte
