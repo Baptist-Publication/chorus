@@ -302,6 +302,7 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 			maxOutboundPeerNum := 0
 			if maxPeerNum > 0 && inboundRatio > 0 {
 				maxOutboundPeerNum = maxPeerNum - maxPeerNum / inboundRatio
+				fmt.Println(fmt.Sprintf("maxpeer_num: %d, inbound_ratio: %d, maxoutbound_num: %d", maxPeerNum, inboundRatio, maxOutboundPeerNum))
 			}
 			pexReactor := p2p.NewPEXReactor(ang.logger, discv, maxOutboundPeerNum)
 			ang.p2pSwitch.AddReactor("PEX", pexReactor)

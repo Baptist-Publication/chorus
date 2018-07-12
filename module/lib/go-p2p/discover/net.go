@@ -242,6 +242,10 @@ func (net *Network) Lookup(targetID NodeID) []*Node {
 	return net.lookup(common.BytesToHash(targetID[:]), false)
 }
 
+func (net *Network) AddNodeToTable(n *Node) {
+	net.tab.add(n)
+}
+
 func (net *Network) lookup(target common.Hash, stopOnMatch bool) []*Node {
 	var (
 		asked          = make(map[NodeID]bool)

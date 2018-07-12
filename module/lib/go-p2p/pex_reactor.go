@@ -86,6 +86,10 @@ func (pexR *PEXReactor) GetChannels() []*ChannelDescriptor {
 func (pexR *PEXReactor) AddPeer(peer *Peer) {
 	maxPeers := pexR.Switch.config.GetInt(ConfigKeyMaxNumPeers)
 	if pexR.Switch.Peers().Size() <= maxPeers {
+		url := peer.NodeInfo.RemoteAddr
+		fmt.Println("bound in node with url: ", url)
+		node := discover.MustParseNode(url)
+		pexR.discv.AddNodeToTable(node)
 		return
 	}
 
