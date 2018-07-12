@@ -36,10 +36,11 @@ type (
 	Peer struct {
 		BaseService
 
-		logger   *zap.Logger
-		mux      sync.Mutex
-		outbound bool
-		mconn    *MConnection
+		logger   	*zap.Logger
+		DumpLogger 	*zap.Logger
+		mux      	sync.Mutex
+		outbound 	bool
+		mconn    	*MConnection
 
 		*NodeInfo
 		Key  string
@@ -125,7 +126,8 @@ func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInf
 			PanicSanity(Fmt("Unknown channel %X", chID))
 		}
 		// TODO delete this method later
-		//saveP2pmessage(logger, chID, p, msgBytes)
+		// dumpP2PMessage(dumpLogger, p, chID, msgBytes)
+
 		reactor.Receive(chID, p, msgBytes)
 	}
 	onError := func(r interface{}) {

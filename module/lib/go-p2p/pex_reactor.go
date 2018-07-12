@@ -34,7 +34,6 @@ var pexErrInvalidMessage = errors.New("Invalid PEX message")
 const (
 	PexChannel               = byte(0x00)
 	ensurePeersPeriodSeconds = 30
-	minNumOutboundPeers      = 10
 	maxPexMessageSize        = 1048576 // 1MB
 )
 
@@ -45,16 +44,18 @@ adequate number of peers are connected to the switch.
 type PEXReactor struct {
 	BaseReactor
 
-	discv   *discover.Network
-	logger  *zap.Logger
-	slogger *zap.SugaredLogger
+	discv   			*discover.Network
+	maxOutboundPeersNum	int
+	logger  			*zap.Logger
+	slogger 			*zap.SugaredLogger
 }
 
-func NewPEXReactor(logger *zap.Logger, discv *discover.Network) *PEXReactor {
+func NewPEXReactor(logger *zap.Logger, discv *discover.Network, outboundPeersNum int) *PEXReactor {
 	pexR := &PEXReactor{
-		discv:   discv,
-		logger:  logger,
-		slogger: logger.Sugar(),
+		discv:   				discv,
+		maxOutboundPeersNum:	outboundPeersNum,
+		logger:  				logger,
+		slogger: 				logger.Sugar(),
 	}
 	pexR.BaseReactor = *NewBaseReactor(logger, "PEXReactor", pexR)
 	return pexR
@@ -83,7 +84,7 @@ func (pexR *PEXReactor) GetChannels() []*ChannelDescriptor {
 
 // Implements Reactor
 func (pexR *PEXReactor) AddPeer(peer *Peer) {
-	maxPeers := pexR.Switch.config.GetInt(configKeyMaxNumPeers)
+	maxPeers := pexR.Switch.config.GetInt(ConfigKeyMaxNumPeers)
 	if pexR.Switch.Peers().Size() <= maxPeers {
 		return
 	}
@@ -114,6 +115,8 @@ func (pexR *PEXReactor) Receive(chID byte, src *Peer, msgBytes []byte) {
 		pexR.Switch.StopPeerGracefully(src)
 		return
 	}
+	src.DumpLogger.Info(fmt.Sprintf("from: %s, chID: %x, msg: %v", src.NodeInfo.RemoteAddr, chID, msg))
+
 	pexR.slogger.Infow("Received message", "msg", msg)
 
 	switch msg := msg.(type) {
@@ -205,7 +208,7 @@ func (pexR *PEXReactor) dialPeerWorker(a *NetAddress, wg *sync.WaitGroup) {
 
 func (pexR *PEXReactor) ensurePeers() {
 	numOutPeers, _, numDialing := pexR.Switch.NumPeers()
-	numToDial := (minNumOutboundPeers - (numOutPeers + numDialing))
+	numToDial := (pexR.maxOutboundPeersNum - (numOutPeers + numDialing))
 	pexR.logger.Debug("Ensure peers",
 		zap.Int("numOutPeers", numOutPeers),
 		zap.Int("numDialing", numDialing),

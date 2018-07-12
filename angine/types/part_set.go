@@ -234,7 +234,7 @@ func (ps *PartSet) GetPart(index int) *pbtypes.Part {
 
 func (ps *PartSet) PartExists(index int) bool {
 	if ps == nil {
-		fmt.Println("part exists err partset is nil ,index ", index)
+		// fmt.Println("part exists err partset is nil ,index ", index)
 		return false
 	}
 	ps.mtx.Lock()
@@ -244,7 +244,7 @@ func (ps *PartSet) PartExists(index int) bool {
 		return true
 	}
 	if ps.parts[index] != nil {
-		fmt.Println("part exists ,index ", index)
+		// fmt.Println("part exists ,index ", index)
 		return true
 	}
 	return false

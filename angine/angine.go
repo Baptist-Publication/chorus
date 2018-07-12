@@ -185,6 +185,7 @@ func NewAngine(lgr *zap.Logger, conf *viper.Viper) (angine *Angine) {
 			return nil
 		}
 	}
+
 	p2psw, err := prepareP2P(logger, conf, gb, privValidator, refuseList)
 	if err != nil {
 		lgr.Error("prepare p2p err", zap.Error(err))
@@ -296,7 +297,13 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 		if err != nil {
 			ang.logger.Error("discovery init fail", zap.String("error ", err.Error()))
 		} else {
-			pexReactor := p2p.NewPEXReactor(ang.logger, discv)
+			maxPeerNum := conf.GetInt(p2p.ConfigKeyMaxNumPeers)
+			inboundRatio := conf.GetInt(p2p.ConfigKeyInboundPeersRatio)
+			maxOutboundPeerNum := 0
+			if maxPeerNum > 0 && inboundRatio > 0 {
+				maxOutboundPeerNum = maxPeerNum - maxPeerNum / inboundRatio
+			}
+			pexReactor := p2p.NewPEXReactor(ang.logger, discv, maxOutboundPeerNum)
 			ang.p2pSwitch.AddReactor("PEX", pexReactor)
 		}
 	}

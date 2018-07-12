@@ -102,6 +102,7 @@ type Switch struct {
 	addToRefuselist func([32]byte) error
 
 	logger  *zap.Logger
+	dumpLogger *zap.Logger
 	slogger *zap.SugaredLogger
 
 	genesisBytes     []byte
@@ -259,11 +260,11 @@ func (sw *Switch) AddPeerWithConnection(conn net.Conn, outbound bool) (*Peer, er
 
 	// Set deadline for handshake so we don't block forever on conn.ReadFull
 	conn.SetDeadline(time.Now().Add(
-		time.Duration(sw.config.GetInt(configKeyHandshakeTimeoutSeconds)) * time.Second))
+		time.Duration(sw.config.GetInt(ConfigKeyHandshakeTimeoutSeconds)) * time.Second))
 
 	// First, encrypt the connection.
 	var sconn net.Conn = conn
-	if sw.config.GetBool(configKeyAuthEnc) {
+	if sw.config.GetBool(ConfigKeyAuthEnc) {
 		var err error
 		sconn, err = MakeSecretConnection(conn, sw.nodePrivKey)
 		if err != nil {
@@ -289,7 +290,7 @@ func (sw *Switch) AddPeerWithConnection(conn net.Conn, outbound bool) (*Peer, er
 		sconn.Close()
 		return nil, err
 	}
-	if sw.config.GetBool(configKeyAuthEnc) {
+	if sw.config.GetBool(ConfigKeyAuthEnc) {
 		// Check that the professed PubKey matches the sconn's.
 		if !peerNodeInfo.PubKey.Equals(sconn.(*SecretConnection).RemotePubKey()) {
 			sconn.Close()
@@ -393,7 +394,7 @@ func (sw *Switch) DialPeerWithAddress(addr *NetAddress) (*Peer, error) {
 	sw.dialing.Set(addr.IP.String(), addr)
 	defer sw.dialing.Delete(addr.IP.String())
 
-	conn, err := addr.DialTimeout(time.Duration(sw.config.GetInt(configKeyDialTimeoutSeconds)) * time.Second)
+	conn, err := addr.DialTimeout(time.Duration(sw.config.GetInt(ConfigKeyDialTimeoutSeconds)) * time.Second)
 	if err != nil {
 		sw.logger.Debug("Failed dialing address", zap.Stringer("address", addr), zap.String("error", err.Error()))
 		return nil, err
@@ -401,7 +402,7 @@ func (sw *Switch) DialPeerWithAddress(addr *NetAddress) (*Peer, error) {
 	if _, err := conn.Write([]byte{ConnActionP2P}); err != nil {
 		return nil, err
 	}
-	if sw.config.GetBool(configFuzzEnable) {
+	if sw.config.GetBool(ConfigFuzzEnable) {
 		conn = FuzzConn(sw.config, conn)
 	}
 	peer, err := sw.AddPeerWithConnection(conn, true)
@@ -520,7 +521,7 @@ OUTER:
 			switch bytes[0] {
 			case ConnActionP2P:
 				// ignore connection if we already have enough
-				maxPeers := sw.config.GetInt(configKeyMaxNumPeers)
+				maxPeers := sw.config.GetInt(ConfigKeyMaxNumPeers)
 				// disconnect if we alrady have 2 * MaxNumPeers, we do this because we wanna address book get exchanged even if
 				// the connect is full. The pex will disconnect the peer after address exchange, the max connected peer won't
 				// be double of MaxNumPeers
@@ -528,7 +529,7 @@ OUTER:
 					sw.logger.Debug("Ignoring inbound connection: already have enough peers", zap.Stringer("address", inConn.RemoteAddr()), zap.Int("numPeers", sw.peers.Size()), zap.Int("max", maxPeers))
 					continue OUTER
 				}
-				if sw.config.GetBool(configFuzzEnable) {
+				if sw.config.GetBool(ConfigFuzzEnable) {
 					inConn = FuzzConn(sw.config, inConn)
 				}
 				// New inbound connection!

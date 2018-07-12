@@ -103,7 +103,6 @@ func (pR *P2PReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 		// TODO punish peer?
 		return
 	}
-
 	switch chID {
 	case CheckRequestChannel:
 		switch msg := msg.(type) {

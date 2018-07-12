@@ -19,6 +19,7 @@ type res struct {
 var (
 	threadCount   = 10
 	sendPerThread = 10000000
+	sendDurationInSec = 60
 )
 
 var (

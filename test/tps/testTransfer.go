@@ -1,10 +1,12 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"math/rand"
 	"sync"
 	"time"
+	"strconv"
 
 	"github.com/Baptist-Publication/chorus/eth/common"
 	"github.com/Baptist-Publication/chorus/eth/crypto"
@@ -31,12 +33,24 @@ func testTxCallOnce() {
 func testPushTx() {
 	var wg sync.WaitGroup
 
+	tpsInt, err := strconv.Atoi(os.Args[3])
+	if err != nil {
+		fmt.Println("get tps int err")
+		return 
+	}
+	sendDurationInt, err := strconv.Atoi(os.Args[4])
+	if err != nil {
+		fmt.Println("get send duration err")
+		return
+	}
+	tps = tpsInt
+	sendDurationInSec = sendDurationInt
+
 	go resPrintRoutine()
 
 	for i := 0; i < threadCount-1; i++ {
 		go testTx(&wg, i, fmt.Sprintf("%06dCD0D48031A21F4B50EBDE558CE5294C550390118C87A3E8C69DCAFE89A", rand.Uint64()%1000000))
 	}
-
 	testTx(&wg, threadCount-1, fmt.Sprintf("%06dCD0D48031A21F4B50EBDE558CE5294C550390118C87A3E8C69DCAFE89A", rand.Uint64()%1000000)) // use to block routine
 
 	wg.Wait()
@@ -62,14 +76,21 @@ func testTx(w *sync.WaitGroup, id int, privkey string) {
 	panicErr(err)
 
 	sleep := 1000 / tps
+	timer := time.NewTimer(time.Second * time.Duration(sendDurationInSec))
+FORLOOP:
 	for i := 0; i < sendPerThread; i++ {
-		err := send(client, privkey, defaultReceiver, 0, nonce)
-		panicErr(err)
-
-		resq <- res{id, sendPerThread - i}
-		time.Sleep(time.Millisecond * time.Duration(sleep))
-
-		nonce++
+		select {
+		case <-timer.C:
+			break FORLOOP
+		default:
+			err := send(client, privkey, defaultReceiver, 0, nonce)
+			panicErr(err)
+	
+			resq <- res{id, sendPerThread - i}
+			time.Sleep(time.Millisecond * time.Duration(sleep))
+	
+			nonce++
+		}
 	}
 
 	if w != nil {
