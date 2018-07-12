@@ -37,7 +37,6 @@ type (
 		BaseService
 
 		logger   	*zap.Logger
-		DumpLogger 	*zap.Logger
 		mux      	sync.Mutex
 		outbound 	bool
 		mconn    	*MConnection
@@ -125,9 +124,6 @@ func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInf
 		if reactor == nil {
 			PanicSanity(Fmt("Unknown channel %X", chID))
 		}
-		// TODO delete this method later
-		// dumpP2PMessage(dumpLogger, p, chID, msgBytes)
-
 		reactor.Receive(chID, p, msgBytes)
 	}
 	onError := func(r interface{}) {
