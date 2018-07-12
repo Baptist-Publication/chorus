@@ -115,7 +115,6 @@ func (pexR *PEXReactor) Receive(chID byte, src *Peer, msgBytes []byte) {
 		pexR.Switch.StopPeerGracefully(src)
 		return
 	}
-	src.DumpLogger.Info(fmt.Sprintf("from: %s, chID: %x, msg: %v", src.NodeInfo.RemoteAddr, chID, msg))
 
 	pexR.slogger.Infow("Received message", "msg", msg)
 
