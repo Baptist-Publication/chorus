@@ -418,6 +418,7 @@ func (t *udp) readLoop() {
 			t.logger.Debug(fmt.Sprintf("Read error: %v", err))
 			return
 		}
+		t.logger.Debug(fmt.Sprintf("successfully ReadFromUDP url: %v", from))
 		t.handlePacket(from, buf[:nbytes])
 	}
 }
@@ -429,6 +430,7 @@ func (t *udp) handlePacket(from *net.UDPAddr, buf []byte) error {
 		//fmt.Println("bad packet", err)
 		return err
 	}
+	t.logger.Debug(fmt.Sprintf("successfully handlePacket url: %v", from))
 	t.net.reqReadPacket(pkt)
 	return nil
 }

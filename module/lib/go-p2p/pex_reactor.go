@@ -15,19 +15,21 @@
 package p2p
 
 import (
-	"strings"
+	// "strings"
 	"bytes"
 	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
 	"time"
+	// "encoding/hex"
 
 	"go.uber.org/zap"
 
 	. "github.com/Baptist-Publication/chorus/module/lib/go-common"
 	"github.com/Baptist-Publication/chorus/module/lib/go-p2p/discover"
 	"github.com/Baptist-Publication/chorus/module/lib/go-wire"
+	// crypto "github.com/Baptist-Publication/chorus/module/lib/go-crypto"
 )
 
 var pexErrInvalidMessage = errors.New("Invalid PEX message")
@@ -86,23 +88,14 @@ func (pexR *PEXReactor) GetChannels() []*ChannelDescriptor {
 
 // Implements Reactor
 func (pexR *PEXReactor) AddPeer(peer *Peer) {
+	pexR.logger.Debug(fmt.Sprintf("node try bound with url: %s", peer.NodeInfo.RemoteAddr))
 	maxPeers := pexR.Switch.config.GetInt(ConfigKeyMaxNumPeers)
-	if pexR.Switch.Peers().Size() <= maxPeers {
-		url := peer.NodeInfo.RemoteAddr
-		url = strings.Split(url, ":")[0] + defaultNodePort 
-		fmt.Println("bound in node with url: ", url)
-		node := discover.MustParseNode(url)
-		pexR.discv.AddNodeToTable(node)
+	if pexR.Switch.Peers().Size() > maxPeers {
+		pexR.logger.Warn("addPeer: reach the max peer, exchange then close")
+		pexR.Switch.StopPeerGracefully(peer)
 		return
 	}
 
-	nodes := make([]*discover.Node, 10)
-	if n := pexR.discv.ReadRandomNodes(nodes); n == 0 {
-		return
-	}
-	pexR.TrySendAddrs(peer, nodes)
-	pexR.logger.Warn("addPeer: reach the max peer, exchange then close")
-	pexR.Switch.StopPeerGracefully(peer)
 	return
 }
 
@@ -139,9 +132,9 @@ func (pexR *PEXReactor) Receive(chID byte, src *Peer, msgBytes []byte) {
 		// We received some peer addresses from src.
 		// TODO: prevent abuse.
 		// (We don't want to get spammed with bad peers)
-		for _, nodeid := range msg.NodeIdSet {
-			pexR.discv.Resolve(nodeid)
-		}
+		// for _, nodeid := range msg.NodeIdSet {
+		// 	pexR.discv.Resolve(nodeid)
+		// }
 
 	default:
 		pexR.slogger.Warnf("Unknown message type %T", msg)
@@ -243,7 +236,6 @@ func (pexR *PEXReactor) ensurePeers() {
 		if _, ok := connectedPeers[try.IP.String()]; ok {
 			continue
 		}
-
 		toDial[try.IP.String()] = try
 	}
 

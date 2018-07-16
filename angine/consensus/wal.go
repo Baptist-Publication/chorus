@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+	"fmt"
 
 	"go.uber.org/zap"
 
@@ -197,13 +198,16 @@ func (wal *WAL) Save(wmsg WALMessage) {
 	twm := GenTimedWALMessage(wmsg)
 	wmsgBytes, err := json.Marshal(&twm)
 	if err != nil {
+		fmt.Println("wal 01 : ", Fmt("Error writing msg to msgpack consensus wal. Error: %v \n\nMessage: %v", err, wmsg))
 		PanicQ(Fmt("Error writing msg to msgpack consensus wal. Error: %v \n\nMessage: %v", err, wmsg))
 	}
 	if err := wal.group.WriteLine(string(wmsgBytes)); err != nil {
+		fmt.Println("wal 02 : ", Fmt("Error writing msg to consensus wal. Error: %v \n\nMessage: %v", err, wmsg))
 		PanicQ(Fmt("Error writing msg to consensus wal. Error: %v \n\nMessage: %v", err, wmsg))
 	}
 	// TODO: only flush when necessary
 	if err := wal.group.Flush(); err != nil {
+		fmt.Println("wal 03 : ", Fmt("Error flushing consensus wal buf to file. Error: %v \n", err))
 		PanicQ(Fmt("Error flushing consensus wal buf to file. Error: %v \n", err))
 	}
 }

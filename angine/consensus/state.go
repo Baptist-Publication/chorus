@@ -753,6 +753,7 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 			// if the timeout is relevant to the rs
 			// go to the next step
 			cs.handleTimeout(ti, rs)
+
 		case <-cs.Quit:
 
 			// NOTE: the internalMsgQueue may have signed messages from our

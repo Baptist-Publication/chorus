@@ -349,6 +349,7 @@ func initDiscover(logger *zap.Logger, conf *viper.Viper, priv *crypto.PrivKeyEd2
 	seeds := conf.GetString("seeds")
 	// add the seeds node to the discover table
 	if seeds == "" {
+		fmt.Println("no seeds in config")
 		return ntab, nil
 	}
 	nodes := []*discover.Node{}

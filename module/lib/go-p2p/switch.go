@@ -500,12 +500,18 @@ func (sw *Switch) removePeerFromReactors(peer *Peer, reason interface{}) {
 }
 
 func (sw *Switch) listenerRoutine(l Listener) {
+	defer func (){
+		if r := recover(); r != nil {
+			fmt.Println("recover in switch, panic: ", r)
+		}
+	}()
 OUTER:
 	for {
 		inConn, ok := <-l.Connections()
 		if !ok {
 			break
 		}
+		sw.logger.Debug(fmt.Sprintf("incoming conn with network: %s, url: %s", inConn.RemoteAddr().Network(), inConn.RemoteAddr().String()))
 
 		// before any further actions, we can do something with the connection which is not part of the p2p protocol
 		recv := make([]byte, 4096)

@@ -145,10 +145,12 @@ func newNetwork(logger *zap.Logger, conn transport, ourPubkey *crypto.PubKeyEd25
 	if dbPath != "<no database>" {
 		var err error
 		if db, err = newNodeDB(logger, dbPath, Version, ourID); err != nil {
+			logger.Error(fmt.Sprint("get NodeDB error: ", err))
 			return nil, err
 		}
 	}
 
+	// TODO delete this logger later
 	tab := newTable(ourID, conn.localAddr())
 	net := &Network{
 		db:               db,
@@ -222,6 +224,7 @@ func (net *Network) SetFallbackNodes(nodes []*Node) error {
 // Resolve searches for a specific node with the given ID.
 // It returns nil if the node could not be found.
 func (net *Network) Resolve(targetID NodeID) *Node {
+	net.logger.Debug(fmt.Sprintf("Resolve target: %s", targetID.GoString()))
 	result := net.lookup(common.BytesToHash(targetID[:]), true)
 	for _, n := range result {
 		if n.ID == targetID {
@@ -336,6 +339,7 @@ func (net *Network) reqRefresh(nursery []*Node) <-chan struct{} {
 }
 
 func (net *Network) reqQueryFindnode(n *Node, target common.Hash, reply chan []*Node) bool {
+	net.logger.Debug(fmt.Sprintf("reqQueryFindnode with node.url: %s, target: %x, reply: %v", n.IP.String(), target.Bytes(), reply))
 	q := &findnodeQuery{remote: n, target: target, reply: reply}
 	select {
 	case net.queryReq <- q:
@@ -372,6 +376,12 @@ type topicSearchInfo struct {
 const maxSearchCount = 5
 
 func (net *Network) loop() {
+	// defer func () {
+	// 	if r := recover(); r != nil {
+	// 		fmt.Println("network loop recover: ", r)
+	// 	}
+	// }()
+
 	var (
 		refreshTimer       = time.NewTicker(autoRefreshInterval)
 		bucketRefreshTimer = time.NewTimer(bucketRefreshInterval)
@@ -431,7 +441,7 @@ loop:
 		// Ingress packet handling.
 		case pkt := <-net.read:
 			//fmt.Println("read", pkt.ev)
-			net.logger.Debug("<-net.read")
+			net.logger.Debug(fmt.Sprintf("<-net.read, from udp url: %v", pkt.remoteAddr))
 			n := net.internNode(&pkt)
 			prestate := n.state
 			status := "ok"
@@ -459,10 +469,11 @@ loop:
 
 		// Querying.
 		case q := <-net.queryReq:
-			net.logger.Debug("<-net.queryReq")
+			net.logger.Debug(fmt.Sprintf("<-net.queryReq, url: %s", q.remote.IP.String()))
 			if !q.start(net) {
 				q.remote.deferQuery(q)
 			}
+			net.logger.Debug(fmt.Sprintf("<-net.queryReq finish, url: %s", q.remote.IP.String()))
 
 		// Interacting with the table.
 		case f := <-net.tableOpReq:
@@ -798,14 +809,13 @@ func (n *nodeNetGuts) startNextQuery(net *Network) {
 func (q *findnodeQuery) start(net *Network) bool {
 	// Satisfy queries against the local node directly.
 	if q.remote == net.tab.self {
-		net.logger.Debug("findnodeQuery self")
+		net.logger.Debug(fmt.Sprintf("findnodeQuery self: %s", q.remote.IP.String()))
 		closest := net.tab.closest(common.BytesToHash(q.target[:]), bucketSize)
-
 		q.reply <- closest.entries
 		return true
 	}
 	if q.remote.state.canQuery && q.remote.pendingNeighbours == nil {
-		net.logger.Debug(fmt.Sprint("findnodeQuery", "remote peer:", q.remote.ID, "targetID:", q.target))
+		net.logger.Debug(fmt.Sprint("findnodeQuery", "remote peer:", q.remote.ID, "targetID:", q.target, "IP: ", q.remote.IP.String()))
 		net.conn.sendFindnodeHash(q.remote, q.target)
 		net.timedEvent(respTimeout, q.remote, neighboursTimeout)
 		q.remote.pendingNeighbours = q
@@ -815,9 +825,10 @@ func (q *findnodeQuery) start(net *Network) bool {
 	// Initiate the transition to known.
 	// The request will be sent later when the node reaches known state.
 	if q.remote.state == unknown {
-		net.logger.Debug(fmt.Sprint("findnodeQuery", "id:", q.remote.ID, "status:", "unknown->verifyinit"))
+		net.logger.Debug(fmt.Sprint("findnodeQuery", "id:", q.remote.ID, "status:", "unknown->verifyinit", "IP: ", q.remote.IP.String()))
 		net.transition(q.remote, verifyinit)
 	}
+	net.logger.Debug(fmt.Sprintf("findnodeQuery.start() get false return: %s", q.remote.IP.String()))
 	return false
 }
 
@@ -876,6 +887,7 @@ func init() {
 	unknown = &nodeState{
 		name: "unknown",
 		enter: func(net *Network, n *Node) {
+			net.logger.Debug(fmt.Sprintf("%s - [unknown] state enter", n.IP.String()))
 			net.tab.delete(n)
 			n.pingEcho = nil
 			// Abort active queries.
@@ -890,6 +902,7 @@ func init() {
 			n.queryTimeouts = 0
 		},
 		handle: func(net *Network, n *Node, ev nodeEvent, pkt *ingressPacket) (*nodeState, error) {
+			net.logger.Debug(fmt.Sprintf("%s - [unknown] state handle", n.IP.String()))
 			switch ev {
 			case pingPacket:
 				net.handlePing(n, pkt)
@@ -904,9 +917,11 @@ func init() {
 	verifyinit = &nodeState{
 		name: "verifyinit",
 		enter: func(net *Network, n *Node) {
+			net.logger.Debug(fmt.Sprintf("%s - [verifyinit] state enter", n.IP.String()))
 			net.ping(n, n.addr())
 		},
 		handle: func(net *Network, n *Node, ev nodeEvent, pkt *ingressPacket) (*nodeState, error) {
+			net.logger.Debug(fmt.Sprintf("%s - [verifyinit] state handle", n.IP.String()))
 			switch ev {
 			case pingPacket:
 				net.handlePing(n, pkt)
@@ -925,6 +940,7 @@ func init() {
 	verifywait = &nodeState{
 		name: "verifywait",
 		handle: func(net *Network, n *Node, ev nodeEvent, pkt *ingressPacket) (*nodeState, error) {
+			net.logger.Debug(fmt.Sprintf("%s - [verifywait] state handle", n.IP.String()))
 			switch ev {
 			case pingPacket:
 				net.handlePing(n, pkt)
@@ -943,9 +959,11 @@ func init() {
 	remoteverifywait = &nodeState{
 		name: "remoteverifywait",
 		enter: func(net *Network, n *Node) {
+			net.logger.Debug(fmt.Sprintf("%s - [remoteverifywait] state enter", n.IP.String()))
 			net.timedEvent(respTimeout, n, pingTimeout)
 		},
 		handle: func(net *Network, n *Node, ev nodeEvent, pkt *ingressPacket) (*nodeState, error) {
+			net.logger.Debug(fmt.Sprintf("%s - [remoteverifywait] state handle", n.IP.String()))
 			switch ev {
 			case pingPacket:
 				net.handlePing(n, pkt)
@@ -962,6 +980,7 @@ func init() {
 		name:     "known",
 		canQuery: true,
 		enter: func(net *Network, n *Node) {
+			net.logger.Debug(fmt.Sprintf("%s - [known] state enter", n.IP.String()))
 			n.queryTimeouts = 0
 			n.startNextQuery(net)
 			// Insert into the table and start revalidation of the last node
@@ -973,6 +992,7 @@ func init() {
 			}
 		},
 		handle: func(net *Network, n *Node, ev nodeEvent, pkt *ingressPacket) (*nodeState, error) {
+			net.logger.Debug(fmt.Sprintf("%s - [known] state handle", n.IP.String()))
 			switch ev {
 			case pingPacket:
 				net.handlePing(n, pkt)
@@ -990,9 +1010,11 @@ func init() {
 		name:     "contested",
 		canQuery: true,
 		enter: func(net *Network, n *Node) {
+			net.logger.Debug(fmt.Sprintf("%s - [contested] state enter", n.IP.String()))
 			net.ping(n, n.addr())
 		},
 		handle: func(net *Network, n *Node, ev nodeEvent, pkt *ingressPacket) (*nodeState, error) {
+			net.logger.Debug(fmt.Sprintf("%s - [contested] state handle", n.IP.String()))
 			switch ev {
 			case pongPacket:
 				// Node is still alive.
@@ -1014,6 +1036,7 @@ func init() {
 		name:     "unresponsive",
 		canQuery: true,
 		handle: func(net *Network, n *Node, ev nodeEvent, pkt *ingressPacket) (*nodeState, error) {
+			net.logger.Debug(fmt.Sprintf("%s - [unresponsive] state handle", n.IP.String()))
 			switch ev {
 			case pingPacket:
 				net.handlePing(n, pkt)
