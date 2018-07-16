@@ -4,7 +4,7 @@ all: chorus chorustool
 chorus:
 	go build  -ldflags "-X github.com/Baptist-Publication/chorus/chain/version.commitVer=`git rev-parse HEAD`" -o ./build/chorus ./chain
 chorustool:
-	go build -ldflags "-X github.com/Baptist-Publication/chorus/client/main.version=`git rev-parse HEAD`" -o ./build/chorustool ./client
+	go build -ldflags "-X github.com/Baptist-Publication/chorus/client/main.version=`git rev-parse HEAD`" -o ./build/btool ./client
 test:
 	go test ./tools/state
 proto:

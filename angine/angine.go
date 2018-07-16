@@ -16,11 +16,14 @@ package angine
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +32,7 @@ import (
 	"github.com/Baptist-Publication/chorus/angine/blockchain/refuse_list"
 	"github.com/Baptist-Publication/chorus/angine/consensus"
 	"github.com/Baptist-Publication/chorus/angine/mempool"
+	p2pAng "github.com/Baptist-Publication/chorus/angine/p2p"
 	"github.com/Baptist-Publication/chorus/angine/plugin"
 	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	"github.com/Baptist-Publication/chorus/angine/state"
@@ -40,6 +44,7 @@ import (
 	dbm "github.com/Baptist-Publication/chorus/module/lib/go-db"
 	"github.com/Baptist-Publication/chorus/module/lib/go-events"
 	p2p "github.com/Baptist-Publication/chorus/module/lib/go-p2p"
+	"github.com/Baptist-Publication/chorus/module/lib/go-p2p/discover"
 	"github.com/Baptist-Publication/chorus/module/xlib/def"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -71,8 +76,8 @@ type (
 		p2pHost       string
 		p2pPort       uint16
 		genesis       *agtypes.GenesisDoc
-		addrBook      *p2p.AddrBook
-		plugins       []plugin.IPlugin
+		//addrBook      *p2p.AddrBook
+		plugins []plugin.IPlugin
 
 		logger *zap.Logger
 	}
@@ -180,6 +185,7 @@ func NewAngine(lgr *zap.Logger, conf *viper.Viper) (angine *Angine) {
 			return nil
 		}
 	}
+
 	p2psw, err := prepareP2P(logger, conf, gb, privValidator, refuseList)
 	if err != nil {
 		lgr.Error("prepare p2p err", zap.Error(err))
@@ -270,6 +276,8 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 		}
 	})
 
+	p2pReactor := p2pAng.NewP2PReactor(ang.logger, conf)
+
 	// spRouter := trace.NewRouter(ang.logger, conf, stateM, ang.PrivValidator())
 	// spReactor := trace.NewTraceReactor(ang.logger, conf, spRouter)
 	// spRouter.SetReactor(spReactor)
@@ -280,13 +288,25 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 	ang.p2pSwitch.AddReactor("MEMPOOL", memReactor)
 	ang.p2pSwitch.AddReactor("BLOCKCHAIN", bcReactor)
 	ang.p2pSwitch.AddReactor("CONSENSUS", consensusReactor)
+	ang.p2pSwitch.AddReactor("P2P", p2pReactor)
 	// ang.p2pSwitch.AddReactor("SPECIALOP", spReactor)
-
-	var addrBook *p2p.AddrBook
 	if conf.GetBool("pex_reactor") {
-		addrBook = p2p.NewAddrBook(ang.logger, conf.GetString("addrbook_file"), conf.GetBool("addrbook_strict"))
-		pexReactor := p2p.NewPEXReactor(ang.logger, addrBook)
-		ang.p2pSwitch.AddReactor("PEX", pexReactor)
+		privKey := ang.privValidator.GetPrivKey()
+		privKeyEd25519 := *(privKey.(*crypto.PrivKeyEd25519))
+		discv, err := initDiscover(ang.logger, conf, &privKeyEd25519, ang.P2PPort())
+		if err != nil {
+			ang.logger.Error("discovery init fail", zap.String("error ", err.Error()))
+		} else {
+			maxPeerNum := conf.GetInt(p2p.ConfigKeyMaxNumPeers)
+			inboundRatio := conf.GetInt(p2p.ConfigKeyInboundPeersRatio)
+			maxOutboundPeerNum := 0
+			if maxPeerNum > 0 && inboundRatio > 0 {
+				maxOutboundPeerNum = maxPeerNum - maxPeerNum / inboundRatio
+				fmt.Println(fmt.Sprintf("maxpeer_num: %d, inbound_ratio: %d, maxoutbound_num: %d", maxPeerNum, inboundRatio, maxOutboundPeerNum))
+			}
+			pexReactor := p2p.NewPEXReactor(ang.logger, discv, maxOutboundPeerNum)
+			ang.p2pSwitch.AddReactor("PEX", pexReactor)
+		}
 	}
 
 	if conf.GetBool("auth_by_ca") {
@@ -300,13 +320,47 @@ func (ang *Angine) assembleStateMachine(stateM *state.State) {
 	ang.mempool = mem
 	// ang.traceRouter = spRouter
 	ang.stateMachine = stateM
-	ang.addrBook = addrBook
+	//ang.addrBook = addrBook
 	ang.stateMachine.SetBlockExecutable(ang)
 
 	ang.InitPlugins()
 	for _, p := range ang.plugins {
 		mem.RegisterFilter(NewMempoolFilter(p.CheckTx))
 	}
+}
+
+func initDiscover(logger *zap.Logger, conf *viper.Viper, priv *crypto.PrivKeyEd25519, port uint16) (*discover.Network, error) {
+	addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort("0.0.0.0", strconv.FormatUint(uint64(port), 10)))
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	realaddr := conn.LocalAddr().(*net.UDPAddr)
+	dbDir := conf.GetString("db_dir")
+	ntab, err := discover.ListenUDP(logger, priv, conn, realaddr, path.Join(dbDir, "discover.db"), nil)
+	if err != nil {
+		return nil, err
+	}
+	seeds := conf.GetString("seeds")
+	// add the seeds node to the discover table
+	if seeds == "" {
+		fmt.Println("no seeds in config")
+		return ntab, nil
+	}
+	nodes := []*discover.Node{}
+	for _, seed := range strings.Split(seeds, ",") {
+		url := "enode://" + hex.EncodeToString(crypto.Sha256([]byte(seed))) + "@" + seed
+		nodes = append(nodes, discover.MustParseNode(url))
+	}
+	if err = ntab.SetFallbackNodes(nodes); err != nil {
+		return nil, err
+	}
+	return ntab, nil
 }
 
 func (ang *Angine) ConnectApp(app agtypes.Application) error {
@@ -410,7 +464,8 @@ func (ang *Angine) P2PPort() uint16 {
 }
 
 func (ang *Angine) DialSeeds(seeds []string) error {
-	return ang.p2pSwitch.DialSeeds(ang.addrBook, seeds)
+	//return ang.p2pSwitch.DialSeeds(ang.addrBook, seeds)
+	return nil
 }
 
 func (ang *Angine) GetNodeInfo() *p2p.NodeInfo {
@@ -456,11 +511,6 @@ func (ang *Angine) Start() (err error) {
 	} else {
 		fmt.Println(err)
 		return err
-	}
-
-	seeds := ang.Conf.GetString("seeds")
-	if seeds != "" {
-		return ang.DialSeeds(strings.Split(seeds, ","))
 	}
 
 	return nil
@@ -929,7 +979,6 @@ func prepareP2P(logger *zap.Logger, conf *viper.Viper, genesisBytes []byte, priv
 	p2psw.SetNodePrivKey(*(privKey.(*crypto.PrivKeyEd25519)))
 	p2psw.SetAddToRefuselist(addToRefuselist(refuseList))
 	p2psw.SetRefuseListFilter(refuseListFilter(refuseList))
-
 	return p2psw, nil
 }
 

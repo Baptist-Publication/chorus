@@ -15,11 +15,15 @@
 package p2p
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"sync"
+	"time"
 
+	"github.com/Baptist-Publication/chorus/test/testdb"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
@@ -32,15 +36,25 @@ type (
 	Peer struct {
 		BaseService
 
-		outbound bool
-		mconn    *MConnection
+		logger   	*zap.Logger
+		mux      	sync.Mutex
+		outbound 	bool
+		mconn    	*MConnection
 
 		*NodeInfo
 		Key  string
 		Data *CMap // User data.
+
+		CheckMsgCh     chan *CheckRepeated
+		CheckRespChSet map[string]chan bool
 	}
 
 	AuthorizationFunc func(nodeinfo *NodeInfo) error
+)
+
+const (
+	checkMsgChBufSize       = 1024
+	checkTimeInMilliSeconds = 1000
 )
 
 // NOTE: blocking
@@ -81,6 +95,27 @@ func peerHandshake(conn net.Conn, sw *Switch) (*NodeInfo, error) {
 	return peerNodeInfo, nil
 }
 
+func saveP2pmessage(logger *zap.Logger, chID byte, p *Peer, msgBytes []byte) {
+	var chanId string
+	insertTime := time.Now().Format("2006-01-02 15:04:05")
+	chanId = fmt.Sprintf("%x", chID)
+	h := sha256.New()
+	h.Write(msgBytes)
+	size := len(msgBytes)
+	mesHash := fmt.Sprintf("%x", h.Sum(nil))
+
+	peerRemote, peerListen := "", ""
+	if p.NodeInfo != nil {
+		peerRemote = p.NodeInfo.RemoteAddr
+		peerListen = p.NodeInfo.ListenAddr
+	}
+	err := testdb.SaveP2pMessage(insertTime, chanId, mesHash, size, peerRemote, peerListen)
+	if err != nil {
+		logger.Error("save p2p", zap.String("insert to db error ", fmt.Sprintf("%v", err)))
+	}
+	return
+}
+
 // NOTE: call peerHandshake on conn before calling newPeer().
 func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInfo *NodeInfo, outbound bool, reactorsByCh map[byte]Reactor, chDescs []*ChannelDescriptor, onPeerError func(*Peer, interface{})) *Peer {
 	var p *Peer
@@ -96,12 +131,17 @@ func newPeer(logger *zap.Logger, config *viper.Viper, conn net.Conn, peerNodeInf
 		onPeerError(p, r)
 	}
 	mconn := NewMConnection(logger, config, conn, chDescs, onReceive, onError)
+	cmCh := make(chan *CheckRepeated, checkMsgChBufSize)
+	crChSet := make(map[string]chan bool)
 	p = &Peer{
-		outbound: outbound,
-		mconn:    mconn,
-		NodeInfo: peerNodeInfo,
-		Key:      peerNodeInfo.PubKey.KeyString(),
-		Data:     NewCMap(),
+		logger:         logger,
+		outbound:       outbound,
+		mconn:          mconn,
+		NodeInfo:       peerNodeInfo,
+		Key:            peerNodeInfo.PubKey.KeyString(),
+		Data:           NewCMap(),
+		CheckMsgCh:     cmCh,
+		CheckRespChSet: crChSet,
 	}
 	p.BaseService = *NewBaseService(logger, "Peer", p)
 	return p
@@ -134,6 +174,19 @@ func (p *Peer) SendBytes(chID byte, msg []byte) bool {
 	if !p.IsRunning() {
 		return false
 	}
+
+	// // check if a msg is sent repeatedly
+	// if p.msgRepeated(chID, msg) {
+	// 	p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+	// 	return true
+	// }
+	return p.mconn.Send(chID, msg)
+}
+
+func (p *Peer) PureSendBytes(chID byte, msg []byte) bool {
+	if !p.IsRunning() {
+		return false
+	}
 	return p.mconn.Send(chID, msg)
 }
 
@@ -142,6 +195,23 @@ func (p *Peer) TrySend(chID byte, msg interface{}) bool {
 }
 
 func (p *Peer) TrySendBytes(chID byte, msg []byte) bool {
+	if !p.IsRunning() {
+		return false
+	}
+	// // check if a msg is sent repeatedly
+	// if p.msgRepeated(chID, msg) {
+	// 	p.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+	// 	return true
+	// }
+	return p.mconn.TrySend(chID, msg)
+}
+
+func (p *Peer) PureTrySend(chID byte, msg interface{}) bool {
+	return p.PureTrySendBytes(chID, wire.BinaryBytes(msg))
+}
+
+// PureSend is for check msg channel only
+func (p *Peer) PureTrySendBytes(chID byte, msg []byte) bool {
 	if !p.IsRunning() {
 		return false
 	}
@@ -176,4 +246,52 @@ func (p *Peer) Equals(other *Peer) bool {
 
 func (p *Peer) Get(key string) interface{} {
 	return p.Data.Get(key)
+}
+
+type CheckRepeated struct {
+	ChID   byte
+	MsgID  string
+	Msg    []byte
+	RespCh chan bool
+}
+
+func (p *Peer) MsgRepeated(chID byte, msg []byte) bool {
+	h := sha256.New()
+	h.Write(msg)
+	msgID := fmt.Sprintf("%x", h.Sum(nil))
+	cr := &CheckRepeated{
+		ChID:   chID,
+		MsgID:  msgID,
+		Msg:    msg,
+		RespCh: make(chan bool),
+	}
+	p.logger.Info(fmt.Sprintf("check msg repeated  before start sending  %x  ", chID))
+	//p.mux.Lock()
+	p.CheckRespChSet[msgID] = cr.RespCh
+	timer := time.NewTimer(time.Millisecond * checkTimeInMilliSeconds)
+
+	select {
+	case p.CheckMsgCh <- cr:
+		p.logger.Info(fmt.Sprintf("check msg repeated start sending  %x  ", chID))
+		//p.mux.Lock()
+		p.CheckRespChSet[msgID] = cr.RespCh
+		//p.mux.Unlock()
+		defer delete(p.CheckRespChSet, msgID)
+	case <-timer.C:
+		p.logger.Warn(fmt.Sprintf("check msg repeated timeout %x  ", chID))
+		return false
+	}
+
+	for {
+		select {
+		case result := <-cr.RespCh:
+			p.logger.Info(fmt.Sprintf("check msg repeated got response  %x  %v", chID, result))
+			return result
+		case <-timer.C:
+			p.logger.Warn(fmt.Sprintf("check msg repeated timeout %x  ", chID))
+			return false
+		}
+	}
+
+	// return false
 }

@@ -90,3 +90,9 @@ func splitVersion(version string) (string, string, string, error) {
 	}
 	return spl[0], spl[1], spl[2], nil
 }
+
+//RemoteAddrHost peer external ip address
+func (info *NodeInfo) RemoteAddrHost() string {
+	host, _, _ := net.SplitHostPort(info.RemoteAddr)
+	return host
+}

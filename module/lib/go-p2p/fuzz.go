@@ -57,27 +57,27 @@ func (fc *FuzzedConnection) randomDuration() time.Duration {
 }
 
 func (fc *FuzzedConnection) Active() bool {
-	return fc.params.GetBool(configFuzzActive)
+	return fc.params.GetBool(ConfigFuzzActive)
 }
 
 func (fc *FuzzedConnection) Mode() string {
-	return fc.params.GetString(configFuzzMode)
+	return fc.params.GetString(ConfigFuzzMode)
 }
 
 func (fc *FuzzedConnection) ProbDropRW() float64 {
-	return fc.params.GetFloat64(configFuzzProbDropRW)
+	return fc.params.GetFloat64(ConfigFuzzProbDropRW)
 }
 
 func (fc *FuzzedConnection) ProbDropConn() float64 {
-	return fc.params.GetFloat64(configFuzzProbDropConn)
+	return fc.params.GetFloat64(ConfigFuzzProbDropConn)
 }
 
 func (fc *FuzzedConnection) ProbSleep() float64 {
-	return fc.params.GetFloat64(configFuzzProbSleep)
+	return fc.params.GetFloat64(ConfigFuzzProbSleep)
 }
 
 func (fc *FuzzedConnection) MaxDelayMilliseconds() int {
-	return fc.params.GetInt(configFuzzMaxDelayMilliseconds)
+	return fc.params.GetInt(ConfigFuzzMaxDelayMilliseconds)
 }
 
 // implements the fuzz (delay, kill conn)

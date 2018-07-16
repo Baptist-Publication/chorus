@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"strings"
 
+	pbtypes "github.com/Baptist-Publication/chorus/angine/protos/types"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
 	"github.com/Baptist-Publication/chorus/client/commons"
 	"github.com/Baptist-Publication/chorus/eth/accounts/abi"
@@ -416,10 +417,14 @@ func queryContract(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err.Error(), 127)
 	}
+	if res.Code != pbtypes.CodeType_OK {
+		fmt.Println("query failed, code: ", res.Code)
+		return nil
+	}
 
 	resdata, err := hex.DecodeString(res.Data)
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Sprintf("hex.DecodeString error: %v", err.Error()), 127)
 	}
 	parseResult, _ := unpackResult(function, *aabbii, string(resdata))
 	fmt.Println("parse result:", parseResult)

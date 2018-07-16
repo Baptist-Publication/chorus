@@ -54,6 +54,8 @@ type ConsensusReactor struct {
 
 	logger  *zap.Logger
 	slogger *zap.SugaredLogger
+
+	sendFunc func(*p2p.Peer, byte, []byte) bool
 }
 
 func NewConsensusReactor(logger *zap.Logger, consensusState *ConsensusState, fastSync bool) *ConsensusReactor {
@@ -66,6 +68,13 @@ func NewConsensusReactor(logger *zap.Logger, consensusState *ConsensusState, fas
 	}
 	conR.BaseReactor = *p2p.NewBaseReactor(logger, "ConsensusReactor", conR)
 	return conR
+}
+
+func (conR *ConsensusReactor) GetConsensusState() *ConsensusState {
+	if conR != nil {
+		return conR.conS
+	}
+	return nil
 }
 
 func (conR *ConsensusReactor) OnStart() error {
@@ -446,7 +455,10 @@ OUTER_LOOP:
 					Round:  rs.Round,  // This tells peer that this part applies to us.
 					Part:   part,
 				}
-				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+
+				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
+
+				// peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			}
@@ -481,7 +493,9 @@ OUTER_LOOP:
 					Round:  prs.Round,  // Not our height, so it doesn't matter.
 					Part:   part,
 				}
-				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
+				conR.sendBlockPartBytes(peer, DataChannel, csspb.MarshalDataToCssMsg(msg))
+
+				//peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
 				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OUTER_LOOP
 			} else {
@@ -507,7 +521,6 @@ OUTER_LOOP:
 			{
 				msg := &csspb.ProposalMessage{Proposal: rs.Proposal}
 				peer.SendBytes(DataChannel, csspb.MarshalDataToCssMsg(msg))
-
 				ps.SetHasProposal(rs.Proposal)
 			}
 			// ProposalPOL: lets peer know which POL votes we have so far.
@@ -714,6 +727,16 @@ func (conR *ConsensusReactor) StringIndented(indent string) string {
 	}
 	s += indent + "}"
 	return s
+}
+
+func (conR *ConsensusReactor) sendBlockPartBytes(peer *p2p.Peer, chID byte, msg []byte) {
+
+	// check if a msg is sent repeatedly
+	if peer.MsgRepeated(chID, msg) {
+		conR.logger.Info(fmt.Sprintf("repeated msg with chID %x", chID))
+		return
+	}
+	peer.SendBytes(chID, msg)
 }
 
 //-----------------------------------------------------------------------------

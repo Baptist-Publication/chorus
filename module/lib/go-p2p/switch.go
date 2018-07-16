@@ -17,7 +17,6 @@ package p2p
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"time"
 
@@ -260,11 +259,11 @@ func (sw *Switch) AddPeerWithConnection(conn net.Conn, outbound bool) (*Peer, er
 
 	// Set deadline for handshake so we don't block forever on conn.ReadFull
 	conn.SetDeadline(time.Now().Add(
-		time.Duration(sw.config.GetInt(configKeyHandshakeTimeoutSeconds)) * time.Second))
+		time.Duration(sw.config.GetInt(ConfigKeyHandshakeTimeoutSeconds)) * time.Second))
 
 	// First, encrypt the connection.
 	var sconn net.Conn = conn
-	if sw.config.GetBool(configKeyAuthEnc) {
+	if sw.config.GetBool(ConfigKeyAuthEnc) {
 		var err error
 		sconn, err = MakeSecretConnection(conn, sw.nodePrivKey)
 		if err != nil {
@@ -290,7 +289,7 @@ func (sw *Switch) AddPeerWithConnection(conn net.Conn, outbound bool) (*Peer, er
 		sconn.Close()
 		return nil, err
 	}
-	if sw.config.GetBool(configKeyAuthEnc) {
+	if sw.config.GetBool(ConfigKeyAuthEnc) {
 		// Check that the professed PubKey matches the sconn's.
 		if !peerNodeInfo.PubKey.Equals(sconn.(*SecretConnection).RemotePubKey()) {
 			sconn.Close()
@@ -386,113 +385,6 @@ func (sw *Switch) startInitPeer(peer *Peer) {
 	sw.addPeerToReactors(peer) // run AddPeer on each reactor
 }
 
-// Dial a list of seeds in random order
-// Spawns a go routine for each dial
-// permute the list, dial them in random order.
-func (sw *Switch) DialSeeds(addrBook *AddrBook, seeds []string) error {
-	// permute the list, dial them in random order.
-	netAddrs, err := NewNetAddressStrings(seeds)
-	if err != nil {
-		return err
-	}
-
-	if addrBook != nil {
-		// add seeds to `addrBook`
-		ourAddrS := sw.nodeInfo.ListenAddr
-		ourAddr, _ := NewNetAddressString(ourAddrS)
-		for _, netAddr := range netAddrs {
-			// do not add ourselves
-			if netAddr.Equals(ourAddr) {
-				continue
-			}
-			addrBook.AddAddress(netAddr, ourAddr)
-		}
-		addrBook.Save()
-	}
-	var perm []int
-
-	if len(sw.genesisBytes) != 0 {
-		perm = rand.Perm(len(seeds))
-	} else {
-		perm = rand.Perm(len(seeds) - 1)
-		for x := range perm {
-			perm[x]++
-		}
-		netAddr, err := NewNetAddressString(seeds[0])
-		if err != nil {
-			sw.logger.Error("fail to new net address string", zap.String("seed", seeds[0]), zap.Error(err))
-			return err
-		}
-		if err = sw.downloadGenesisDialSeed(netAddr); err != nil {
-			sw.logger.Error("fail to download genesis", zap.Error(err))
-			return err
-		}
-	}
-
-	for i := 0; i < len(perm); i++ {
-		go func(i int) {
-			time.Sleep(time.Duration(rand.Int63n(3000)) * time.Millisecond)
-			j := perm[i]
-			addr, err := NewNetAddressString(seeds[j])
-			if err != nil {
-				sw.logger.Error("Error to net address string", zap.Error(err))
-			}
-			sw.dialSeed(addr)
-		}(i)
-	}
-	return nil
-}
-
-func (sw *Switch) dialSeed(addr *NetAddress) {
-	peer, err := sw.DialPeerWithAddress(addr)
-	if err != nil {
-		sw.logger.Error("Error dialing seed", zap.String("error", err.Error()))
-		return
-	}
-	sw.logger.Info("Connected to seed", zap.Stringer("peer", peer))
-}
-
-func (sw *Switch) downloadGenesisDialSeed(addr *NetAddress) error {
-	sw.dialing.Set(addr.IP.String(), addr)
-	defer sw.dialing.Delete(addr.IP.String())
-
-	conn, err := addr.DialTimeout(time.Duration(sw.config.GetInt(configKeyDialTimeoutSeconds)) * time.Second)
-	if err != nil {
-		sw.logger.Debug("Failed dialing address", zap.Stringer("address", addr), zap.String("error", err.Error()))
-		return err
-	}
-
-	if _, err := conn.Write([]byte{ConnActionGen}); err != nil {
-		return err
-	}
-	recv := make([]byte, 1024*1024*4)
-	rn, err := conn.Read(recv)
-	if err != nil {
-		return err
-	}
-	bytes := recv[:rn]
-	if err := sw.genesisUnmarshal(bytes); err != nil {
-		return err
-	}
-	sw.genesisBytes = bytes
-
-	if _, err := conn.Write([]byte{ConnActionP2P}); err != nil {
-		return err
-	}
-
-	if sw.config.GetBool(configFuzzEnable) {
-		conn = FuzzConn(sw.config, conn)
-	}
-	peer, err := sw.AddPeerWithConnection(conn, true)
-	if err != nil {
-		sw.slogger.Debugw("Failed adding peer", "address", addr, "conn", conn, "error", err)
-		return err
-	}
-	sw.logger.Info("Dialed and added peer", zap.Stringer("address", addr), zap.Stringer("peer", peer))
-
-	return nil
-}
-
 func (sw *Switch) SetGenesisUnmarshal(cb func([]byte) error) {
 	sw.genesisUnmarshal = cb
 }
@@ -501,7 +393,7 @@ func (sw *Switch) DialPeerWithAddress(addr *NetAddress) (*Peer, error) {
 	sw.dialing.Set(addr.IP.String(), addr)
 	defer sw.dialing.Delete(addr.IP.String())
 
-	conn, err := addr.DialTimeout(time.Duration(sw.config.GetInt(configKeyDialTimeoutSeconds)) * time.Second)
+	conn, err := addr.DialTimeout(time.Duration(sw.config.GetInt(ConfigKeyDialTimeoutSeconds)) * time.Second)
 	if err != nil {
 		sw.logger.Debug("Failed dialing address", zap.Stringer("address", addr), zap.String("error", err.Error()))
 		return nil, err
@@ -509,7 +401,7 @@ func (sw *Switch) DialPeerWithAddress(addr *NetAddress) (*Peer, error) {
 	if _, err := conn.Write([]byte{ConnActionP2P}); err != nil {
 		return nil, err
 	}
-	if sw.config.GetBool(configFuzzEnable) {
+	if sw.config.GetBool(ConfigFuzzEnable) {
 		conn = FuzzConn(sw.config, conn)
 	}
 	peer, err := sw.AddPeerWithConnection(conn, true)
@@ -608,12 +500,18 @@ func (sw *Switch) removePeerFromReactors(peer *Peer, reason interface{}) {
 }
 
 func (sw *Switch) listenerRoutine(l Listener) {
+	defer func (){
+		if r := recover(); r != nil {
+			fmt.Println("recover in switch, panic: ", r)
+		}
+	}()
 OUTER:
 	for {
 		inConn, ok := <-l.Connections()
 		if !ok {
 			break
 		}
+		sw.logger.Debug(fmt.Sprintf("incoming conn with network: %s, url: %s", inConn.RemoteAddr().Network(), inConn.RemoteAddr().String()))
 
 		// before any further actions, we can do something with the connection which is not part of the p2p protocol
 		recv := make([]byte, 4096)
@@ -628,12 +526,15 @@ OUTER:
 			switch bytes[0] {
 			case ConnActionP2P:
 				// ignore connection if we already have enough
-				maxPeers := sw.config.GetInt(configKeyMaxNumPeers)
-				if maxPeers <= sw.peers.Size() {
+				maxPeers := sw.config.GetInt(ConfigKeyMaxNumPeers)
+				// disconnect if we alrady have 2 * MaxNumPeers, we do this because we wanna address book get exchanged even if
+				// the connect is full. The pex will disconnect the peer after address exchange, the max connected peer won't
+				// be double of MaxNumPeers
+				if maxPeers*2 <= sw.peers.Size() {
 					sw.logger.Debug("Ignoring inbound connection: already have enough peers", zap.Stringer("address", inConn.RemoteAddr()), zap.Int("numPeers", sw.peers.Size()), zap.Int("max", maxPeers))
 					continue OUTER
 				}
-				if sw.config.GetBool(configFuzzEnable) {
+				if sw.config.GetBool(ConfigFuzzEnable) {
 					inConn = FuzzConn(sw.config, inConn)
 				}
 				// New inbound connection!

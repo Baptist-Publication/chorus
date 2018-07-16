@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/Baptist-Publication/chorus/angine"
 	agtypes "github.com/Baptist-Publication/chorus/angine/types"
@@ -274,7 +275,7 @@ func (app *App) OnCommit(height, round def.INT, block *agtypes.BlockCache) (inte
 	app.receipts = app.receipts[:0]
 
 	fmt.Println("height:", height, "share account size:", app.ShareState.Size(),
-		"Txs:", len(block.Data.Txs), "ExTxs:", len(block.Data.ExTxs))
+		"Txs:", len(block.Data.Txs), "ExTxs:", len(block.Data.ExTxs), time.Now().Format("20060102T15:04:05"))
 	// fmt.Printf("appHash:%X\n", lb.AppHash())
 
 	return agtypes.CommitResult{
